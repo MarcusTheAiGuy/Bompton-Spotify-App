@@ -445,6 +445,21 @@ export async function getDevices(
   return spotifyFetch<{ devices: SpotifyDevice[] }>(userId, "/me/player/devices");
 }
 
+export type SpotifyQueueItem = SpotifyTrack | SpotifyEpisode;
+
+export type SpotifyQueue = {
+  currently_playing: SpotifyQueueItem | null;
+  queue: SpotifyQueueItem[];
+};
+
+export async function getQueue(userId: string): Promise<SpotifyQueue> {
+  const result = await spotifyFetch<SpotifyQueue | undefined>(
+    userId,
+    "/me/player/queue",
+  );
+  return result ?? { currently_playing: null, queue: [] };
+}
+
 export async function getRecentlyPlayed(
   userId: string,
   limit = 50,
@@ -523,6 +538,50 @@ export async function getPlaylists(
     userId,
     `/me/playlists?limit=${limit}`,
   );
+}
+
+async function containsBatch(
+  userId: string,
+  path: string,
+  ids: string[],
+  batchSize = 50,
+): Promise<boolean[]> {
+  if (ids.length === 0) return [];
+  const out: boolean[] = [];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const chunk = ids.slice(i, i + batchSize);
+    const separator = path.includes("?") ? "&" : "?";
+    const response = await spotifyFetch<boolean[]>(
+      userId,
+      `${path}${separator}ids=${chunk.join(",")}`,
+    );
+    out.push(...response);
+  }
+  return out;
+}
+
+export function checkSavedTracks(userId: string, ids: string[]) {
+  return containsBatch(userId, "/me/tracks/contains", ids);
+}
+
+export function checkSavedAlbums(userId: string, ids: string[]) {
+  return containsBatch(userId, "/me/albums/contains", ids, 20);
+}
+
+export function checkSavedShows(userId: string, ids: string[]) {
+  return containsBatch(userId, "/me/shows/contains", ids);
+}
+
+export function checkSavedEpisodes(userId: string, ids: string[]) {
+  return containsBatch(userId, "/me/episodes/contains", ids);
+}
+
+export function checkSavedAudiobooks(userId: string, ids: string[]) {
+  return containsBatch(userId, "/me/audiobooks/contains", ids);
+}
+
+export function checkFollowedArtists(userId: string, ids: string[]) {
+  return containsBatch(userId, "/me/following/contains?type=artist", ids);
 }
 
 export async function getAudioFeaturesBatch(
