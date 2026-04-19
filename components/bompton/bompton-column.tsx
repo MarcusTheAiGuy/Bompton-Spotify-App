@@ -72,11 +72,14 @@ export function BomptonColumn({
         <div className="aspect-square w-full rounded bg-spotify-highlight" />
       )}
       <div>
-        {isCurrent ? (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-green">
-            Current season
-          </p>
-        ) : null}
+        <p
+          className={
+            "text-[10px] font-bold uppercase tracking-widest " +
+            (isCurrent ? "text-spotify-green" : "text-spotify-subtext/60")
+          }
+        >
+          {isCurrent ? "Current season" : "Past season"}
+        </p>
         <h3 className="text-lg font-extrabold tracking-tight">
           {playlist.name}
         </h3>
@@ -95,9 +98,23 @@ export function BomptonColumn({
         hasRealData={hasRealTracks}
       />
 
-      <SpotifyEmbed type="playlist" id={playlist.id} height={420} />
+      <SpotifyEmbed
+        type="playlist"
+        id={playlist.id}
+        height={embedHeightForTrackCount(playlist.tracks?.total ?? 0)}
+      />
     </article>
   );
+}
+
+// Spotify's embed renders ~56px per track row on top of a ~152px
+// header (cover + playback controls). Compute a height that fits the
+// whole playlist with a generous minimum for very short lists.
+function embedHeightForTrackCount(trackCount: number): number {
+  const base = 160;
+  const perRow = 56;
+  const min = 480;
+  return Math.max(min, base + trackCount * perRow);
 }
 
 function ContributorPanel({
