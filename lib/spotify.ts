@@ -519,6 +519,46 @@ export async function getPlaylists(
   );
 }
 
+export type SpotifyPlaylistTrack = {
+  added_at: string;
+  added_by: {
+    id: string;
+    display_name?: string | null;
+    uri?: string;
+    external_urls?: SpotifyExternalUrls;
+  } | null;
+  is_local: boolean;
+  track: SpotifyTrack | null;
+};
+
+export async function getPlaylistTracks(
+  userId: string,
+  playlistId: string,
+  max = 500,
+): Promise<{ items: SpotifyPlaylistTrack[]; total: number; truncated: boolean }> {
+  const items: SpotifyPlaylistTrack[] = [];
+  let total = 0;
+  let path: string | null = `/playlists/${playlistId}/tracks?limit=100`;
+  while (path && items.length < max) {
+    const page: SpotifyPaged<SpotifyPlaylistTrack> = await spotifyFetch<
+      SpotifyPaged<SpotifyPlaylistTrack>
+    >(userId, path);
+    items.push(...page.items);
+    total = page.total;
+    if (page.next) {
+      const nextUrl = new URL(page.next);
+      path = `${nextUrl.pathname.replace(/^\/v1/, "")}${nextUrl.search}`;
+    } else {
+      path = null;
+    }
+  }
+  return {
+    items: items.slice(0, max),
+    total,
+    truncated: total > items.length || items.length > max,
+  };
+}
+
 async function containsBatch(
   userId: string,
   path: string,
