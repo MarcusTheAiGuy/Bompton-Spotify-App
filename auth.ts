@@ -3,7 +3,6 @@ import Spotify from "next-auth/providers/spotify";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import { isAllowed } from "@/lib/allowlist";
-import { recordAuthLog } from "@/lib/auth-log";
 
 const SPOTIFY_SCOPES = [
   "user-read-email",
@@ -30,7 +29,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "database" },
   secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
   trustHost: true,
-  debug: true,
   providers: [
     Spotify({
       clientId: process.env.SPOTIFY_CLIENT_ID,
@@ -47,37 +45,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   logger: {
     error(error) {
-      const payload = {
+      console.error("[auth.error]", {
         name: error.name,
         message: error.message,
         cause:
           error.cause instanceof Error
             ? { name: error.cause.name, message: error.cause.message }
             : error.cause,
-        stack: error.stack,
-      };
-      console.error("[auth.error]", payload);
-      recordAuthLog({
-        level: "error",
-        at: new Date().toISOString(),
-        ...payload,
-      });
-    },
-    warn(code) {
-      console.warn("[auth.warn]", code);
-      recordAuthLog({
-        level: "warn",
-        at: new Date().toISOString(),
-        message: code,
-      });
-    },
-    debug(message, metadata) {
-      console.log("[auth.debug]", message, metadata);
-      recordAuthLog({
-        level: "debug",
-        at: new Date().toISOString(),
-        message,
-        metadata,
       });
     },
   },

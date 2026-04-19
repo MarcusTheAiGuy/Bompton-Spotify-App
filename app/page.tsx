@@ -109,10 +109,11 @@ function MissingEnvBanner() {
       {unhealthy.length === 0 ? (
         <p className="mt-1">
           All required env vars are present and the right shape. The
-          Configuration error is coming from somewhere else — hit{" "}
-          <code className="font-mono">/api/debug/auth</code> for the live
-          server-side details (request host, NEXTAUTH_URL, and the actual
-          auth() error if any).
+          Configuration error is coming from somewhere else — check the Vercel
+          function logs for the most recent <code className="font-mono">[auth.error]</code>{" "}
+          entry; that's Auth.js's underlying exception (commonly a stale{" "}
+          <code className="font-mono">NEXTAUTH_URL</code> or an adapter
+          problem).
         </p>
       ) : (
         <p className="mt-1">

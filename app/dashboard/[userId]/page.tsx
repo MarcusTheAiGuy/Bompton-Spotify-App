@@ -46,6 +46,7 @@ import {
   ShowGrid,
 } from "@/components/spotify/show-grid";
 import { PlaylistGrid } from "@/components/spotify/playlist-grid";
+import { CollapsibleSection } from "@/components/spotify/collapsible-section";
 import {
   AudioFeatureAverages,
   GenreDistribution,
@@ -225,12 +226,11 @@ async function renderDashboard(userId: string) {
         )}
       </div>
 
-      <div className="flex flex-col gap-4">
-        <SectionHeader
-          eyebrow="Devices"
-          title="Available devices"
-          subtitle="Anything Spotify currently sees online for this account."
-        />
+      <CollapsibleSection
+        eyebrow="Devices"
+        title="Available devices"
+        subtitle="Anything Spotify currently sees online for this account."
+      >
         {devicesResult.error ? (
           <SpotifyErrorBanner
             title={devicesResult.error.title}
@@ -239,14 +239,13 @@ async function renderDashboard(userId: string) {
         ) : (
           <DeviceList devices={devicesResult.value.devices} />
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className="flex flex-col gap-4">
-        <SectionHeader
-          eyebrow="History"
-          title="Recently played"
-          subtitle="Last 50 tracks Spotify has on record for this account."
-        />
+      <CollapsibleSection
+        eyebrow="History"
+        title="Recently played"
+        subtitle="Last 50 tracks Spotify has on record for this account."
+      >
         {recentResult.error ? (
           <SpotifyErrorBanner
             title={recentResult.error.title}
@@ -255,14 +254,13 @@ async function renderDashboard(userId: string) {
         ) : (
           <RecentlyPlayed items={recentResult.value.items} />
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className="flex flex-col gap-8">
-        <SectionHeader
-          eyebrow="Listening"
-          title="Top tracks"
-          subtitle="Up to 50 per time range, straight from /me/top/tracks."
-        />
+      <CollapsibleSection
+        eyebrow="Listening"
+        title="Top tracks"
+        subtitle="Up to 50 per time range, straight from /me/top/tracks."
+      >
         {TIME_RANGES.map(({ key, label }) => (
           <RangeSection
             key={`tracks-${key}`}
@@ -274,14 +272,13 @@ async function renderDashboard(userId: string) {
             emptyFallbackTitle="Top tracks unavailable"
           />
         ))}
-      </div>
+      </CollapsibleSection>
 
-      <div className="flex flex-col gap-8">
-        <SectionHeader
-          eyebrow="Listening"
-          title="Top artists"
-          subtitle="Up to 50 per time range, with Spotify-assigned genres and popularity."
-        />
+      <CollapsibleSection
+        eyebrow="Listening"
+        title="Top artists"
+        subtitle="Up to 50 per time range, with Spotify-assigned genres and popularity."
+      >
         {TIME_RANGES.map(({ key, label }) => (
           <RangeSection
             key={`artists-${key}`}
@@ -293,14 +290,13 @@ async function renderDashboard(userId: string) {
             emptyFallbackTitle="Top artists unavailable"
           />
         ))}
-      </div>
+      </CollapsibleSection>
 
-      <div className="flex flex-col gap-8">
-        <SectionHeader
-          eyebrow="Derived"
-          title="Listening patterns"
-          subtitle="Aggregates computed locally from the top-items responses above."
-        />
+      <CollapsibleSection
+        eyebrow="Derived"
+        title="Listening patterns"
+        subtitle="Aggregates computed locally from the top-items responses above."
+      >
         <PopularityStats tracks={unionTracks} artists={unionArtists} />
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-spotify-subtext">
@@ -327,14 +323,13 @@ async function renderDashboard(userId: string) {
             <AudioFeatureAverages features={audioFeaturesResult.value} />
           )}
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="flex flex-col gap-8">
-        <SectionHeader
-          eyebrow="Library"
-          title="Saved content"
-          subtitle="First 50 items of each saved collection."
-        />
+      <CollapsibleSection
+        eyebrow="Library"
+        title="Saved content"
+        subtitle="First 50 items of each saved collection."
+      >
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-spotify-subtext">
             Saved tracks
@@ -400,14 +395,13 @@ async function renderDashboard(userId: string) {
             <AudiobookGrid items={savedAudiobooksResult.value.items} />
           )}
         </div>
-      </div>
+      </CollapsibleSection>
 
-      <div className="flex flex-col gap-4">
-        <SectionHeader
-          eyebrow="Following"
-          title="Followed artists"
-          subtitle="Up to 50 artists, fetched from /me/following."
-        />
+      <CollapsibleSection
+        eyebrow="Following"
+        title="Followed artists"
+        subtitle="Up to 50 artists, fetched from /me/following."
+      >
         {followedArtistsResult.error ? (
           <SpotifyErrorBanner
             title={followedArtistsResult.error.title}
@@ -416,14 +410,13 @@ async function renderDashboard(userId: string) {
         ) : (
           <ArtistGrid artists={followedArtistsResult.value.artists.items} />
         )}
-      </div>
+      </CollapsibleSection>
 
-      <div className="flex flex-col gap-4">
-        <SectionHeader
-          eyebrow="Library"
-          title="Playlists"
-          subtitle="Owned and followed playlists (up to 50)."
-        />
+      <CollapsibleSection
+        eyebrow="Library"
+        title="Playlists"
+        subtitle="Owned and followed playlists (up to 50)."
+      >
         {playlistsResult.error ? (
           <SpotifyErrorBanner
             title={playlistsResult.error.title}
@@ -432,7 +425,7 @@ async function renderDashboard(userId: string) {
         ) : (
           <PlaylistGrid playlists={playlistsResult.value.items} />
         )}
-      </div>
+      </CollapsibleSection>
     </section>
   );
 }
