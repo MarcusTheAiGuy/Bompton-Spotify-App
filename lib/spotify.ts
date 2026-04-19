@@ -538,7 +538,13 @@ export async function getPlaylistTracks(
 ): Promise<{ items: SpotifyPlaylistTrack[]; total: number; truncated: boolean }> {
   const items: SpotifyPlaylistTrack[] = [];
   let total = 0;
-  let path: string | null = `/playlists/${playlistId}/tracks?limit=100`;
+  // Spotify requires additional_types when the caller may receive non-track
+  // items (podcasts) in a playlist — without it, some playlists return 403.
+  // market=from_token applies user-country-aware Track Relinking so
+  // region-restricted items resolve instead of erroring out.
+  const initialQuery =
+    "limit=100&additional_types=track,episode&market=from_token";
+  let path: string | null = `/playlists/${playlistId}/tracks?${initialQuery}`;
   while (path && items.length < max) {
     const page: SpotifyPaged<SpotifyPlaylistTrack> = await spotifyFetch<
       SpotifyPaged<SpotifyPlaylistTrack>
