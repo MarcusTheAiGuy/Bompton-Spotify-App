@@ -451,7 +451,10 @@ async function renderDashboard(userId: string) {
             detail={playlistsResult.error.detail}
           />
         ) : (
-          <PlaylistGrid playlists={playlistsResult.value.items} />
+          <PlaylistGrid
+            playlists={playlistsResult.value.items}
+            forUserId={userId}
+          />
         )}
       </CollapsibleSection>
     </section>
