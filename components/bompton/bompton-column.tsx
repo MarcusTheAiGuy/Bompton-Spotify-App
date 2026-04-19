@@ -102,25 +102,20 @@ export function BomptonColumn({
         type="playlist"
         id={playlist.id}
         height={embedHeightForTrackCount(playlist.tracks?.total ?? 0)}
+        note="Spotify's embedded player caps at 100 tracks. Open in Spotify to see the rest of the playlist."
       />
     </article>
   );
 }
 
 // Spotify's embed renders ~56px per track row on top of a ~160px
-// header (cover + playback controls). Ideally we'd size each embed to
-// exactly the track count — but Spotify lies about tracks.total for
-// playlists shared via the new invite-collaborators flow (returns 0),
-// so we can't trust it. Default to 210-track sizing so the longest
-// Bompton playlist (~209 tracks) fits entirely without iframe scroll;
-// shorter seasons just have some blank space at the bottom.
-function embedHeightForTrackCount(trackCount: number): number {
+// header, and caps the visible list at 100 tracks regardless of
+// iframe height. Size to exactly 100 rows' worth so we don't leave
+// blank space below the last row on the bigger playlists.
+function embedHeightForTrackCount(_trackCount: number): number {
   const base = 160;
   const perRow = 56;
-  const min = 800;
-  const max = 12000;
-  const effectiveCount = trackCount > 0 ? trackCount : 210;
-  return Math.min(max, Math.max(min, base + effectiveCount * perRow));
+  return base + 100 * perRow;
 }
 
 function ContributorPanel({
