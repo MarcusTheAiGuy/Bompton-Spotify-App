@@ -61,18 +61,39 @@ export default async function LandingPage({
   );
 }
 
+const ERROR_MESSAGES: Record<string, string> = {
+  AccessDenied:
+    "That Spotify account isn't on the Bompton allowlist. Ask the crew to add your email.",
+  Configuration:
+    "Auth is misconfigured on the server. Check that SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, NEXTAUTH_SECRET, and DATABASE_URL are all set.",
+  OAuthSignin:
+    "Couldn't start the Spotify sign-in. Usually a missing client ID/secret.",
+  OAuthCallback:
+    "Spotify rejected the callback. Most often the redirect URI for this domain isn't registered in the Spotify dashboard.",
+  OAuthCreateAccount:
+    "Couldn't save your account. The database is probably unreachable or the schema hasn't been pushed (`npm run db:push`).",
+  OAuthAccountNotLinked:
+    "This email is already linked to a different sign-in. Use the original Spotify account.",
+  Callback:
+    "The OAuth callback failed. Check the server logs for details.",
+  SessionRequired:
+    "You need to be signed in to view that page.",
+};
+
 function AuthErrorBanner({ error }: { error: string }) {
   const message =
-    error === "AccessDenied"
-      ? "That Spotify account isn't on the Bompton allowlist. Ask the crew to add your email."
-      : "Something went wrong signing you in. Try again, or ping the crew if it keeps happening.";
+    ERROR_MESSAGES[error] ??
+    "Something went wrong signing you in. Try again, or ping the crew if it keeps happening.";
 
   return (
     <div
       role="alert"
-      className="w-full max-w-md rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+      className="w-full max-w-md rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-left text-sm text-red-200"
     >
-      {message}
+      <p>{message}</p>
+      <p className="mt-2 text-xs text-red-300/80">
+        Error code: <code className="font-mono">{error}</code>
+      </p>
     </div>
   );
 }
