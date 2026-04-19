@@ -7,8 +7,8 @@ played, a shared weekly recap, and the Bompton Playlist.
 ## Stack
 - Next.js 15 (App Router) + TypeScript
 - Tailwind CSS with a Spotify-inspired palette
-- Auth.js (NextAuth v5) with the Spotify provider *(wired up in PR #2)*
-- Prisma + Neon Postgres *(wired up in PR #2)*
+- Auth.js (NextAuth v5) with the Spotify provider
+- Prisma + Neon Postgres
 - Deployed on Vercel
 
 ## Getting started
@@ -16,6 +16,7 @@ played, a shared weekly recap, and the Bompton Playlist.
 ```bash
 npm install
 cp .env.example .env.local   # fill in values
+npm run db:push              # create tables in your Neon DB
 npm run dev
 ```
 
@@ -43,7 +44,7 @@ Push to `main` → Vercel auto-deploys. Preview deploys are created for each PR.
 
 ## Roadmap
 1. ✅ Scaffold + landing + placeholder playlist page
-2. Auth (Spotify OAuth + email allowlist) + `/dashboard` skeleton
+2. ✅ Auth (Spotify OAuth + email allowlist) + `/dashboard` skeleton
 3. Personal data on `/dashboard`
 4. `/friends` + compatibility meter
 5. Weekly recap + nightly cron snapshots
