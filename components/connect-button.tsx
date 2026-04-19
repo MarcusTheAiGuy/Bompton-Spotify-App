@@ -1,11 +1,18 @@
-import Link from "next/link";
+import { signIn } from "@/auth";
 
 export function ConnectButton() {
   return (
-    <Link href="/api/auth/signin" className="btn-spotify">
-      <SpotifyGlyph />
-      Connect Spotify
-    </Link>
+    <form
+      action={async () => {
+        "use server";
+        await signIn("spotify", { redirectTo: "/dashboard" });
+      }}
+    >
+      <button type="submit" className="btn-spotify">
+        <SpotifyGlyph />
+        Connect Spotify
+      </button>
+    </form>
   );
 }
 

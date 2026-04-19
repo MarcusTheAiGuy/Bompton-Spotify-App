@@ -1,7 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { ConnectButton } from "@/components/connect-button";
 
-export default function LandingPage() {
+type SearchParams = Promise<{ error?: string }>;
+
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const session = await auth();
+  if (session?.user) redirect("/dashboard");
+
+  const { error } = await searchParams;
+
   return (
     <section className="flex flex-col items-center gap-10 py-20 text-center">
       <div className="flex flex-col items-center gap-4">
@@ -16,6 +29,8 @@ export default function LandingPage() {
           tracks, top artists, recently played, and the Bompton Playlist.
         </p>
       </div>
+
+      {error ? <AuthErrorBanner error={error} /> : null}
 
       <div className="flex flex-col items-center gap-3">
         <ConnectButton />
@@ -43,6 +58,22 @@ export default function LandingPage() {
         />
       </div>
     </section>
+  );
+}
+
+function AuthErrorBanner({ error }: { error: string }) {
+  const message =
+    error === "AccessDenied"
+      ? "That Spotify account isn't on the Bompton allowlist. Ask the crew to add your email."
+      : "Something went wrong signing you in. Try again, or ping the crew if it keeps happening.";
+
+  return (
+    <div
+      role="alert"
+      className="w-full max-w-md rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
+    >
+      {message}
+    </div>
   );
 }
 
