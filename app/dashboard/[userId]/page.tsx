@@ -367,7 +367,8 @@ async function renderDashboard(userId: string) {
           {audioFeaturesResult.error ? (
             <SpotifyErrorBanner
               title={audioFeaturesResult.error.title}
-              detail={`${audioFeaturesResult.error.detail}\n\n(Note: Spotify deprecated /audio-features for new apps in late 2024. If this 403s, that's why — we can't fix it from the client side.)`}
+              detail={audioFeaturesResult.error.detail}
+              tone="muted"
             />
           ) : (
             <AudioFeatureAverages features={audioFeaturesResult.value} />
