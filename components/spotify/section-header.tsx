@@ -30,19 +30,24 @@ export function SectionHeader({
 export function SpotifyErrorBanner({
   title,
   detail,
+  tone = "error",
 }: {
   title: string;
   detail: string;
+  tone?: "error" | "muted";
 }) {
+  const wrapper =
+    tone === "muted"
+      ? "rounded-lg border border-spotify-border bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext"
+      : "rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200";
+  const detailCls =
+    tone === "muted"
+      ? "mt-1 whitespace-pre-wrap font-mono text-xs opacity-80"
+      : "mt-1 whitespace-pre-wrap font-mono text-xs text-red-300/80";
   return (
-    <div
-      role="alert"
-      className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
-    >
+    <div role={tone === "muted" ? "status" : "alert"} className={wrapper}>
       <p className="font-semibold">{title}</p>
-      <p className="mt-1 whitespace-pre-wrap font-mono text-xs text-red-300/80">
-        {detail}
-      </p>
+      <p className={detailCls}>{detail}</p>
     </div>
   );
 }

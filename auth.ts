@@ -5,12 +5,23 @@ import { prisma } from "@/lib/prisma";
 import { isAllowed } from "@/lib/allowlist";
 
 const SPOTIFY_SCOPES = [
+  // Profile
   "user-read-email",
   "user-read-private",
+  // Top items
   "user-top-read",
+  // Player state
   "user-read-recently-played",
   "user-read-currently-playing",
   "user-read-playback-state",
+  "user-read-playback-position",
+  // Saved library (/me/tracks, /me/albums, /me/shows, /me/episodes, /me/audiobooks)
+  "user-library-read",
+  // Followed artists (/me/following)
+  "user-follow-read",
+  // Playlists (/me/playlists, including collaborative ones)
+  "playlist-read-private",
+  "playlist-read-collaborative",
 ].join(" ");
 
 declare module "next-auth" {
