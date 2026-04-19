@@ -19,14 +19,12 @@ export function BomptonColumn({
   crew,
   tracks,
   isCurrent,
-  diagnostic,
 }: {
   year: BomptonYear;
   playlist: SpotifyPlaylist | null;
   crew: CrewMember[];
   tracks: SpotifyPlaylistTrack[] | null;
   isCurrent: boolean;
-  diagnostic?: BomptonColumnDiagnostic;
 }) {
   if (!playlist) {
     return (
@@ -100,8 +98,6 @@ export function BomptonColumn({
         hasRealData={hasRealTracks}
       />
 
-      {diagnostic ? <DiagnosticPanel data={diagnostic} /> : null}
-
       <SpotifyEmbed
         type="playlist"
         id={playlist.id}
@@ -111,57 +107,19 @@ export function BomptonColumn({
   );
 }
 
-export type BomptonColumnDiagnostic = {
-  playlistId: string;
-  public: boolean | null;
-  collaborative: boolean;
-  owner: { id: string; display_name: string | null } | null;
-  totalTracks: number;
-  itemsReturned: number;
-  itemsWithTrack: number;
-  fetchSource: "tracks" | "playlist" | "failed";
-  fetchError?: { title: string; detail: string };
-};
-
-function DiagnosticPanel({ data }: { data: BomptonColumnDiagnostic }) {
-  return (
-    <div className="flex flex-col gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-      <p className="font-bold uppercase tracking-widest">API diagnostic</p>
-      <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono text-[11px]">
-        <dt className="text-amber-300/70">collaborative</dt>
-        <dd>{String(data.collaborative)}</dd>
-        <dt className="text-amber-300/70">public</dt>
-        <dd>{data.public === null ? "null" : String(data.public)}</dd>
-        <dt className="text-amber-300/70">owner.id</dt>
-        <dd className="truncate" title={data.owner?.id ?? "—"}>
-          {data.owner?.id ?? "—"}
-        </dd>
-        <dt className="text-amber-300/70">tracks.total</dt>
-        <dd>{data.totalTracks}</dd>
-        <dt className="text-amber-300/70">items returned</dt>
-        <dd>{data.itemsReturned}</dd>
-        <dt className="text-amber-300/70">items with track</dt>
-        <dd>{data.itemsWithTrack}</dd>
-        <dt className="text-amber-300/70">fetch source</dt>
-        <dd>{data.fetchSource}</dd>
-      </dl>
-      {data.fetchError ? (
-        <p className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-amber-300/80">
-          {data.fetchError.title}: {data.fetchError.detail}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-// Spotify's embed renders ~56px per track row on top of a ~152px
-// header (cover + playback controls). Compute a height that fits the
-// whole playlist with a generous minimum for very short lists.
+// Spotify's embed renders ~56px per track row on top of a ~160px
+// header (cover + playback controls). Ideally we'd size each embed to
+// exactly the track count — but Spotify lies about tracks.total for
+// playlists shared via the new invite-collaborators flow (returns 0),
+// so we can't trust it. Fall back to a big default that shows a full
+// screen of tracks; anything longer users can scroll inside the iframe.
 function embedHeightForTrackCount(trackCount: number): number {
   const base = 160;
   const perRow = 56;
-  const min = 480;
-  return Math.max(min, base + trackCount * perRow);
+  const min = 800;
+  const max = 2400;
+  const effectiveCount = trackCount > 0 ? trackCount : 30;
+  return Math.min(max, Math.max(min, base + effectiveCount * perRow));
 }
 
 function ContributorPanel({
