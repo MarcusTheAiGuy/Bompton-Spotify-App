@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, handlers } from "@/auth";
 import { checkRequiredEnv } from "@/lib/env-check";
+import { clearAuthLog, getAuthLog } from "@/lib/auth-log";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +28,10 @@ export async function GET(request: Request) {
         : String(error);
   }
 
+  clearAuthLog();
   const providersProbe = await probeHandler(request, "providers");
   const signinProbe = await probeHandler(request, "signin/spotify");
+  const capturedAuthLog = getAuthLog();
 
   let prismaProbe: { ok: boolean; userCount?: number; error?: unknown } = {
     ok: false,
@@ -64,6 +67,7 @@ export async function GET(request: Request) {
       auth: authProbe,
       providersHandler: providersProbe,
       signinHandler: signinProbe,
+      authLogDuringProbes: capturedAuthLog,
       prisma: prismaProbe,
       expectedSpotifyCallback: `${request.headers.get("x-forwarded-proto") ?? "https"}://${request.headers.get("host")}/api/auth/callback/spotify`,
     },
