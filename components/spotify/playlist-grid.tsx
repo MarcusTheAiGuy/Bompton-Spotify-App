@@ -8,6 +8,7 @@ import {
   type SpotifyTrack,
 } from "@/lib/spotify";
 import { TrackList } from "@/components/spotify/track-list";
+import { SpotifyEmbed } from "@/components/spotify/spotify-embed";
 
 type TracksState =
   | { status: "idle" }
@@ -48,26 +49,13 @@ export function PlaylistGrid({
   );
 }
 
-function SpotifyEmbed({ playlistId }: { playlistId: string }) {
+function EmbedFallback({ playlistId }: { playlistId: string }) {
   return (
-    <div className="flex flex-col gap-2">
-      <iframe
-        src={`https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator&theme=0`}
-        width="100%"
-        height="380"
-        frameBorder={0}
-        loading="lazy"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        className="rounded-lg"
-        title="Spotify playlist embed"
-      />
-      <p className="text-xs text-spotify-subtext">
-        Showing Spotify's embedded player because their API isn't returning
-        track data for this app's quota tier. Apply for Extended Quota Mode
-        in the Spotify developer dashboard if you want the native track
-        list (plus aggregates, genre mixes, etc.).
-      </p>
-    </div>
+    <SpotifyEmbed
+      type="playlist"
+      id={playlistId}
+      note="Showing Spotify's embedded player because their API isn't returning track data for this app's quota tier. Apply for Extended Quota Mode in the Spotify developer dashboard if you want the native track list (plus aggregates, genre mixes, etc.)."
+    />
   );
 }
 
@@ -246,7 +234,7 @@ function PlaylistTracksView({
             Retry
           </button>
         </div>
-        <SpotifyEmbed playlistId={playlistId} />
+        <EmbedFallback playlistId={playlistId} />
       </div>
     );
   }
@@ -255,7 +243,7 @@ function PlaylistTracksView({
       .map((item) => item.track)
       .filter((t): t is SpotifyTrack => Boolean(t));
     if (tracks.length === 0) {
-      return <SpotifyEmbed playlistId={playlistId} />;
+      return <EmbedFallback playlistId={playlistId} />;
     }
     return (
       <div className="flex flex-col gap-2">
