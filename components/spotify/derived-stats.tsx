@@ -1,0 +1,262 @@
+import type {
+  SpotifyArtist,
+  SpotifyAudioFeatures,
+  SpotifyTrack,
+} from "@/lib/spotify";
+import { formatLongDuration } from "@/lib/spotify";
+
+export function GenreDistribution({
+  artists,
+}: {
+  artists: SpotifyArtist[];
+}) {
+  const counts = new Map<string, number>();
+  for (const artist of artists) {
+    for (const genre of artist.genres) {
+      counts.set(genre, (counts.get(genre) ?? 0) + 1);
+    }
+  }
+  const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+
+  if (entries.length === 0) {
+    return (
+      <p className="rounded-lg bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
+        Spotify didn't attach any genres to the top artists.
+      </p>
+    );
+  }
+
+  const max = entries[0][1];
+
+  return (
+    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {entries.slice(0, 30).map(([genre, count]) => (
+        <li key={genre} className="card flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            <span className="truncate font-semibold" title={genre}>
+              {genre}
+            </span>
+            <span className="font-mono text-xs text-spotify-subtext">
+              {count}×
+            </span>
+          </div>
+          <div className="h-1 w-full overflow-hidden rounded-full bg-spotify-border">
+            <div
+              className="h-full bg-spotify-green"
+              style={{ width: `${(count / max) * 100}%` }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function ReleaseDecadeDistribution({
+  tracks,
+}: {
+  tracks: SpotifyTrack[];
+}) {
+  const counts = new Map<number, number>();
+  for (const track of tracks) {
+    const year = parseInt(track.album.release_date.slice(0, 4), 10);
+    if (Number.isNaN(year)) continue;
+    const decade = Math.floor(year / 10) * 10;
+    counts.set(decade, (counts.get(decade) ?? 0) + 1);
+  }
+  const entries = [...counts.entries()].sort((a, b) => a[0] - b[0]);
+
+  if (entries.length === 0) {
+    return (
+      <p className="rounded-lg bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
+        Not enough release-date info to chart.
+      </p>
+    );
+  }
+
+  const max = Math.max(...entries.map(([, c]) => c));
+
+  return (
+    <div className="card">
+      <ul className="flex items-end gap-2">
+        {entries.map(([decade, count]) => (
+          <li
+            key={decade}
+            className="flex flex-1 flex-col items-center gap-1"
+          >
+            <span className="font-mono text-xs text-spotify-subtext">
+              {count}
+            </span>
+            <div
+              className="w-full rounded bg-spotify-green"
+              style={{ height: `${(count / max) * 120 + 8}px` }}
+              aria-label={`${count} tracks from the ${decade}s`}
+            />
+            <span className="text-xs font-semibold">{`${decade}s`}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function PopularityStats({
+  tracks,
+  artists,
+}: {
+  tracks: SpotifyTrack[];
+  artists: SpotifyArtist[];
+}) {
+  const avgTrack =
+    tracks.length > 0
+      ? tracks.reduce((sum, t) => sum + t.popularity, 0) / tracks.length
+      : 0;
+  const avgArtist =
+    artists.length > 0
+      ? artists.reduce((sum, a) => sum + a.popularity, 0) / artists.length
+      : 0;
+  const totalFollowers = artists.reduce(
+    (sum, a) => sum + a.followers.total,
+    0,
+  );
+  const totalMs = tracks.reduce((sum, t) => sum + t.duration_ms, 0);
+
+  return (
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <StatTile
+        label="Avg track popularity"
+        value={avgTrack.toFixed(1)}
+        suffix="/ 100"
+      />
+      <StatTile
+        label="Avg artist popularity"
+        value={avgArtist.toFixed(1)}
+        suffix="/ 100"
+      />
+      <StatTile
+        label="Top artists' followers"
+        value={totalFollowers.toLocaleString()}
+      />
+      <StatTile
+        label="Top tracks, total runtime"
+        value={formatLongDuration(totalMs)}
+      />
+    </ul>
+  );
+}
+
+function StatTile({
+  label,
+  value,
+  suffix,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+}) {
+  return (
+    <li className="card">
+      <p className="text-xs uppercase tracking-widest text-spotify-subtext">
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-bold tracking-tight">
+        {value}
+        {suffix ? (
+          <span className="ml-1 text-sm text-spotify-subtext">{suffix}</span>
+        ) : null}
+      </p>
+    </li>
+  );
+}
+
+const FEATURES: {
+  key: keyof Pick<
+    SpotifyAudioFeatures,
+    | "danceability"
+    | "energy"
+    | "valence"
+    | "acousticness"
+    | "instrumentalness"
+    | "liveness"
+    | "speechiness"
+  >;
+  label: string;
+  hint: string;
+}[] = [
+  { key: "danceability", label: "Danceability", hint: "higher = easier to dance" },
+  { key: "energy", label: "Energy", hint: "higher = more intense" },
+  { key: "valence", label: "Valence", hint: "higher = happier mood" },
+  {
+    key: "acousticness",
+    label: "Acousticness",
+    hint: "higher = more acoustic",
+  },
+  {
+    key: "instrumentalness",
+    label: "Instrumentalness",
+    hint: "higher = fewer vocals",
+  },
+  { key: "liveness", label: "Liveness", hint: "higher = more live-recorded" },
+  { key: "speechiness", label: "Speechiness", hint: "higher = more talk" },
+];
+
+export function AudioFeatureAverages({
+  features,
+}: {
+  features: SpotifyAudioFeatures[];
+}) {
+  if (features.length === 0) {
+    return (
+      <p className="rounded-lg bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
+        No audio features available.
+      </p>
+    );
+  }
+
+  const avgTempo =
+    features.reduce((sum, f) => sum + f.tempo, 0) / features.length;
+  const avgLoudness =
+    features.reduce((sum, f) => sum + f.loudness, 0) / features.length;
+  const major = features.filter((f) => f.mode === 1).length;
+  const minor = features.length - major;
+
+  const rows = FEATURES.map(({ key, label, hint }) => {
+    const avg =
+      features.reduce((sum, f) => sum + f[key], 0) / features.length;
+    return { key, label, hint, avg };
+  });
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile label="Avg tempo" value={avgTempo.toFixed(1)} suffix="BPM" />
+        <StatTile
+          label="Avg loudness"
+          value={avgLoudness.toFixed(1)}
+          suffix="dB"
+        />
+        <StatTile label="Major key" value={`${major}`} suffix="tracks" />
+        <StatTile label="Minor key" value={`${minor}`} suffix="tracks" />
+      </ul>
+      <ul className="flex flex-col gap-2">
+        {rows.map((row) => (
+          <li key={row.key} className="card">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold">{row.label}</span>
+              <span className="font-mono text-xs text-spotify-subtext">
+                {row.avg.toFixed(2)}{" "}
+                <span className="opacity-60">({row.hint})</span>
+              </span>
+            </div>
+            <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-spotify-border">
+              <div
+                className="h-full bg-spotify-green"
+                style={{ width: `${row.avg * 100}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
