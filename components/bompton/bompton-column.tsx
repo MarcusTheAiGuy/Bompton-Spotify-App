@@ -6,6 +6,11 @@ import type {
   CrewMember,
 } from "@/lib/bompton";
 import { tallyContributors } from "@/lib/bompton";
+
+function shortYear(year: BomptonYear): string {
+  const [start, end] = year.split("-");
+  return `${start}-${end.slice(-2)}`;
+}
 import { SpotifyEmbed } from "@/components/spotify/spotify-embed";
 
 export function BomptonColumn({
@@ -29,9 +34,13 @@ export function BomptonColumn({
           Bompton {year}
         </h3>
         <p className="text-xs text-spotify-subtext">
-          Couldn't find a playlist named "Bompton {year}" in your Spotify
-          library. Make sure the signed-in user follows or owns it and the
-          name includes "Bompton" + "{year}".
+          Couldn't find a Bompton playlist for {year} in the signed-in user's
+          library. The matcher accepts any of these name suffixes:{" "}
+          <code className="font-mono">{year}</code>,{" "}
+          <code className="font-mono">{shortYear(year)}</code>, plus the same
+          with a slash instead of a hyphen — as long as the name also
+          contains "Bompton". Make sure the signed-in user owns or follows
+          (or is a collaborator on) the playlist.
         </p>
       </article>
     );
