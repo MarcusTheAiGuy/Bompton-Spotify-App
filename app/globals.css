@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #121212;
+  color: #ffffff;
+  min-height: 100%;
+}
+
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .btn-spotify {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-spotify-green px-6 py-3 text-sm font-bold uppercase tracking-wide text-black transition hover:bg-spotify-green-hover hover:scale-[1.03] active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-spotify-border bg-transparent px-5 py-2 text-sm font-semibold text-spotify-text transition hover:bg-spotify-highlight;
+  }
+
+  .card {
+    @apply rounded-lg bg-spotify-elevated p-4 transition hover:bg-spotify-highlight;
+  }
+}
