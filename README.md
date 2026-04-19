@@ -2,7 +2,8 @@
 
 A small Next.js site so the Bompton crew can connect their Spotify accounts
 and share what they're listening to — top tracks, top artists, recently
-played, a shared weekly recap, and the Bompton Playlist.
+played, and the Bompton Playlist. Switch between crew members' dashboards
+with the tabs at the top.
 
 ## Stack
 - Next.js 15 (App Router) + TypeScript
@@ -32,7 +33,6 @@ See `.env.example`. In production, set these in the Vercel dashboard.
 | `NEXTAUTH_URL` | `http://localhost:3000` locally; Vercel URL in prod |
 | `DATABASE_URL` | Neon connection string |
 | `ALLOWED_EMAILS` | Comma-separated list of Spotify account emails allowed to sign in |
-| `CRON_SECRET` | Shared secret for the nightly recap cron |
 
 ### Spotify app setup
 Add these redirect URIs in the Spotify dashboard:
@@ -45,7 +45,9 @@ Push to `main` → Vercel auto-deploys. Preview deploys are created for each PR.
 ## Roadmap
 1. ✅ Scaffold + landing + placeholder playlist page
 2. ✅ Auth (Spotify OAuth + email allowlist) + `/dashboard` skeleton
-3. Personal data on `/dashboard`
-4. `/friends` + compatibility meter
-5. Weekly recap + nightly cron snapshots
-6. Polish
+3. Per-user `/dashboard/[userId]` with tabs, Spotify API client, and full profile data
+4. Top tracks + top artists (short / medium / long term)
+5. Recently played + currently playing + playback state
+6. Saved tracks, saved albums, followed artists
+7. Playlists + audio-feature aggregates
+8. Derived listening stats

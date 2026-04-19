@@ -41,14 +41,10 @@ export default async function LandingPage({
         </p>
       </div>
 
-      <div className="mt-8 grid w-full grid-cols-1 gap-4 text-left sm:grid-cols-3">
+      <div className="mt-8 grid w-full grid-cols-1 gap-4 text-left sm:grid-cols-2">
         <FeatureCard
-          title="Your dashboard"
-          body="See your top tracks, artists, and what's spinning right now."
-        />
-        <FeatureCard
-          title="Friends"
-          body="Peek at what everyone else in the crew is listening to."
+          title="The crew's dashboards"
+          body="Your top tracks, top artists, recently played, what's spinning right now — plus tabs at the top to see what everyone else in the crew is listening to."
         />
         <FeatureCard
           title={
