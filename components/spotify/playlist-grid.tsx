@@ -48,6 +48,29 @@ export function PlaylistGrid({
   );
 }
 
+function SpotifyEmbed({ playlistId }: { playlistId: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <iframe
+        src={`https://open.spotify.com/embed/playlist/${playlistId}?utm_source=generator&theme=0`}
+        width="100%"
+        height="380"
+        frameBorder={0}
+        loading="lazy"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        className="rounded-lg"
+        title="Spotify playlist embed"
+      />
+      <p className="text-xs text-spotify-subtext">
+        Showing Spotify's embedded player because their API isn't returning
+        track data for this app's quota tier. Apply for Extended Quota Mode
+        in the Spotify developer dashboard if you want the native track
+        list (plus aggregates, genre mixes, etc.).
+      </p>
+    </div>
+  );
+}
+
 function PlaylistRow({
   playlist,
   forUserId,
@@ -179,7 +202,11 @@ function PlaylistRow({
       ) : null}
       {expanded && !spotifyOwned ? (
         <div className="border-t border-spotify-border px-3 pb-4 pt-3">
-          <PlaylistTracksView state={tracksState} onRetry={loadTracks} />
+          <PlaylistTracksView
+            state={tracksState}
+            onRetry={loadTracks}
+            playlistId={playlist.id}
+          />
         </div>
       ) : null}
     </li>
@@ -189,9 +216,11 @@ function PlaylistRow({
 function PlaylistTracksView({
   state,
   onRetry,
+  playlistId,
 }: {
   state: TracksState;
   onRetry: () => void;
+  playlistId: string;
 }) {
   if (state.status === "loading") {
     return (
@@ -200,21 +229,24 @@ function PlaylistTracksView({
   }
   if (state.status === "error") {
     return (
-      <div
-        role="alert"
-        className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
-      >
-        <p className="font-semibold">{state.title}</p>
-        <p className="mt-1 whitespace-pre-wrap font-mono text-xs text-red-300/80">
-          {state.detail}
-        </p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-2 rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold hover:bg-red-500/20"
+      <div className="flex flex-col gap-3">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
         >
-          Retry
-        </button>
+          <p className="font-semibold">{state.title}</p>
+          <p className="mt-1 whitespace-pre-wrap font-mono text-xs text-red-300/80">
+            {state.detail}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-2 rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold hover:bg-red-500/20"
+          >
+            Retry
+          </button>
+        </div>
+        <SpotifyEmbed playlistId={playlistId} />
       </div>
     );
   }
@@ -223,11 +255,7 @@ function PlaylistTracksView({
       .map((item) => item.track)
       .filter((t): t is SpotifyTrack => Boolean(t));
     if (tracks.length === 0) {
-      return (
-        <p className="text-sm text-spotify-subtext">
-          No playable tracks in this playlist.
-        </p>
-      );
+      return <SpotifyEmbed playlistId={playlistId} />;
     }
     return (
       <div className="flex flex-col gap-2">
