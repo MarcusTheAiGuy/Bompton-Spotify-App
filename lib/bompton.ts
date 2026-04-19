@@ -67,15 +67,40 @@ export function fridaysBetween(startFriday: Date, endInclusive: Date): Date[] {
   return out;
 }
 
+function yearVariants(year: BomptonYear): string[] {
+  const { startYear, endYear } = parseBomptonYear(year);
+  const startShort = String(startYear).slice(-2);
+  const endShort = String(endYear).slice(-2);
+  // Accept any combination of full vs 2-digit years, with a hyphen,
+  // en-dash, em-dash, or slash between them, and optional whitespace.
+  return [
+    `${startYear}-${endYear}`,
+    `${startYear}-${endShort}`,
+    `${startShort}-${endYear}`,
+    `${startShort}-${endShort}`,
+    `${startYear}/${endYear}`,
+    `${startYear}/${endShort}`,
+    `${startShort}/${endYear}`,
+    `${startShort}/${endShort}`,
+  ].map((v) => v.toLowerCase());
+}
+
+function normalizeYearSeparators(s: string): string {
+  // Collapse en-dash, em-dash, and any surrounding whitespace into a
+  // plain hyphen so "2023 – 24" and "2023—24" both match "2023-24".
+  return s.replace(/\s*[\u2013\u2014]\s*/g, "-").replace(/\s+/g, " ");
+}
+
 export function findBomptonPlaylist(
   playlists: SpotifyPlaylist[],
   year: BomptonYear,
 ): SpotifyPlaylist | null {
-  const needle = year.toLowerCase();
+  const variants = yearVariants(year);
   const match =
     playlists.find((p) => {
-      const name = p.name.toLowerCase();
-      return name.includes("bompton") && name.includes(needle);
+      const name = normalizeYearSeparators(p.name.toLowerCase());
+      if (!name.includes("bompton")) return false;
+      return variants.some((v) => name.includes(v));
     }) ?? null;
   return match;
 }
