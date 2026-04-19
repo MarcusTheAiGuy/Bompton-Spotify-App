@@ -12,10 +12,7 @@ import {
   type BomptonYear,
   type CrewMember,
 } from "@/lib/bompton";
-import {
-  BomptonColumn,
-  type BomptonColumnDiagnostic,
-} from "@/components/bompton/bompton-column";
+import { BomptonColumn } from "@/components/bompton/bompton-column";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
 import { SpotifyErrorBanner } from "@/components/spotify/section-header";
 
@@ -62,53 +59,18 @@ export default async function BomptonPlaylistPage() {
   const trackResults = await Promise.all(
     BOMPTON_YEARS.map(async (year) => {
       const playlist = playlistByYear.get(year);
-      if (!playlist) return { year, tracks: null, error: null, diagnostic: null };
+      if (!playlist) return { year, tracks: null, error: null };
       const result = await settleSpotify(
         getPlaylistTracks(session.user.id, playlist.id),
       );
-      const baseDiagnostic: BomptonColumnDiagnostic = {
-        playlistId: playlist.id,
-        public: playlist.public,
-        collaborative: playlist.collaborative,
-        owner: playlist.owner
-          ? {
-              id: playlist.owner.id,
-              display_name: playlist.owner.display_name ?? null,
-            }
-          : null,
-        totalTracks: playlist.tracks?.total ?? 0,
-        itemsReturned: 0,
-        itemsWithTrack: 0,
-        fetchSource: "failed",
-      };
       if (result.error) {
-        return {
-          year,
-          tracks: null,
-          error: result.error,
-          diagnostic: { ...baseDiagnostic, fetchError: result.error },
-        };
+        return { year, tracks: null, error: result.error };
       }
       const playableTracks = result.value.items.filter((i) => Boolean(i.track));
-      return {
-        year,
-        tracks: playableTracks,
-        error: null,
-        diagnostic: {
-          ...baseDiagnostic,
-          itemsReturned: result.value.items.length,
-          itemsWithTrack: playableTracks.length,
-          fetchSource: result.value.source,
-        },
-      };
+      return { year, tracks: playableTracks, error: null };
     }),
   );
-  const tracksByYear = new Map(
-    trackResults.map((r) => [r.year, r.tracks]),
-  );
-  const diagnosticsByYear = new Map(
-    trackResults.map((r) => [r.year, r.diagnostic]),
-  );
+  const tracksByYear = new Map(trackResults.map((r) => [r.year, r.tracks]));
   const firstTrackError = trackResults.find((r) => r.error)?.error ?? null;
 
   const currentTracks = tracksByYear.get(CURRENT_BOMPTON_YEAR) ?? [];
@@ -174,7 +136,6 @@ export default async function BomptonPlaylistPage() {
             tracks={tracksByYear.get(year) ?? null}
             crew={crew}
             isCurrent={year === CURRENT_BOMPTON_YEAR}
-            diagnostic={diagnosticsByYear.get(year) ?? undefined}
           />
         ))}
       </div>
