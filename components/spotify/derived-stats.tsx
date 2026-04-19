@@ -102,6 +102,65 @@ export function ReleaseDecadeDistribution({
   );
 }
 
+export function OverlapStats({
+  savedTopTrackCount,
+  totalTopTracks,
+  followedTopArtistCount,
+  totalTopArtists,
+}: {
+  savedTopTrackCount: number | null;
+  totalTopTracks: number;
+  followedTopArtistCount: number | null;
+  totalTopArtists: number;
+}) {
+  return (
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <li className="card">
+        <p className="text-xs uppercase tracking-widest text-spotify-subtext">
+          Top tracks you've saved
+        </p>
+        <p className="mt-1 text-xl font-bold tracking-tight">
+          {savedTopTrackCount == null
+            ? "—"
+            : `${savedTopTrackCount} / ${totalTopTracks}`}
+          {savedTopTrackCount != null && totalTopTracks > 0 ? (
+            <span className="ml-2 text-sm text-spotify-subtext">
+              (
+              {Math.round((savedTopTrackCount / totalTopTracks) * 100)}
+              %)
+            </span>
+          ) : null}
+        </p>
+        <p className="mt-1 text-xs text-spotify-subtext">
+          Of the medium-term top-tracks list, how many are in your saved
+          library (<code className="font-mono">/me/tracks/contains</code>).
+        </p>
+      </li>
+      <li className="card">
+        <p className="text-xs uppercase tracking-widest text-spotify-subtext">
+          Top artists you follow
+        </p>
+        <p className="mt-1 text-xl font-bold tracking-tight">
+          {followedTopArtistCount == null
+            ? "—"
+            : `${followedTopArtistCount} / ${totalTopArtists}`}
+          {followedTopArtistCount != null && totalTopArtists > 0 ? (
+            <span className="ml-2 text-sm text-spotify-subtext">
+              (
+              {Math.round((followedTopArtistCount / totalTopArtists) * 100)}
+              %)
+            </span>
+          ) : null}
+        </p>
+        <p className="mt-1 text-xs text-spotify-subtext">
+          Of the medium-term top-artists list, how many you actually follow
+          (<code className="font-mono">/me/following/contains?type=artist</code>).
+        </p>
+      </li>
+    </ul>
+  );
+}
+
 export function PopularityStats({
   tracks,
   artists,

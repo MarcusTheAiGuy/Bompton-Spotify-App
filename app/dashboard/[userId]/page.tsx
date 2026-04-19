@@ -3,11 +3,14 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
   TIME_RANGES,
+  checkFollowedArtists,
+  checkSavedTracks,
   getAudioFeaturesBatch,
   getDevices,
   getFollowedArtists,
   getPlaybackState,
   getPlaylists,
+  getQueue,
   getRecentlyPlayed,
   getSavedAlbums,
   getSavedAudiobooks,
@@ -46,10 +49,12 @@ import {
   ShowGrid,
 } from "@/components/spotify/show-grid";
 import { PlaylistGrid } from "@/components/spotify/playlist-grid";
+import { QueueList } from "@/components/spotify/queue-list";
 import { CollapsibleSection } from "@/components/spotify/collapsible-section";
 import {
   AudioFeatureAverages,
   GenreDistribution,
+  OverlapStats,
   PopularityStats,
   ReleaseDecadeDistribution,
 } from "@/components/spotify/derived-stats";
@@ -108,6 +113,7 @@ async function renderDashboard(userId: string) {
     profileResult,
     playbackResult,
     devicesResult,
+    queueResult,
     recentResult,
     topTracksShort,
     topTracksMedium,
@@ -126,6 +132,7 @@ async function renderDashboard(userId: string) {
     settleSpotify(getSpotifyProfile(userId)),
     settleSpotify(getPlaybackState(userId)),
     settleSpotify(getDevices(userId)),
+    settleSpotify(getQueue(userId)),
     settleSpotify(getRecentlyPlayed(userId)),
     settleSpotify(getTopTracks(userId, "short_term")),
     settleSpotify(getTopTracks(userId, "medium_term")),
@@ -186,12 +193,34 @@ async function renderDashboard(userId: string) {
     }
   }
 
-  const audioFeaturesResult = await settleSpotify(
-    getAudioFeaturesBatch(
-      userId,
-      mediumTracks.slice(0, 50).map((t) => t.id),
-    ),
-  );
+  const mediumArtists = topArtistsMedium.value?.items ?? [];
+
+  const [audioFeaturesResult, savedTopTrackCheck, followedTopArtistCheck] =
+    await Promise.all([
+      settleSpotify(
+        getAudioFeaturesBatch(
+          userId,
+          mediumTracks.slice(0, 50).map((t) => t.id),
+        ),
+      ),
+      settleSpotify(
+        checkSavedTracks(
+          userId,
+          mediumTracks.slice(0, 50).map((t) => t.id),
+        ),
+      ),
+      settleSpotify(
+        checkFollowedArtists(
+          userId,
+          mediumArtists.slice(0, 50).map((a) => a.id),
+        ),
+      ),
+    ]);
+
+  const savedTopTrackCount =
+    savedTopTrackCheck.value?.filter(Boolean).length ?? null;
+  const followedTopArtistCount =
+    followedTopArtistCheck.value?.filter(Boolean).length ?? null;
 
   return (
     <section className="flex flex-col gap-12 py-6">
@@ -225,6 +254,21 @@ async function renderDashboard(userId: string) {
           <NowPlaying state={playbackResult.value} />
         )}
       </div>
+
+      <CollapsibleSection
+        eyebrow="Up next"
+        title="Queue"
+        subtitle="What's lined up after the current track, via /me/player/queue."
+      >
+        {queueResult.error ? (
+          <SpotifyErrorBanner
+            title={queueResult.error.title}
+            detail={queueResult.error.detail}
+          />
+        ) : (
+          <QueueList items={queueResult.value.queue} />
+        )}
+      </CollapsibleSection>
 
       <CollapsibleSection
         eyebrow="Devices"
@@ -298,6 +342,12 @@ async function renderDashboard(userId: string) {
         subtitle="Aggregates computed locally from the top-items responses above."
       >
         <PopularityStats tracks={unionTracks} artists={unionArtists} />
+        <OverlapStats
+          savedTopTrackCount={savedTopTrackCount}
+          totalTopTracks={mediumTracks.slice(0, 50).length}
+          followedTopArtistCount={followedTopArtistCount}
+          totalTopArtists={mediumArtists.slice(0, 50).length}
+        />
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-bold uppercase tracking-widest text-spotify-subtext">
             Genre mix (from top artists, dedupe'd across time ranges)
