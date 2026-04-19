@@ -5,7 +5,8 @@ import {
 } from "@/lib/spotify";
 
 export function SavedTracks({ items }: { items: SpotifySavedTrackItem[] }) {
-  if (items.length === 0) {
+  const playable = items.filter((i) => i.track && i.track.album);
+  if (playable.length === 0) {
     return (
       <p className="rounded-lg bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
         No saved tracks.
@@ -14,12 +15,13 @@ export function SavedTracks({ items }: { items: SpotifySavedTrackItem[] }) {
   }
   return (
     <ol className="flex flex-col">
-      {items.map((item, index) => {
-        const image = pickImage(item.track.album.images, 64);
-        const artists = item.track.artists.map((a) => a.name).join(", ");
+      {playable.map((item, index) => {
+        const track = item.track;
+        const image = pickImage(track.album?.images, 64);
+        const artists = (track.artists ?? []).map((a) => a.name).join(", ");
         return (
           <li
-            key={item.track.id + index}
+            key={track.id + index}
             className="flex items-center gap-3 border-b border-spotify-border/50 py-2 last:border-b-0"
           >
             {image ? (
@@ -34,31 +36,32 @@ export function SavedTracks({ items }: { items: SpotifySavedTrackItem[] }) {
             )}
             <div className="min-w-0 flex-1">
               <a
-                href={item.track.external_urls.spotify}
+                href={track.external_urls?.spotify ?? "#"}
                 target="_blank"
                 rel="noreferrer"
                 className="block truncate font-semibold hover:text-spotify-green"
               >
-                {item.track.name}
+                {track.name ?? "(unknown track)"}
               </a>
               <p className="truncate text-xs text-spotify-subtext">
-                {artists}
+                {artists || "Unknown artist"}
                 <span className="mx-1 text-spotify-border">·</span>
-                {item.track.album.name}
+                {track.album?.name ?? ""}
               </p>
             </div>
             <span
               className="shrink-0 font-mono text-xs text-spotify-subtext"
               title={new Date(item.added_at).toLocaleString()}
             >
-              saved {new Date(item.added_at).toLocaleDateString(undefined, {
+              saved{" "}
+              {new Date(item.added_at).toLocaleDateString(undefined, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               })}
             </span>
             <span className="hidden w-14 shrink-0 text-right font-mono text-xs text-spotify-subtext sm:inline">
-              {formatDuration(item.track.duration_ms)}
+              {formatDuration(track.duration_ms ?? 0)}
             </span>
           </li>
         );

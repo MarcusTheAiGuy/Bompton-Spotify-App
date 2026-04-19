@@ -19,14 +19,16 @@ export function ArtistGrid({ artists }: { artists: SpotifyArtist[] }) {
 
 function ArtistCard({ artist, rank }: { artist: SpotifyArtist; rank: number }) {
   const image = pickImage(artist.images, 200);
+  const genres = artist.genres ?? [];
+  const followers = artist.followers?.total ?? 0;
   return (
     <li className="card flex flex-col gap-2">
       <div className="flex items-center justify-between text-xs text-spotify-subtext">
         <span className="font-mono">#{rank}</span>
-        <span className="font-mono">pop {artist.popularity}</span>
+        <span className="font-mono">pop {artist.popularity ?? 0}</span>
       </div>
       <a
-        href={artist.external_urls.spotify}
+        href={artist.external_urls?.spotify ?? "#"}
         target="_blank"
         rel="noreferrer"
         className="group block"
@@ -43,7 +45,7 @@ function ArtistCard({ artist, rank }: { artist: SpotifyArtist; rank: number }) {
         )}
       </a>
       <a
-        href={artist.external_urls.spotify}
+        href={artist.external_urls?.spotify ?? "#"}
         target="_blank"
         rel="noreferrer"
         className="truncate text-center font-bold hover:text-spotify-green"
@@ -52,11 +54,11 @@ function ArtistCard({ artist, rank }: { artist: SpotifyArtist; rank: number }) {
         {artist.name}
       </a>
       <p className="text-center text-xs text-spotify-subtext">
-        {artist.followers.total.toLocaleString()} followers
+        {followers.toLocaleString()} followers
       </p>
-      {artist.genres.length > 0 ? (
+      {genres.length > 0 ? (
         <ul className="flex flex-wrap justify-center gap-1">
-          {artist.genres.slice(0, 3).map((genre) => (
+          {genres.slice(0, 3).map((genre) => (
             <li
               key={genre}
               className="rounded-full bg-spotify-highlight px-2 py-0.5 text-[10px] uppercase tracking-wide text-spotify-subtext"

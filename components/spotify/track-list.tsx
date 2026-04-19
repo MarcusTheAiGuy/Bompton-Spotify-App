@@ -5,12 +5,13 @@ import {
 } from "@/lib/spotify";
 
 export function TrackList({ tracks }: { tracks: SpotifyTrack[] }) {
-  if (tracks.length === 0) {
+  const playable = tracks.filter((t) => t && t.album);
+  if (playable.length === 0) {
     return <EmptyState message="No tracks to show." />;
   }
   return (
     <ol className="flex flex-col">
-      {tracks.map((track, index) => (
+      {playable.map((track, index) => (
         <TrackRow key={track.id + index} track={track} rank={index + 1} />
       ))}
     </ol>
@@ -18,8 +19,8 @@ export function TrackList({ tracks }: { tracks: SpotifyTrack[] }) {
 }
 
 function TrackRow({ track, rank }: { track: SpotifyTrack; rank: number }) {
-  const image = pickImage(track.album.images, 64);
-  const artistNames = track.artists.map((a) => a.name).join(", ");
+  const image = pickImage(track.album?.images, 64);
+  const artistNames = (track.artists ?? []).map((a) => a.name).join(", ");
 
   return (
     <li className="flex items-center gap-3 border-b border-spotify-border/50 py-2 last:border-b-0">
@@ -38,13 +39,13 @@ function TrackRow({ track, rank }: { track: SpotifyTrack; rank: number }) {
       )}
       <div className="min-w-0 flex-1">
         <a
-          href={track.external_urls.spotify}
+          href={track.external_urls?.spotify ?? "#"}
           target="_blank"
           rel="noreferrer"
           className="block truncate font-semibold hover:text-spotify-green"
           title={track.name}
         >
-          {track.name}
+          {track.name ?? "(unknown track)"}
           {track.explicit ? (
             <span className="ml-2 rounded bg-spotify-highlight px-1 text-[10px] uppercase text-spotify-subtext">
               E
@@ -53,18 +54,18 @@ function TrackRow({ track, rank }: { track: SpotifyTrack; rank: number }) {
         </a>
         <p
           className="truncate text-sm text-spotify-subtext"
-          title={`${artistNames} · ${track.album.name}`}
+          title={`${artistNames} · ${track.album?.name ?? ""}`}
         >
-          {artistNames}
+          {artistNames || "Unknown artist"}
           <span className="mx-1 text-spotify-border">·</span>
-          {track.album.name}
+          {track.album?.name ?? ""}
         </p>
       </div>
       <span className="hidden w-16 text-right font-mono text-xs text-spotify-subtext sm:inline">
-        pop {track.popularity}
+        pop {track.popularity ?? 0}
       </span>
       <span className="w-14 text-right font-mono text-xs text-spotify-subtext">
-        {formatDuration(track.duration_ms)}
+        {formatDuration(track.duration_ms ?? 0)}
       </span>
     </li>
   );
