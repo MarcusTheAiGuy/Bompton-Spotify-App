@@ -29,6 +29,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "database" },
   secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
   trustHost: true,
+  debug: true,
   providers: [
     Spotify({
       clientId: process.env.SPOTIFY_CLIENT_ID,
@@ -39,6 +40,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/",
     error: "/",
+  },
+  logger: {
+    error(error) {
+      console.error("[auth.error]", {
+        name: error.name,
+        message: error.message,
+        cause: error.cause,
+        stack: error.stack,
+      });
+    },
+    warn(code) {
+      console.warn("[auth.warn]", code);
+    },
+    debug(message, metadata) {
+      console.log("[auth.debug]", message, metadata);
+    },
   },
   callbacks: {
     async signIn({ user }) {

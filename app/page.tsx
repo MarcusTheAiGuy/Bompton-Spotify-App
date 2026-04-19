@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ConnectButton } from "@/components/connect-button";
-import { missingRequiredEnv } from "@/lib/env-check";
+import { checkRequiredEnv, unhealthyRequiredEnv } from "@/lib/env-check";
 
 type SearchParams = Promise<{ error?: string }>;
 
@@ -101,39 +101,70 @@ function AuthErrorBanner({ error }: { error: string }) {
 }
 
 function MissingEnvBanner() {
-  const missing = missingRequiredEnv();
+  const all = checkRequiredEnv();
+  const unhealthy = unhealthyRequiredEnv();
 
   return (
     <div
       role="alert"
-      className="w-full max-w-md rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-200"
+      className="w-full max-w-2xl rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-200"
     >
       <p className="font-semibold">Server env check</p>
-      {missing.length === 0 ? (
+      {unhealthy.length === 0 ? (
         <p className="mt-1">
-          All required env vars are present on this server. The Configuration
-          error is coming from somewhere else — check the Vercel function logs
-          for this deploy. (One common cause: NEXTAUTH_URL set to a stale
-          value.)
+          All required env vars are present and the right shape. The
+          Configuration error is coming from somewhere else — hit{" "}
+          <code className="font-mono">/api/debug/auth</code> for the live
+          server-side details (request host, NEXTAUTH_URL, and the actual
+          auth() error if any).
         </p>
       ) : (
-        <>
-          <p className="mt-1">
-            The following env vars are missing on the server. Set them in the
-            Vercel project settings and redeploy.
-          </p>
-          <ul className="mt-2 list-disc pl-5">
-            {missing.map((v) => (
-              <li key={v.name}>
-                <code className="font-mono">{v.name}</code>
-                {v.note ? (
-                  <span className="text-xs text-amber-300/80"> — {v.note}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </>
+        <p className="mt-1">
+          The following env vars are missing or look malformed. Fix in Vercel
+          project settings and redeploy.
+        </p>
       )}
+      <table className="mt-3 w-full border-separate border-spacing-y-1 text-xs">
+        <thead className="text-amber-300/70">
+          <tr>
+            <th className="text-left font-semibold">Var</th>
+            <th className="text-left font-semibold">Status</th>
+            <th className="text-left font-semibold">Preview</th>
+          </tr>
+        </thead>
+        <tbody>
+          {all.map((v) => {
+            const status = !v.set
+              ? "missing"
+              : v.hasWhitespace
+                ? "leading/trailing whitespace"
+                : !v.shapeOk
+                  ? "wrong shape"
+                  : "ok";
+            const ok = v.set && v.shapeOk && !v.hasWhitespace;
+            return (
+              <tr key={v.name}>
+                <td className="pr-3 font-mono">{v.name}</td>
+                <td
+                  className={
+                    ok ? "pr-3 text-green-300" : "pr-3 text-amber-200"
+                  }
+                >
+                  {status}
+                  {!ok && v.shapeNote ? (
+                    <span className="block text-amber-300/70">
+                      {v.shapeNote}
+                    </span>
+                  ) : null}
+                </td>
+                <td className="font-mono text-amber-300/70">
+                  {v.preview ?? "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
