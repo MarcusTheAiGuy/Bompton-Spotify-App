@@ -15,28 +15,35 @@ export type BomptonYear = (typeof BOMPTON_YEARS)[number];
 // earlier seasons are just history.
 export const CURRENT_BOMPTON_YEAR: BomptonYear = "2026-2027";
 
-// A Bompton season starts on the first Friday of September of its first year.
-// That's the convention this crew uses; change the month/day if they ever
-// decide otherwise.
-const SEASON_START_MONTH = 8; // September (JS months are 0-indexed)
-const SEASON_START_DAY_OF_MONTH = 1; // Start from first Friday on or after this date
-
+// A Bompton season starts on the third Friday of March of its first year.
+// E.g. 2026-2027 starts Mar 20 2026 (third Fri). The season runs until the
+// Friday before the next season starts — so 2026-2027's last add day is
+// Mar 12 2027, one week before 2027-2028 starts on Mar 19 2027.
 export function parseBomptonYear(year: BomptonYear): { startYear: number; endYear: number } {
   const [start, end] = year.split("-").map((s) => parseInt(s, 10));
   return { startYear: start, endYear: end };
 }
 
+function thirdFridayOfMarch(year: number): Date {
+  const march1 = new Date(Date.UTC(year, 2, 1));
+  const firstFriday = nextOrSameFriday(march1);
+  const third = new Date(firstFriday);
+  third.setUTCDate(third.getUTCDate() + 14);
+  return third;
+}
+
 export function seasonStart(year: BomptonYear): Date {
   const { startYear } = parseBomptonYear(year);
-  const earliest = new Date(
-    Date.UTC(startYear, SEASON_START_MONTH, SEASON_START_DAY_OF_MONTH),
-  );
-  return nextOrSameFriday(earliest);
+  return thirdFridayOfMarch(startYear);
 }
 
 export function seasonEnd(year: BomptonYear): Date {
+  // Friday one week before the next season's start.
   const { endYear } = parseBomptonYear(year);
-  return new Date(Date.UTC(endYear, SEASON_START_MONTH, SEASON_START_DAY_OF_MONTH));
+  const nextStart = thirdFridayOfMarch(endYear);
+  const end = new Date(nextStart);
+  end.setUTCDate(end.getUTCDate() - 7);
+  return end;
 }
 
 function nextOrSameFriday(date: Date): Date {
@@ -174,8 +181,18 @@ export function scoreSeason(
   now: Date = new Date(),
 ): { scores: SeasonScore[]; fridays: Date[]; seasonStartAt: Date } {
   const seasonStartAt = seasonStart(year);
-  const lastFriday = mostRecentFriday(now);
-  const fridays = fridaysBetween(seasonStartAt, lastFriday);
+  const seasonEndAt = seasonEnd(year);
+  const rawLastFriday = mostRecentFriday(now);
+  // Clamp: don't count Fridays past the season end, and if we're before
+  // the season has started at all, show an empty week list.
+  const clampedLastFriday =
+    rawLastFriday.getTime() > seasonEndAt.getTime()
+      ? seasonEndAt
+      : rawLastFriday;
+  const fridays =
+    clampedLastFriday.getTime() < seasonStartAt.getTime()
+      ? []
+      : fridaysBetween(seasonStartAt, clampedLastFriday);
   const expectedCount = fridays.length;
 
   const perMember = new Map<string, SeasonScore>();
