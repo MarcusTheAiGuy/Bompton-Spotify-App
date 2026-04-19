@@ -535,13 +535,34 @@ export async function getPlaylistTracks(
   userId: string,
   playlistId: string,
   max = 500,
+): Promise<{
+  items: SpotifyPlaylistTrack[];
+  total: number;
+  truncated: boolean;
+  source: "tracks" | "playlist";
+}> {
+  try {
+    const result = await fetchFromTracksEndpoint(userId, playlistId, max);
+    return { ...result, source: "tracks" };
+  } catch (error) {
+    if (error instanceof SpotifyError && error.status === 403) {
+      // Some Spotify apps 403 on /playlists/{id}/tracks (likely a dev-mode
+      // quota thing). The /playlists/{id} endpoint itself still returns the
+      // first 100 tracks inline via tracks.items — try that as a fallback.
+      const result = await fetchFromPlaylistEndpoint(userId, playlistId);
+      return { ...result, source: "playlist" };
+    }
+    throw error;
+  }
+}
+
+async function fetchFromTracksEndpoint(
+  userId: string,
+  playlistId: string,
+  max: number,
 ): Promise<{ items: SpotifyPlaylistTrack[]; total: number; truncated: boolean }> {
   const items: SpotifyPlaylistTrack[] = [];
   let total = 0;
-  // additional_types=track,episode covers playlists that may mix in
-  // podcast episodes (without this Spotify can 403 rather than filter).
-  // market is intentionally omitted — "from_token" is legacy and Spotify
-  // now infers country from the access token by default.
   const initialQuery = "limit=100&additional_types=track,episode";
   let path: string | null = `/playlists/${playlistId}/tracks?${initialQuery}`;
   while (path && items.length < max) {
@@ -562,6 +583,22 @@ export async function getPlaylistTracks(
     total,
     truncated: total > items.length || items.length > max,
   };
+}
+
+async function fetchFromPlaylistEndpoint(
+  userId: string,
+  playlistId: string,
+): Promise<{ items: SpotifyPlaylistTrack[]; total: number; truncated: boolean }> {
+  type PlaylistDetail = SpotifyPlaylist & {
+    tracks: SpotifyPaged<SpotifyPlaylistTrack>;
+  };
+  const response = await spotifyFetch<PlaylistDetail>(
+    userId,
+    `/playlists/${playlistId}?additional_types=track,episode`,
+  );
+  const items = response.tracks?.items ?? [];
+  const total = response.tracks?.total ?? items.length;
+  return { items, total, truncated: total > items.length };
 }
 
 async function containsBatch(

@@ -30,18 +30,15 @@ export function describeSpotifyError(error: unknown): DescribedError {
           `Spotify returned 403 "Insufficient client scope". The stored access token predates a scope we added to the app.\n\nFix: sign out (top-right button), then click Connect Spotify again so Spotify re-issues a token with the new scopes.\n\nRaw response: ${error.body}`,
       };
     }
-    if (
-      error.status === 403 &&
-      /^\/playlists\/[^/]+\/tracks/.test(error.path)
-    ) {
+    if (error.status === 403 && /^\/playlists\/[^/]+/.test(error.path)) {
       return {
-        title: "Spotify blocks track-listing for this playlist",
+        title: "Spotify blocks this playlist for our app",
         detail:
-          "Spotify returned 403 Forbidden. Known causes (no client-side fix for any of them):\n\n" +
-          "1. The playlist is algorithmic or editorial (owner 'spotify' — Daily Mix, Discover Weekly, Today's Top Hits, etc.). Nov 2024 API deprecation.\n" +
-          "2. It's a Blend or collaborative playlist with restricted track-listing.\n" +
-          "3. This Spotify app is in development mode and hasn't been granted extended-quota access — Spotify restricts /playlists/{id}/tracks for dev apps created after Nov 2024.\n\n" +
-          "If #3 is it, apply for quota extension in the Spotify developer dashboard. Open in Spotify to see the songs in the meantime.",
+          "Spotify returned 403 Forbidden on both /playlists/{id}/tracks and /playlists/{id}. Since every playlist 403s (not just one), this is an app-level restriction, not a per-playlist issue.\n\n" +
+          "Most likely: the Spotify app was created after Nov 27 2024 and its playlist-read endpoints require Extended Quota Mode approval. Apply at:\n" +
+          "https://developer.spotify.com/dashboard → your app → Settings → User Management / Extensions → Request extension.\n\n" +
+          "Less likely: the stored access token is stale and doesn't have playlist-read-private / playlist-read-collaborative despite the consent screen. Try signing out and connecting Spotify again.\n\n" +
+          "Until that's resolved, use the 'open in Spotify ↗' link on each row.",
       };
     }
     return {
