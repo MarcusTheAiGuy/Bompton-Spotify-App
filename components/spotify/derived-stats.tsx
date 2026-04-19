@@ -12,7 +12,7 @@ export function GenreDistribution({
 }) {
   const counts = new Map<string, number>();
   for (const artist of artists) {
-    for (const genre of artist.genres) {
+    for (const genre of artist.genres ?? []) {
       counts.set(genre, (counts.get(genre) ?? 0) + 1);
     }
   }
@@ -59,7 +59,9 @@ export function ReleaseDecadeDistribution({
 }) {
   const counts = new Map<number, number>();
   for (const track of tracks) {
-    const year = parseInt(track.album.release_date.slice(0, 4), 10);
+    const releaseDate = track.album?.release_date;
+    if (!releaseDate) continue;
+    const year = parseInt(releaseDate.slice(0, 4), 10);
     if (Number.isNaN(year)) continue;
     const decade = Math.floor(year / 10) * 10;
     counts.set(decade, (counts.get(decade) ?? 0) + 1);
@@ -109,17 +111,18 @@ export function PopularityStats({
 }) {
   const avgTrack =
     tracks.length > 0
-      ? tracks.reduce((sum, t) => sum + t.popularity, 0) / tracks.length
+      ? tracks.reduce((sum, t) => sum + (t.popularity ?? 0), 0) / tracks.length
       : 0;
   const avgArtist =
     artists.length > 0
-      ? artists.reduce((sum, a) => sum + a.popularity, 0) / artists.length
+      ? artists.reduce((sum, a) => sum + (a.popularity ?? 0), 0) /
+        artists.length
       : 0;
   const totalFollowers = artists.reduce(
-    (sum, a) => sum + a.followers.total,
+    (sum, a) => sum + (a.followers?.total ?? 0),
     0,
   );
-  const totalMs = tracks.reduce((sum, t) => sum + t.duration_ms, 0);
+  const totalMs = tracks.reduce((sum, t) => sum + (t.duration_ms ?? 0), 0);
 
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">

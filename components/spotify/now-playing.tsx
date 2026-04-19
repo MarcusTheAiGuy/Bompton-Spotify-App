@@ -16,15 +16,19 @@ export function NowPlaying({ state }: { state: SpotifyPlaybackState | null }) {
   const item = state.item;
   const isTrack = "album" in item;
   const image = isTrack
-    ? pickImage(item.album.images, 128)
+    ? pickImage(item.album?.images, 128)
     : pickImage(item.images, 128);
   const subtitle = isTrack
-    ? item.artists.map((a) => a.name).join(", ")
+    ? (item.artists ?? []).map((a) => a.name).join(", ")
     : item.show?.name ?? "Episode";
-  const contextLabel = isTrack ? item.album.name : item.show?.publisher ?? "";
+  const contextLabel = isTrack
+    ? item.album?.name ?? ""
+    : item.show?.publisher ?? "";
 
-  const progressPct = item.duration_ms
-    ? Math.min(100, (state.progress_ms / item.duration_ms) * 100)
+  const progressMs = state.progress_ms ?? 0;
+  const durationMs = item.duration_ms ?? 0;
+  const progressPct = durationMs
+    ? Math.min(100, (progressMs / durationMs) * 100)
     : 0;
 
   return (
@@ -55,12 +59,12 @@ export function NowPlaying({ state }: { state: SpotifyPlaybackState | null }) {
           </span>
         </div>
         <a
-          href={item.external_urls.spotify}
+          href={item.external_urls?.spotify ?? "#"}
           target="_blank"
           rel="noreferrer"
           className="mt-1 block truncate text-xl font-bold hover:text-spotify-green"
         >
-          {item.name}
+          {item.name ?? "(unknown)"}
         </a>
         <p className="truncate text-sm text-spotify-subtext">
           {subtitle}
@@ -79,22 +83,32 @@ export function NowPlaying({ state }: { state: SpotifyPlaybackState | null }) {
             />
           </div>
           <div className="mt-1 flex justify-between font-mono text-xs text-spotify-subtext">
-            <span>{formatDuration(state.progress_ms)}</span>
-            <span>{formatDuration(item.duration_ms)}</span>
+            <span>{formatDuration(progressMs)}</span>
+            <span>{formatDuration(durationMs)}</span>
           </div>
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-x-4 text-xs text-spotify-subtext sm:grid-cols-4">
-          <DetailRow label="Device" value={`${state.device.name} (${state.device.type})`} />
+          <DetailRow
+            label="Device"
+            value={
+              state.device
+                ? `${state.device.name} (${state.device.type})`
+                : "—"
+            }
+          />
           <DetailRow
             label="Volume"
             value={
-              state.device.volume_percent != null
+              state.device?.volume_percent != null
                 ? `${state.device.volume_percent}%`
                 : "—"
             }
           />
-          <DetailRow label="Shuffle" value={state.shuffle_state ? "On" : "Off"} />
-          <DetailRow label="Repeat" value={state.repeat_state} />
+          <DetailRow
+            label="Shuffle"
+            value={state.shuffle_state ? "On" : "Off"}
+          />
+          <DetailRow label="Repeat" value={state.repeat_state ?? "off"} />
         </dl>
       </div>
     </div>

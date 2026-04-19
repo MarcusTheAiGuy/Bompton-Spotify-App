@@ -6,20 +6,19 @@ import {
 } from "@/lib/spotify";
 
 export function ShowGrid({ items }: { items: SpotifySavedShowItem[] }) {
-  if (items.length === 0) {
+  const valid = items.filter((i) => i.show);
+  if (valid.length === 0) {
     return <Empty message="No saved podcasts." />;
   }
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      {items.map((item, index) => {
-        const image = pickImage(item.show.images, 200);
+      {valid.map((item, index) => {
+        const show = item.show;
+        const image = pickImage(show.images, 200);
+        const url = show.external_urls?.spotify ?? "#";
         return (
-          <li key={item.show.id + index} className="card flex flex-col gap-2">
-            <a
-              href={item.show.external_urls.spotify}
-              target="_blank"
-              rel="noreferrer"
-            >
+          <li key={show.id + index} className="card flex flex-col gap-2">
+            <a href={url} target="_blank" rel="noreferrer">
               {image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -32,19 +31,19 @@ export function ShowGrid({ items }: { items: SpotifySavedShowItem[] }) {
               )}
             </a>
             <a
-              href={item.show.external_urls.spotify}
+              href={url}
               target="_blank"
               rel="noreferrer"
               className="truncate font-bold hover:text-spotify-green"
-              title={item.show.name}
+              title={show.name}
             >
-              {item.show.name}
+              {show.name}
             </a>
             <p className="truncate text-xs text-spotify-subtext">
-              {item.show.publisher}
+              {show.publisher ?? ""}
             </p>
             <p className="text-[10px] uppercase tracking-widest text-spotify-subtext">
-              {item.show.total_episodes} episodes
+              {show.total_episodes ?? 0} episodes
             </p>
           </li>
         );
@@ -54,16 +53,19 @@ export function ShowGrid({ items }: { items: SpotifySavedShowItem[] }) {
 }
 
 export function EpisodeList({ items }: { items: SpotifySavedEpisodeItem[] }) {
-  if (items.length === 0) {
+  const valid = items.filter((i) => i.episode);
+  if (valid.length === 0) {
     return <Empty message="No saved podcast episodes." />;
   }
   return (
     <ul className="flex flex-col">
-      {items.map((item, index) => {
-        const image = pickImage(item.episode.images, 64);
+      {valid.map((item, index) => {
+        const episode = item.episode;
+        const image = pickImage(episode.images, 64);
+        const url = episode.external_urls?.spotify ?? "#";
         return (
           <li
-            key={item.episode.id + index}
+            key={episode.id + index}
             className="flex items-center gap-3 border-b border-spotify-border/50 py-2 last:border-b-0"
           >
             {image ? (
@@ -78,17 +80,17 @@ export function EpisodeList({ items }: { items: SpotifySavedEpisodeItem[] }) {
             )}
             <div className="min-w-0 flex-1">
               <a
-                href={item.episode.external_urls.spotify}
+                href={url}
                 target="_blank"
                 rel="noreferrer"
                 className="block truncate font-semibold hover:text-spotify-green"
               >
-                {item.episode.name}
+                {episode.name ?? "(unknown episode)"}
               </a>
               <p className="truncate text-xs text-spotify-subtext">
-                {item.episode.show?.name ?? "Episode"}
+                {episode.show?.name ?? "Episode"}
                 <span className="mx-1 text-spotify-border">·</span>
-                {item.episode.release_date}
+                {episode.release_date ?? ""}
               </p>
             </div>
             <span className="shrink-0 font-mono text-xs text-spotify-subtext">
@@ -110,24 +112,20 @@ export function AudiobookGrid({
 }: {
   items: SpotifySavedAudiobookItem[];
 }) {
-  if (items.length === 0) {
+  const valid = items.filter((i) => i.audiobook);
+  if (valid.length === 0) {
     return <Empty message="No saved audiobooks." />;
   }
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-      {items.map((item, index) => {
-        const image = pickImage(item.audiobook.images, 200);
-        const authors = item.audiobook.authors.map((a) => a.name).join(", ");
+      {valid.map((item, index) => {
+        const book = item.audiobook;
+        const image = pickImage(book.images, 200);
+        const authors = (book.authors ?? []).map((a) => a.name).join(", ");
+        const url = book.external_urls?.spotify ?? "#";
         return (
-          <li
-            key={item.audiobook.id + index}
-            className="card flex flex-col gap-2"
-          >
-            <a
-              href={item.audiobook.external_urls.spotify}
-              target="_blank"
-              rel="noreferrer"
-            >
+          <li key={book.id + index} className="card flex flex-col gap-2">
+            <a href={url} target="_blank" rel="noreferrer">
               {image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -140,19 +138,19 @@ export function AudiobookGrid({
               )}
             </a>
             <a
-              href={item.audiobook.external_urls.spotify}
+              href={url}
               target="_blank"
               rel="noreferrer"
               className="truncate font-bold hover:text-spotify-green"
-              title={item.audiobook.name}
+              title={book.name}
             >
-              {item.audiobook.name}
+              {book.name}
             </a>
             <p className="truncate text-xs text-spotify-subtext" title={authors}>
               {authors}
             </p>
             <p className="text-[10px] uppercase tracking-widest text-spotify-subtext">
-              {item.audiobook.total_chapters} chapters
+              {book.total_chapters ?? 0} chapters
             </p>
           </li>
         );

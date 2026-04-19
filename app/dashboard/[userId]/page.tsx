@@ -23,6 +23,11 @@ import {
   type SpotifyTrack,
 } from "@/lib/spotify";
 import { settleSpotify } from "@/lib/describe-spotify-error";
+import {
+  captureErrorDetail,
+  isNextControlFlowError,
+} from "@/lib/next-control-flow";
+import { CrashCard } from "@/components/crash-card";
 import { UserTabs, type TabUser } from "@/components/user-tabs";
 import { ArtistGrid } from "@/components/spotify/artist-grid";
 import { TrackList } from "@/components/spotify/track-list";
@@ -55,10 +60,26 @@ export default async function UserDashboardPage({
 }: {
   params: Promise<{ userId: string }>;
 }) {
+  const { userId } = await params;
+  try {
+    return await renderDashboard(userId);
+  } catch (error) {
+    if (isNextControlFlowError(error)) throw error;
+    return (
+      <section className="flex flex-col gap-6 py-6">
+        <CrashCard
+          title="Dashboard crashed before render"
+          subtitle="Caught while fetching auth, Prisma, or Spotify data. Message is unredacted because we caught it before Next.js did."
+          detail={captureErrorDetail(error)}
+        />
+      </section>
+    );
+  }
+}
+
+async function renderDashboard(userId: string) {
   const session = await auth();
   if (!session?.user) redirect("/");
-
-  const { userId } = await params;
 
   const [viewedUser, crew] = await Promise.all([
     prisma.user.findUnique({

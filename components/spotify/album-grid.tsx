@@ -33,11 +33,12 @@ function AlbumTile({
   savedAt?: string;
 }) {
   const image = pickImage(album.images, 200);
-  const artists = album.artists.map((a) => a.name).join(", ");
+  const artists = (album.artists ?? []).map((a) => a.name).join(", ");
+  const year = album.release_date?.slice(0, 4) ?? "";
   return (
     <li className="card flex flex-col gap-2">
       <a
-        href={album.external_urls.spotify}
+        href={album.external_urls?.spotify ?? "#"}
         target="_blank"
         rel="noreferrer"
         className="block"
@@ -54,7 +55,7 @@ function AlbumTile({
         )}
       </a>
       <a
-        href={album.external_urls.spotify}
+        href={album.external_urls?.spotify ?? "#"}
         target="_blank"
         rel="noreferrer"
         className="truncate font-bold hover:text-spotify-green"
@@ -66,8 +67,10 @@ function AlbumTile({
         {artists}
       </p>
       <p className="text-[10px] uppercase tracking-widest text-spotify-subtext">
-        {album.album_type} · {album.release_date.slice(0, 4)} ·{" "}
-        {album.total_tracks} tracks
+        {album.album_type ?? "album"}
+        {year ? ` · ${year}` : ""}
+        {" · "}
+        {album.total_tracks ?? 0} tracks
       </p>
       {savedAt ? (
         <p className="text-[10px] text-spotify-subtext">
