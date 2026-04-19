@@ -538,12 +538,11 @@ export async function getPlaylistTracks(
 ): Promise<{ items: SpotifyPlaylistTrack[]; total: number; truncated: boolean }> {
   const items: SpotifyPlaylistTrack[] = [];
   let total = 0;
-  // Spotify requires additional_types when the caller may receive non-track
-  // items (podcasts) in a playlist — without it, some playlists return 403.
-  // market=from_token applies user-country-aware Track Relinking so
-  // region-restricted items resolve instead of erroring out.
-  const initialQuery =
-    "limit=100&additional_types=track,episode&market=from_token";
+  // additional_types=track,episode covers playlists that may mix in
+  // podcast episodes (without this Spotify can 403 rather than filter).
+  // market is intentionally omitted — "from_token" is legacy and Spotify
+  // now infers country from the access token by default.
+  const initialQuery = "limit=100&additional_types=track,episode";
   let path: string | null = `/playlists/${playlistId}/tracks?${initialQuery}`;
   while (path && items.length < max) {
     const page: SpotifyPaged<SpotifyPlaylistTrack> = await spotifyFetch<
