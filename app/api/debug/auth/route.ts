@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { auth, handlers } from "@/auth";
 import { checkRequiredEnv } from "@/lib/env-check";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,19 @@ export async function GET(request: Request) {
         : String(error);
   }
 
+  const providersProbe = await probeHandler(request, "providers");
+  const signinProbe = await probeHandler(request, "signin/spotify");
+
+  let prismaProbe: { ok: boolean; userCount?: number; error?: unknown } = {
+    ok: false,
+  };
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    prismaProbe = { ok: true, userCount: await prisma.user.count() };
+  } catch (error) {
+    prismaProbe = { ok: false, error: serializeError(error) };
+  }
+
   return NextResponse.json(
     {
       runtime: process.env.NEXT_RUNTIME ?? "nodejs",
@@ -49,8 +62,64 @@ export async function GET(request: Request) {
         preview: v.preview,
       })),
       auth: authProbe,
+      providersHandler: providersProbe,
+      signinHandler: signinProbe,
+      prisma: prismaProbe,
       expectedSpotifyCallback: `${request.headers.get("x-forwarded-proto") ?? "https"}://${request.headers.get("host")}/api/auth/callback/spotify`,
     },
     { status: 200, headers: { "cache-control": "no-store" } },
   );
+}
+
+async function probeHandler(request: Request, path: string) {
+  const url = new URL(`/api/auth/${path}`, request.url);
+  const probeRequest = new NextRequest(url, {
+    method: "GET",
+    headers: {
+      host: request.headers.get("host") ?? "",
+      "x-forwarded-proto": request.headers.get("x-forwarded-proto") ?? "https",
+      "x-forwarded-host": request.headers.get("host") ?? "",
+      accept: "application/json",
+    },
+  });
+  try {
+    const response = await handlers.GET(probeRequest);
+    let bodyPreview: unknown = null;
+    try {
+      const text = await response.clone().text();
+      try {
+        bodyPreview = JSON.parse(text);
+      } catch {
+        bodyPreview = text.slice(0, 500);
+      }
+    } catch {
+      bodyPreview = "<unreadable>";
+    }
+    return {
+      ok: response.ok || response.status === 302,
+      status: response.status,
+      location: response.headers.get("location"),
+      body: bodyPreview,
+    };
+  } catch (error) {
+    return { ok: false, error: serializeError(error) };
+  }
+}
+
+function serializeError(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      cause:
+        error.cause instanceof Error
+          ? {
+              name: error.cause.name,
+              message: error.cause.message,
+            }
+          : error.cause,
+      stack: error.stack?.split("\n").slice(0, 8).join("\n"),
+    };
+  }
+  return String(error);
 }
