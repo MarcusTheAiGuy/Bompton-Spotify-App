@@ -46,7 +46,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
       authorization: {
         url: "https://accounts.spotify.com/authorize",
-        params: { scope: SPOTIFY_SCOPES },
+        params: {
+          scope: SPOTIFY_SCOPES,
+          // Spotify otherwise skips the consent screen for already-authorized
+          // users, which silently re-issues a token with only the scopes they
+          // originally consented to — so newly-added scopes never come through.
+          // show_dialog=true forces the consent screen on every sign-in, which
+          // is fine for a small crew-only app.
+          show_dialog: "true",
+        },
       },
     }),
   ],
