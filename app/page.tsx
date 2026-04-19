@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { ConnectButton } from "@/components/connect-button";
+import { missingRequiredEnv } from "@/lib/env-check";
 
 type SearchParams = Promise<{ error?: string }>;
 
@@ -31,6 +32,7 @@ export default async function LandingPage({
       </div>
 
       {error ? <AuthErrorBanner error={error} /> : null}
+      {error === "Configuration" ? <MissingEnvBanner /> : null}
 
       <div className="flex flex-col items-center gap-3">
         <ConnectButton />
@@ -94,6 +96,44 @@ function AuthErrorBanner({ error }: { error: string }) {
       <p className="mt-2 text-xs text-red-300/80">
         Error code: <code className="font-mono">{error}</code>
       </p>
+    </div>
+  );
+}
+
+function MissingEnvBanner() {
+  const missing = missingRequiredEnv();
+
+  return (
+    <div
+      role="alert"
+      className="w-full max-w-md rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left text-sm text-amber-200"
+    >
+      <p className="font-semibold">Server env check</p>
+      {missing.length === 0 ? (
+        <p className="mt-1">
+          All required env vars are present on this server. The Configuration
+          error is coming from somewhere else — check the Vercel function logs
+          for this deploy. (One common cause: NEXTAUTH_URL set to a stale
+          value.)
+        </p>
+      ) : (
+        <>
+          <p className="mt-1">
+            The following env vars are missing on the server. Set them in the
+            Vercel project settings and redeploy.
+          </p>
+          <ul className="mt-2 list-disc pl-5">
+            {missing.map((v) => (
+              <li key={v.name}>
+                <code className="font-mono">{v.name}</code>
+                {v.note ? (
+                  <span className="text-xs text-amber-300/80"> — {v.note}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
