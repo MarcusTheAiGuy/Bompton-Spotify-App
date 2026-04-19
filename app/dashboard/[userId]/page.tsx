@@ -5,7 +5,6 @@ import {
   TIME_RANGES,
   checkFollowedArtists,
   checkSavedTracks,
-  getAudioFeaturesBatch,
   getDevices,
   getFollowedArtists,
   getPlaybackState,
@@ -52,7 +51,6 @@ import { PlaylistGrid } from "@/components/spotify/playlist-grid";
 import { QueueList } from "@/components/spotify/queue-list";
 import { CollapsibleSection } from "@/components/spotify/collapsible-section";
 import {
-  AudioFeatureAverages,
   GenreDistribution,
   OverlapStats,
   PopularityStats,
@@ -195,27 +193,20 @@ async function renderDashboard(userId: string) {
 
   const mediumArtists = topArtistsMedium.value?.items ?? [];
 
-  const [audioFeaturesResult, savedTopTrackCheck, followedTopArtistCheck] =
-    await Promise.all([
-      settleSpotify(
-        getAudioFeaturesBatch(
-          userId,
-          mediumTracks.slice(0, 50).map((t) => t.id),
-        ),
+  const [savedTopTrackCheck, followedTopArtistCheck] = await Promise.all([
+    settleSpotify(
+      checkSavedTracks(
+        userId,
+        mediumTracks.slice(0, 50).map((t) => t.id),
       ),
-      settleSpotify(
-        checkSavedTracks(
-          userId,
-          mediumTracks.slice(0, 50).map((t) => t.id),
-        ),
+    ),
+    settleSpotify(
+      checkFollowedArtists(
+        userId,
+        mediumArtists.slice(0, 50).map((a) => a.id),
       ),
-      settleSpotify(
-        checkFollowedArtists(
-          userId,
-          mediumArtists.slice(0, 50).map((a) => a.id),
-        ),
-      ),
-    ]);
+    ),
+  ]);
 
   const savedTopTrackCount =
     savedTopTrackCheck.value?.filter(Boolean).length ?? null;
@@ -359,20 +350,6 @@ async function renderDashboard(userId: string) {
             Release decade distribution (from top tracks)
           </h3>
           <ReleaseDecadeDistribution tracks={unionTracks} />
-        </div>
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-spotify-subtext">
-            Audio feature averages (medium-term top tracks)
-          </h3>
-          {audioFeaturesResult.error ? (
-            <SpotifyErrorBanner
-              title={audioFeaturesResult.error.title}
-              detail={audioFeaturesResult.error.detail}
-              tone="muted"
-            />
-          ) : (
-            <AudioFeatureAverages features={audioFeaturesResult.value} />
-          )}
         </div>
       </CollapsibleSection>
 

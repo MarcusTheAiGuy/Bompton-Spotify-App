@@ -408,27 +408,6 @@ export type SpotifyPlaylist = {
   type: "playlist";
 };
 
-export type SpotifyAudioFeatures = {
-  id: string;
-  uri: string;
-  track_href: string;
-  analysis_url: string;
-  type: "audio_features";
-  duration_ms: number;
-  key: number;
-  mode: 0 | 1;
-  time_signature: number;
-  tempo: number;
-  acousticness: number;
-  danceability: number;
-  energy: number;
-  instrumentalness: number;
-  liveness: number;
-  loudness: number;
-  speechiness: number;
-  valence: number;
-};
-
 export async function getPlaybackState(
   userId: string,
 ): Promise<SpotifyPlaybackState | null> {
@@ -584,23 +563,3 @@ export function checkFollowedArtists(userId: string, ids: string[]) {
   return containsBatch(userId, "/me/following/contains?type=artist", ids);
 }
 
-export async function getAudioFeaturesBatch(
-  userId: string,
-  trackIds: string[],
-): Promise<SpotifyAudioFeatures[]> {
-  if (trackIds.length === 0) return [];
-  const chunks: string[][] = [];
-  for (let i = 0; i < trackIds.length; i += 100) {
-    chunks.push(trackIds.slice(i, i + 100));
-  }
-  const results: SpotifyAudioFeatures[] = [];
-  for (const chunk of chunks) {
-    const response = await spotifyFetch<{
-      audio_features: (SpotifyAudioFeatures | null)[];
-    }>(userId, `/audio-features?ids=${chunk.join(",")}`);
-    for (const item of response.audio_features) {
-      if (item) results.push(item);
-    }
-  }
-  return results;
-}
