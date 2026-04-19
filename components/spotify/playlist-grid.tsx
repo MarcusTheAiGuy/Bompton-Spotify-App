@@ -63,8 +63,14 @@ function PlaylistRow({
   const ownerLabel =
     playlist.owner?.display_name ?? playlist.owner?.id ?? "Unknown";
   const trackCount = playlist.tracks?.total ?? 0;
+  // Spotify's Nov 2024 API deprecation removed access to tracks for
+  // algorithmic + editorial playlists owned by Spotify itself
+  // (Daily Mix, Discover Weekly, Today's Top Hits, etc.). No path to
+  // re-enable for new apps, so detect and gate the expand action.
+  const spotifyOwned = playlist.owner?.id === "spotify";
 
   async function toggle() {
+    if (spotifyOwned) return;
     const nextOpen = !expanded;
     setExpanded(nextOpen);
     if (nextOpen && tracksState.status === "idle") {
@@ -108,47 +114,70 @@ function PlaylistRow({
     }
   }
 
+  const body = (
+    <>
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={image}
+          alt=""
+          className="h-14 w-14 shrink-0 rounded object-cover"
+        />
+      ) : (
+        <div className="h-14 w-14 shrink-0 rounded bg-spotify-highlight" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-bold">{playlist.name}</p>
+        <p className="truncate text-xs text-spotify-subtext">
+          by {ownerLabel}
+          <span className="mx-1 text-spotify-border">·</span>
+          {trackCount} tracks
+          {playlist.collaborative ? " · collab" : ""}
+          {playlist.public === true ? " · public" : ""}
+          {playlist.public === false ? " · private" : ""}
+          {spotifyOwned ? " · spotify-curated" : ""}
+        </p>
+      </div>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer"
+        className="shrink-0 text-xs text-spotify-subtext hover:text-spotify-green"
+        onClick={(event) => event.stopPropagation()}
+      >
+        open in Spotify ↗
+      </a>
+      {spotifyOwned ? null : <Chevron open={expanded} />}
+    </>
+  );
+
   return (
     <li className="rounded-lg border border-spotify-border bg-spotify-elevated/40">
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={expanded}
-        className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-spotify-highlight/40"
-      >
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={image}
-            alt=""
-            className="h-14 w-14 shrink-0 rounded object-cover"
-          />
-        ) : (
-          <div className="h-14 w-14 shrink-0 rounded bg-spotify-highlight" />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-bold">{playlist.name}</p>
-          <p className="truncate text-xs text-spotify-subtext">
-            by {ownerLabel}
-            <span className="mx-1 text-spotify-border">·</span>
-            {trackCount} tracks
-            {playlist.collaborative ? " · collab" : ""}
-            {playlist.public === true ? " · public" : ""}
-            {playlist.public === false ? " · private" : ""}
-          </p>
-        </div>
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="shrink-0 text-xs text-spotify-subtext hover:text-spotify-green"
-          onClick={(event) => event.stopPropagation()}
+      {spotifyOwned ? (
+        <div
+          className="flex w-full items-center gap-3 p-3 text-left opacity-80"
+          title="Spotify-curated playlist — Spotify's API no longer exposes tracks for these to new apps."
         >
-          open in Spotify ↗
-        </a>
-        <Chevron open={expanded} />
-      </button>
-      {expanded ? (
+          {body}
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={expanded}
+          className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-spotify-highlight/40"
+        >
+          {body}
+        </button>
+      )}
+      {spotifyOwned ? (
+        <p className="border-t border-spotify-border px-3 py-2 text-xs text-spotify-subtext">
+          Spotify-curated (algorithmic or editorial). Spotify's Nov 2024 API
+          deprecation blocks track-listing for these; open in Spotify to see
+          the songs.
+        </p>
+      ) : null}
+      {expanded && !spotifyOwned ? (
         <div className="border-t border-spotify-border px-3 pb-4 pt-3">
           <PlaylistTracksView state={tracksState} onRetry={loadTracks} />
         </div>
