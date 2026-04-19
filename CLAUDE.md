@@ -11,3 +11,6 @@ This app is for a small private crew, not the general public. Always make error 
 - Client-side: show the same level of detail in any error UI (banners, toasts, fallback pages)
 
 This applies to auth flows, API responses, server actions, cron jobs, and any future surface.
+
+## Merging
+Always merge work to `main` immediately after the PR is opened and CI is green — don't wait for review. Use a squash merge to keep history linear. This applies to every PR I open in this repo unless the user explicitly says otherwise on a specific PR.
