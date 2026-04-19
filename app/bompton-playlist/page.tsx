@@ -7,7 +7,6 @@ import {
   BOMPTON_YEARS,
   CURRENT_BOMPTON_YEAR,
   findBomptonPlaylist,
-  mostRecentFriday,
   scoreSeason,
   seasonStart,
   type BomptonYear,
@@ -118,7 +117,9 @@ export default async function BomptonPlaylistPage() {
       <FridayLeaderboard
         scores={seasonResult.scores}
         seasonStartAt={seasonStart(CURRENT_BOMPTON_YEAR)}
-        lastFridayAt={mostRecentFriday()}
+        lastFridayAt={
+          seasonResult.fridays[seasonResult.fridays.length - 1] ?? null
+        }
         weeksElapsed={seasonResult.fridays.length}
         hasRealData={hasRealDataForCurrent}
         missingDataReason={
