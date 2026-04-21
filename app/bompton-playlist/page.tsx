@@ -1,12 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getPlaylists, getPlaylistTracks } from "@/lib/spotify";
-import { settleSpotify } from "@/lib/describe-spotify-error";
+import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
 import {
   BOMPTON_YEARS,
   CURRENT_BOMPTON_YEAR,
-  findBomptonPlaylist,
   scoreSeason,
   seasonStart,
   type BomptonYear,
@@ -14,7 +13,6 @@ import {
 } from "@/lib/bompton";
 import { BomptonColumn } from "@/components/bompton/bompton-column";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
-import { SpotifyErrorBanner } from "@/components/spotify/section-header";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +20,7 @@ export default async function BomptonPlaylistPage() {
   const session = await auth();
   if (!session?.user) redirect("/");
 
-  const [crewRecords, playlistsResult] = await Promise.all([
+  const [crewRecords, bomptonData] = await Promise.all([
     prisma.user.findMany({
       where: { accounts: { some: { provider: "spotify" } } },
       select: {
@@ -38,7 +36,7 @@ export default async function BomptonPlaylistPage() {
       },
       orderBy: { createdAt: "asc" },
     }),
-    settleSpotify(getPlaylists(session.user.id, 50)),
+    loadBomptonDataFromDb(),
   ]);
 
   const crew: CrewMember[] = crewRecords.map((u) => ({
@@ -49,32 +47,13 @@ export default async function BomptonPlaylistPage() {
     spotifyUserId: u.accounts[0]?.providerAccountId ?? null,
   }));
 
-  const playlists = playlistsResult.value?.items ?? [];
+  const dataByYear = new Map(bomptonData.map((d) => [d.year, d]));
+  const anyDataAtAll = bomptonData.some((d) => d.tracks.length > 0);
 
-  const playlistByYear = new Map<BomptonYear, ReturnType<typeof findBomptonPlaylist>>();
-  for (const year of BOMPTON_YEARS) {
-    playlistByYear.set(year, findBomptonPlaylist(playlists, year));
-  }
-
-  const trackResults = await Promise.all(
-    BOMPTON_YEARS.map(async (year) => {
-      const playlist = playlistByYear.get(year);
-      if (!playlist) return { year, tracks: null, error: null };
-      const result = await settleSpotify(
-        getPlaylistTracks(session.user.id, playlist.id),
-      );
-      if (result.error) {
-        return { year, tracks: null, error: result.error };
-      }
-      const playableTracks = result.value.items.filter((i) => Boolean(i.track));
-      return { year, tracks: playableTracks, error: null };
-    }),
-  );
-  const tracksByYear = new Map(trackResults.map((r) => [r.year, r.tracks]));
-  const firstTrackError = trackResults.find((r) => r.error)?.error ?? null;
-
-  const currentTracks = tracksByYear.get(CURRENT_BOMPTON_YEAR) ?? [];
+  const currentSeason = dataByYear.get(CURRENT_BOMPTON_YEAR);
+  const currentTracks = currentSeason?.tracks ?? [];
   const hasRealDataForCurrent = currentTracks.length > 0;
+
   const seasonResult = scoreSeason(
     hasRealDataForCurrent ? currentTracks : [],
     crew,
@@ -97,11 +76,22 @@ export default async function BomptonPlaylistPage() {
         </p>
       </header>
 
-      {playlistsResult.error ? (
-        <SpotifyErrorBanner
-          title={playlistsResult.error.title}
-          detail={playlistsResult.error.detail}
-        />
+      {!anyDataAtAll ? (
+        <div className="rounded-lg border border-spotify-border bg-spotify-highlight/40 px-4 py-3 text-sm">
+          <p className="font-semibold text-spotify-text">
+            No sync data yet.
+          </p>
+          <p className="mt-1 text-spotify-subtext">
+            Install the browser extension once per crew member to unlock
+            contributor counts and Friday standings.{" "}
+            <Link
+              href="/extension-setup"
+              className="font-semibold text-spotify-green hover:underline"
+            >
+              Set up the extension →
+            </Link>
+          </p>
+        </div>
       ) : null}
 
       <FridayLeaderboard
@@ -115,29 +105,60 @@ export default async function BomptonPlaylistPage() {
         missingDataReason={
           hasRealDataForCurrent
             ? undefined
-            : "Spotify's current quota tier for this app isn't returning added_at / added_by track metadata, so we can't tell who added what or when. Apply for Extended Quota Mode in the Spotify developer dashboard."
+            : "No tracks in the database for this season yet. Install the extension and click Sync now — the leaderboard will populate from the real added_at / added_by data the web player returns."
         }
       />
 
-      {firstTrackError && !hasRealDataForCurrent ? (
-        <SpotifyErrorBanner
-          title={firstTrackError.title}
-          detail={firstTrackError.detail}
-          tone="muted"
-        />
-      ) : null}
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {BOMPTON_YEARS.map((year) => (
-          <BomptonColumn
-            key={year}
-            year={year}
-            playlist={playlistByYear.get(year) ?? null}
-            tracks={tracksByYear.get(year) ?? null}
-            crew={crew}
-            isCurrent={year === CURRENT_BOMPTON_YEAR}
-          />
-        ))}
+        {BOMPTON_YEARS.map((year) => {
+          const data = dataByYear.get(year);
+          return (
+            <BomptonColumn
+              key={year}
+              year={year}
+              playlist={
+                data?.playlist
+                  ? {
+                      id: data.playlist.id,
+                      name: data.playlist.name,
+                      description: null,
+                      public: null,
+                      collaborative: false,
+                      owner: {
+                        id: data.playlist.ownerId ?? "",
+                        display_name: data.playlist.ownerName,
+                        uri: "",
+                      },
+                      tracks: {
+                        total: data.playlist.totalTracks,
+                        href: "",
+                      },
+                      images: data.playlist.imageUrl
+                        ? [
+                            {
+                              url: data.playlist.imageUrl,
+                              height: null,
+                              width: null,
+                            },
+                          ]
+                        : [],
+                      external_urls: {
+                        spotify: `https://open.spotify.com/playlist/${data.playlist.id}`,
+                      },
+                      uri: `spotify:playlist:${data.playlist.id}`,
+                      href: "",
+                      snapshot_id: data.playlist.snapshotId ?? "",
+                      type: "playlist",
+                    }
+                  : null
+              }
+              tracks={data?.tracks ?? null}
+              crew={crew}
+              isCurrent={year === CURRENT_BOMPTON_YEAR}
+              lastSyncAt={data?.playlist?.lastSyncAt ?? null}
+            />
+          );
+        })}
       </div>
     </section>
   );

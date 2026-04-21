@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bompton sync</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="root">
+      <header class="header">
+        <div class="dot"></div>
+        <h1>Bompton sync</h1>
+        <span class="version" id="version">v—</span>
+      </header>
+
+      <section class="card">
+        <label class="field">
+          <span>Backend origin</span>
+          <input
+            id="backendOrigin"
+            type="url"
+            placeholder="https://bompton.vercel.app"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+        <label class="field">
+          <span>Auth token</span>
+          <input
+            id="bearerToken"
+            type="password"
+            placeholder="Paste the raw token from /extension-setup"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+        <div class="row">
+          <button id="save" class="primary">Save</button>
+          <button id="clear" class="ghost">Clear token</button>
+        </div>
+        <p id="configStatus" class="hint"></p>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <button id="sync" class="primary">Sync now</button>
+          <button id="test" class="ghost">Test connection</button>
+        </div>
+        <div id="connectionResult" class="hint"></div>
+      </section>
+
+      <section class="card">
+        <h2>Last sync</h2>
+        <p id="lastSync" class="mono"></p>
+        <div id="perPlaylist" class="list"></div>
+      </section>
+
+      <section id="errorCard" class="card error hidden">
+        <h2>Last error</h2>
+        <pre id="errorText"></pre>
+      </section>
+
+      <footer class="footer">
+        <a id="setupLink" href="#" target="_blank" rel="noreferrer"
+          >Open /extension-setup ↗</a
+        >
+        <a
+          href="https://open.spotify.com"
+          target="_blank"
+          rel="noreferrer"
+          >open.spotify.com ↗</a
+        >
+      </footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

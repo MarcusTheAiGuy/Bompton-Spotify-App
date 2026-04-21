@@ -1,0 +1,357 @@
+// Bompton sync service worker.
+//
+// Responsibilities:
+//   1. Read the Spotify web-player access token from open.spotify.com's
+//      /get_access_token endpoint. This token has the full set of read
+//      scopes the web player uses, which bypasses the per-app dev quota
+//      the dev-API keys are subject to.
+//   2. Page through /v1/playlists/{id}/tracks for each Bompton playlist.
+//   3. POST sanitized track rows to the Bompton app's /api/extension/sync.
+//   4. Run on a chrome.alarms cadence plus on manual trigger from the popup.
+
+const DEFAULT_BACKEND_ORIGIN = "https://bompton.vercel.app";
+const SYNC_ALARM = "bompton-sync";
+const SYNC_PERIOD_MINUTES = 60;
+const GET_TOKEN_URL =
+  "https://open.spotify.com/get_access_token?reason=transport&productType=web-player";
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create(SYNC_ALARM, {
+    periodInMinutes: SYNC_PERIOD_MINUTES,
+    delayInMinutes: 1,
+  });
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  chrome.alarms.create(SYNC_ALARM, {
+    periodInMinutes: SYNC_PERIOD_MINUTES,
+  });
+});
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name !== SYNC_ALARM) return;
+  await runSync("alarm");
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  (async () => {
+    try {
+      if (message?.type === "sync-now") {
+        const result = await runSync("manual");
+        sendResponse({ ok: true, result });
+      } else if (message?.type === "test-connection") {
+        const result = await testConnection();
+        sendResponse({ ok: true, result });
+      } else if (message?.type === "get-status") {
+        const status = await readStatus();
+        sendResponse({ ok: true, status });
+      } else {
+        sendResponse({ ok: false, error: `Unknown message ${message?.type}` });
+      }
+    } catch (error) {
+      sendResponse({
+        ok: false,
+        error: formatError(error),
+      });
+    }
+  })();
+  return true; // keep the message channel open for the async response
+});
+
+async function readConfig() {
+  const { backendOrigin, bearerToken } = await chrome.storage.local.get([
+    "backendOrigin",
+    "bearerToken",
+  ]);
+  return {
+    backendOrigin: backendOrigin || DEFAULT_BACKEND_ORIGIN,
+    bearerToken: bearerToken || null,
+  };
+}
+
+async function readStatus() {
+  const { lastSyncAt, lastSyncResult, lastError, lastRunAt } =
+    await chrome.storage.local.get([
+      "lastSyncAt",
+      "lastSyncResult",
+      "lastError",
+      "lastRunAt",
+    ]);
+  const config = await readConfig();
+  return {
+    backendOrigin: config.backendOrigin,
+    hasToken: Boolean(config.bearerToken),
+    lastSyncAt: lastSyncAt ?? null,
+    lastSyncResult: lastSyncResult ?? null,
+    lastError: lastError ?? null,
+    lastRunAt: lastRunAt ?? null,
+    version: chrome.runtime.getManifest().version,
+  };
+}
+
+async function writeStatus(patch) {
+  await chrome.storage.local.set(patch);
+}
+
+async function getWebPlayerToken() {
+  const cached = await chrome.storage.session.get(["webPlayerToken"]);
+  const now = Date.now();
+  if (
+    cached.webPlayerToken &&
+    cached.webPlayerToken.expiresAt > now + 60_000 &&
+    !cached.webPlayerToken.isAnonymous
+  ) {
+    return cached.webPlayerToken.accessToken;
+  }
+  const response = await fetch(GET_TOKEN_URL, { credentials: "include" });
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `GET /get_access_token failed: HTTP ${response.status} ${response.statusText}. ` +
+        `Body: ${body.slice(0, 300)}. ` +
+        `Fix: open https://open.spotify.com in this browser and sign in with a crew account.`,
+    );
+  }
+  const data = await response.json();
+  if (!data.accessToken) {
+    throw new Error(
+      `GET /get_access_token returned no accessToken. Body: ${JSON.stringify(data).slice(0, 300)}`,
+    );
+  }
+  if (data.isAnonymous) {
+    throw new Error(
+      "Spotify web player returned an anonymous access token — that means you're not signed into open.spotify.com in this browser. " +
+        "Open https://open.spotify.com, sign in with a crew account, then click Sync now.",
+    );
+  }
+  const record = {
+    accessToken: data.accessToken,
+    expiresAt: data.accessTokenExpirationTimestampMs ?? now + 30 * 60_000,
+    isAnonymous: Boolean(data.isAnonymous),
+  };
+  await chrome.storage.session.set({ webPlayerToken: record });
+  return record.accessToken;
+}
+
+async function spotifyGet(path) {
+  const token = await getWebPlayerToken();
+  const response = await fetch(`https://api.spotify.com/v1${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (response.status === 401) {
+    // Token expired mid-flight. Drop session cache and retry once.
+    await chrome.storage.session.remove("webPlayerToken");
+    const fresh = await getWebPlayerToken();
+    const retry = await fetch(`https://api.spotify.com/v1${path}`, {
+      headers: { Authorization: `Bearer ${fresh}` },
+    });
+    if (!retry.ok) {
+      const body = await retry.text().catch(() => "");
+      throw new Error(
+        `Spotify API ${retry.status} on ${path} after retry. Body: ${body.slice(0, 300)}`,
+      );
+    }
+    return retry.json();
+  }
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Spotify API ${response.status} on ${path}. Body: ${body.slice(0, 300)}`,
+    );
+  }
+  return response.json();
+}
+
+async function fetchPlaylistSnapshot(playlistId) {
+  const fields = "snapshot_id,name,owner(id,display_name),images,tracks(total)";
+  const data = await spotifyGet(
+    `/playlists/${playlistId}?fields=${encodeURIComponent(fields)}`,
+  );
+  return {
+    snapshotId: data.snapshot_id ?? null,
+    name: data.name ?? "",
+    ownerId: data.owner?.id ?? null,
+    ownerName: data.owner?.display_name ?? null,
+    imageUrl: data.images?.[0]?.url ?? null,
+    totalTracks: data.tracks?.total ?? 0,
+  };
+}
+
+async function fetchPlaylistTracks(playlistId) {
+  const fields =
+    "items(added_at,added_by.id,is_local,track(id,name,uri,duration_ms,explicit,preview_url,album(name,images),artists(id,name,uri))),next,total";
+  const items = [];
+  let url = `/playlists/${playlistId}/tracks?limit=100&fields=${encodeURIComponent(fields)}&additional_types=track`;
+  let position = 0;
+  while (url) {
+    const page = await spotifyGet(url);
+    for (const raw of page.items ?? []) {
+      items.push(normalizeTrackItem(raw, position));
+      position += 1;
+    }
+    if (!page.next) break;
+    const nextUrl = new URL(page.next);
+    url = `${nextUrl.pathname.replace(/^\/v1/, "")}${nextUrl.search}`;
+  }
+  return items;
+}
+
+function normalizeTrackItem(raw, position) {
+  const track = raw.track
+    ? {
+        id: raw.track.id ?? null,
+        name: raw.track.name ?? "(unavailable)",
+        uri: raw.track.uri ?? "",
+        durationMs: raw.track.duration_ms ?? 0,
+        explicit: Boolean(raw.track.explicit),
+        previewUrl: raw.track.preview_url ?? null,
+        albumName: raw.track.album?.name ?? "",
+        albumImageUrl: raw.track.album?.images?.[0]?.url ?? null,
+        artists: (raw.track.artists ?? []).map((a) => ({
+          id: a.id ?? null,
+          name: a.name ?? "",
+          uri: a.uri ?? null,
+        })),
+      }
+    : null;
+  return {
+    position,
+    addedAt: raw.added_at,
+    addedBySpotifyId: raw.added_by?.id ?? null,
+    isLocal: Boolean(raw.is_local),
+    track,
+  };
+}
+
+async function pushSync(backendOrigin, bearerToken, payload) {
+  const response = await fetch(`${backendOrigin}/api/extension/sync`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  if (!response.ok) {
+    const detail =
+      json?.message ?? text ?? `HTTP ${response.status} ${response.statusText}`;
+    throw new Error(
+      `POST ${backendOrigin}/api/extension/sync → ${response.status}: ${detail}`,
+    );
+  }
+  return json;
+}
+
+async function runSync(trigger) {
+  const startedAt = new Date().toISOString();
+  await writeStatus({ lastRunAt: startedAt, lastError: null });
+
+  const { backendOrigin, bearerToken } = await readConfig();
+  if (!bearerToken) {
+    const error =
+      "Extension is not configured. Paste an auth token (generated at /extension-setup) into the popup and click Save.";
+    await writeStatus({ lastError: error });
+    throw new Error(error);
+  }
+
+  // 1. Ask backend which playlists to sync + last-known snapshots.
+  const descriptorsResponse = await fetch(
+    `${backendOrigin}/api/extension/playlists`,
+    { headers: { Authorization: `Bearer ${bearerToken}` } },
+  );
+  if (!descriptorsResponse.ok) {
+    const body = await descriptorsResponse.text().catch(() => "");
+    const error = `GET ${backendOrigin}/api/extension/playlists → ${descriptorsResponse.status}: ${body.slice(0, 500)}`;
+    await writeStatus({ lastError: error });
+    throw new Error(error);
+  }
+  const { playlists } = await descriptorsResponse.json();
+
+  const perPlaylist = [];
+  for (const descriptor of playlists) {
+    try {
+      const snapshot = await fetchPlaylistSnapshot(descriptor.id);
+      const snapshotChanged = snapshot.snapshotId !== descriptor.storedSnapshotId;
+      const tracks = snapshotChanged
+        ? await fetchPlaylistTracks(descriptor.id)
+        : undefined;
+      const result = await pushSync(backendOrigin, bearerToken, {
+        playlist: {
+          id: descriptor.id,
+          name: snapshot.name || descriptor.name,
+          ownerId: snapshot.ownerId,
+          ownerName: snapshot.ownerName,
+          snapshotId: snapshot.snapshotId,
+          imageUrl: snapshot.imageUrl,
+          totalTracks: snapshot.totalTracks,
+        },
+        tracks,
+      });
+      perPlaylist.push({
+        id: descriptor.id,
+        year: descriptor.year,
+        name: descriptor.name,
+        snapshotChanged: result?.snapshotChanged ?? false,
+        tracksWritten: result?.tracksWritten ?? 0,
+      });
+    } catch (error) {
+      const msg = formatError(error);
+      perPlaylist.push({
+        id: descriptor.id,
+        year: descriptor.year,
+        name: descriptor.name,
+        error: msg,
+      });
+    }
+  }
+
+  const finishedAt = new Date().toISOString();
+  const firstError = perPlaylist.find((p) => p.error)?.error ?? null;
+  const result = { trigger, startedAt, finishedAt, perPlaylist };
+  await writeStatus({
+    lastSyncAt: finishedAt,
+    lastSyncResult: result,
+    lastError: firstError,
+  });
+  if (firstError) {
+    throw new Error(firstError);
+  }
+  return result;
+}
+
+async function testConnection() {
+  const { backendOrigin, bearerToken } = await readConfig();
+  if (!bearerToken) {
+    throw new Error("No auth token saved. Paste one and click Save first.");
+  }
+  const response = await fetch(`${backendOrigin}/api/extension/whoami`, {
+    headers: { Authorization: `Bearer ${bearerToken}` },
+  });
+  const text = await response.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+  if (!response.ok) {
+    throw new Error(
+      `GET ${backendOrigin}/api/extension/whoami → ${response.status}: ${json?.message ?? text}`,
+    );
+  }
+  return json;
+}
+
+function formatError(error) {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`;
+  }
+  return String(error);
+}

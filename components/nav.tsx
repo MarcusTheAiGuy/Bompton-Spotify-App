@@ -5,6 +5,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/bompton-playlist", label: "Bompton Playlist" },
+  { href: "/extension-setup", label: "Extension" },
 ];
 
 export async function Nav() {

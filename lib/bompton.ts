@@ -98,18 +98,21 @@ function normalizeYearSeparators(s: string): string {
   return s.replace(/\s*[\u2013\u2014]\s*/g, "-").replace(/\s+/g, " ");
 }
 
+// Shared name-matching predicate used by both the Spotify-API code path
+// (filter a list of SpotifyPlaylist) and the DB code path (filter a list
+// of Prisma Playlist rows). Accepts a playlist name string.
+export function matchesBomptonYear(name: string, year: BomptonYear): boolean {
+  const variants = yearVariants(year);
+  const normalized = normalizeYearSeparators(name.toLowerCase());
+  if (!normalized.includes("bompton")) return false;
+  return variants.some((v) => normalized.includes(v));
+}
+
 export function findBomptonPlaylist(
   playlists: SpotifyPlaylist[],
   year: BomptonYear,
 ): SpotifyPlaylist | null {
-  const variants = yearVariants(year);
-  const match =
-    playlists.find((p) => {
-      const name = normalizeYearSeparators(p.name.toLowerCase());
-      if (!name.includes("bompton")) return false;
-      return variants.some((v) => name.includes(v));
-    }) ?? null;
-  return match;
+  return playlists.find((p) => matchesBomptonYear(p.name, year)) ?? null;
 }
 
 // ---------- Analyses that require track-level data ----------
