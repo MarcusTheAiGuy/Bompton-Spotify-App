@@ -37,7 +37,7 @@ export class SpotifyRefreshFailedError extends Error {
   }
 }
 
-async function getFreshAccessToken(userId: string): Promise<string> {
+export async function getFreshAccessToken(userId: string): Promise<string> {
   const account = await prisma.account.findFirst({
     where: { userId, provider: "spotify" },
   });

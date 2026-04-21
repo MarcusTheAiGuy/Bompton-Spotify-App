@@ -66,10 +66,12 @@ export default async function ExtensionSetupPage() {
           Bompton playlist sync extension
         </h1>
         <p className="max-w-3xl text-sm text-spotify-subtext">
-          Spotify's dev-API quota strips track data out of our Bompton
-          playlists, so we sync them via a browser extension that reads from
-          the logged-in web player instead. Install it once per machine, paste
-          an auth token, and the leaderboard starts working.
+          The leaderboard needs full track data for the Bompton playlists, so
+          we sync them via a small browser extension that pages through the
+          Spotify API on your machine. Install it once per machine, paste an
+          auth token, and the leaderboard starts working. The extension asks
+          this backend for a Spotify access token, so you don't need to be
+          signed into open.spotify.com separately — just the Bompton site.
         </p>
       </header>
 
@@ -209,18 +211,6 @@ export default async function ExtensionSetupPage() {
           <li>
             Click <strong>Test connection</strong> — it should echo back your
             email.
-          </li>
-          <li>
-            Make sure you're signed into{" "}
-            <a
-              href="https://open.spotify.com"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-spotify-green hover:underline"
-            >
-              open.spotify.com ↗
-            </a>
-            {" "}in this browser.
           </li>
           <li>
             Click <strong>Sync now</strong>. The playlist data shows up on{" "}

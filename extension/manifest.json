@@ -2,11 +2,10 @@
   "manifest_version": 3,
   "name": "Bompton Playlist Sync",
   "short_name": "Bompton",
-  "description": "Syncs Bompton playlist track data from open.spotify.com to the Bompton app's backend so the Friday leaderboard and contributor counts stay up to date.",
-  "version": "0.1.0",
+  "description": "Syncs Bompton playlist track data to the Bompton app's backend so the Friday leaderboard and contributor counts stay up to date. Gets its Spotify access token from the backend (which refreshes the caller's NextAuth OAuth grant).",
+  "version": "0.1.1",
   "permissions": ["storage", "alarms"],
   "host_permissions": [
-    "https://open.spotify.com/*",
     "https://api.spotify.com/*",
     "https://*.vercel.app/*",
     "http://localhost/*",
