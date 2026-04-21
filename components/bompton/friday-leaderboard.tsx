@@ -44,12 +44,12 @@ export function FridayLeaderboard({
       {!hasRealData ? (
         <div className="rounded-lg border border-spotify-border bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
           <p className="font-semibold text-spotify-text">
-            Scores populate automatically once Spotify starts returning track
-            data again.
+            Scores populate automatically once the extension syncs this
+            season's playlist.
           </p>
           <p className="mt-1">
             {missingDataReason ??
-              "Right now /playlists/{id}/tracks is blocked for this app's quota tier. Apply for Extended Quota Mode in the Spotify developer dashboard; once granted, this leaderboard backfills from the real added_at / added_by timestamps."}
+              "No PlaylistTrack rows in the database for this season yet. Install the browser extension at /extension-setup and click Sync now — the leaderboard backfills from the added_at / added_by data the web player returns."}
           </p>
         </div>
       ) : null}

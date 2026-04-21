@@ -39,6 +39,19 @@ Add these redirect URIs in the Spotify dashboard:
 - `http://localhost:3000/api/auth/callback/spotify`
 - `https://<your-vercel-domain>/api/auth/callback/spotify`
 
+## Bompton sync extension
+Spotify's dev-API quota strips all track data out of invite-collaborator
+playlists (tracks.total=0, track:null, no added_by/added_at). Extended Quota
+Mode isn't attainable (250k MAU gate). We sync the Bompton playlists through
+a browser extension that reads from the logged-in open.spotify.com web player
+(which has full read scopes) and POSTs to `/api/extension/sync`.
+
+- Source lives in `extension/`. Manifest V3, plain JS — no build step.
+- Package a release zip with `npm run extension:zip` → `extension/dist/bompton-extension-vX.Y.Z.zip`.
+- Crew members install it once per machine via `/extension-setup`: load
+  unpacked at `chrome://extensions`, paste an auth token, click Sync now.
+  Auto-syncs hourly after that.
+
 ## Deployment
 Push to `main` → Vercel auto-deploys. Preview deploys are created for each PR.
 

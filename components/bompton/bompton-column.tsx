@@ -19,12 +19,14 @@ export function BomptonColumn({
   crew,
   tracks,
   isCurrent,
+  lastSyncAt,
 }: {
   year: BomptonYear;
   playlist: SpotifyPlaylist | null;
   crew: CrewMember[];
   tracks: SpotifyPlaylistTrack[] | null;
   isCurrent: boolean;
+  lastSyncAt: Date | null;
 }) {
   if (!playlist) {
     return (
@@ -34,13 +36,17 @@ export function BomptonColumn({
           Bompton {year}
         </h3>
         <p className="text-xs text-spotify-subtext">
-          Couldn't find a Bompton playlist for {year} in the signed-in user's
-          library. The matcher accepts any of these name suffixes:{" "}
-          <code className="font-mono">{year}</code>,{" "}
+          The extension hasn't synced a playlist for {year} yet. Either
+          no Bompton {year} playlist exists in the syncing user's library, or
+          the extension hasn't run. Visit{" "}
+          <a href="/extension-setup" className="font-semibold text-spotify-green hover:underline">
+            /extension-setup
+          </a>
+          , click Sync now, and reload. The matcher accepts any of these name
+          suffixes: <code className="font-mono">{year}</code>,{" "}
           <code className="font-mono">{shortYear(year)}</code>, plus the same
-          with a slash instead of a hyphen — as long as the name also
-          contains "Bompton". Make sure the signed-in user owns or follows
-          (or is a collaborator on) the playlist.
+          with a slash instead of a hyphen, as long as the name also
+          contains "Bompton".
         </p>
       </article>
     );
@@ -96,6 +102,7 @@ export function BomptonColumn({
         outsiders={outsiders}
         unattributed={unattributed}
         hasRealData={hasRealTracks}
+        lastSyncAt={lastSyncAt}
       />
 
       <SpotifyEmbed
@@ -123,11 +130,13 @@ function ContributorPanel({
   outsiders,
   unattributed,
   hasRealData,
+  lastSyncAt,
 }: {
   perCrew: ContributorCount[];
   outsiders: number;
   unattributed: number;
   hasRealData: boolean;
+  lastSyncAt: Date | null;
 }) {
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-spotify-base/50 p-3">
@@ -165,12 +174,18 @@ function ContributorPanel({
       {hasRealData ? (
         <p className="text-[10px] text-spotify-subtext">
           {outsiders > 0 ? `${outsiders} from non-crew · ` : ""}
-          {unattributed > 0 ? `${unattributed} unattributed` : ""}
+          {unattributed > 0 ? `${unattributed} unattributed · ` : ""}
+          {lastSyncAt
+            ? `synced ${lastSyncAt.toLocaleString()}`
+            : "never synced"}
         </p>
       ) : (
         <p className="text-[10px] text-spotify-subtext">
-          Counts populate once Spotify returns track-level data for this
-          app. Extended Quota Mode pending.
+          Counts populate once the sync extension has pushed track data for
+          this season.{" "}
+          <a href="/extension-setup" className="font-semibold text-spotify-green hover:underline">
+            /extension-setup
+          </a>
         </p>
       )}
     </div>

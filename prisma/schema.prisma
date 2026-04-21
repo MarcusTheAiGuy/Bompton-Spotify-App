@@ -49,8 +49,9 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
 
-  accounts Account[]
-  sessions Session[]
+  accounts         Account[]
+  sessions         Session[]
+  extensionTokens  ExtensionToken[]
 }
 
 model VerificationToken {
@@ -59,4 +60,64 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// Playlist + PlaylistTrack store Bompton playlist data synced by the
+// browser extension. The Spotify dev-API quota no longer returns track-level
+// data for invite-collaborator playlists, so we mirror that data locally.
+model Playlist {
+  id          String    @id
+  name        String
+  ownerId     String?
+  ownerName   String?
+  snapshotId  String?
+  imageUrl    String?
+  totalTracks Int       @default(0)
+  lastSyncAt  DateTime?
+  lastSyncBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tracks PlaylistTrack[]
+}
+
+model PlaylistTrack {
+  id               String   @id @default(cuid())
+  playlistId       String
+  position         Int
+  trackSpotifyId   String?
+  trackName        String
+  trackUri         String
+  trackDurationMs  Int
+  trackExplicit    Boolean  @default(false)
+  trackPreviewUrl  String?
+  albumName        String
+  albumImageUrl    String?
+  artistsJson      Json
+  addedAt          DateTime
+  addedBySpotifyId String?
+  isLocal          Boolean  @default(false)
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, position])
+  @@index([playlistId])
+  @@index([addedBySpotifyId])
+}
+
+// ExtensionToken authenticates requests from the browser extension.
+// The raw token is shown to the user exactly once at generation time;
+// only the sha256 hash is persisted.
+model ExtensionToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  label      String?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
