@@ -1,10 +1,11 @@
 // Bompton sync service worker.
 //
 // Responsibilities:
-//   1. Read the Spotify web-player access token from open.spotify.com's
-//      /get_access_token endpoint. This token has the full set of read
-//      scopes the web player uses, which bypasses the per-app dev quota
-//      the dev-API keys are subject to.
+//   1. Ask the Bompton backend for a Spotify access token, which the backend
+//      mints by refreshing the caller's stored NextAuth Spotify OAuth grant.
+//      We used to scrape open.spotify.com/get_access_token directly, but
+//      Spotify rolled out TOTP-based anti-scraping on that endpoint and it
+//      now returns 403 "URL Blocked" / error 54113 at the Fastly edge.
 //   2. Page through /v1/playlists/{id}/tracks for each Bompton playlist.
 //   3. POST sanitized track rows to the Bompton app's /api/extension/sync.
 //   4. Run on a chrome.alarms cadence plus on manual trigger from the popup.
@@ -12,8 +13,6 @@
 const DEFAULT_BACKEND_ORIGIN = "https://bompton.vercel.app";
 const SYNC_ALARM = "bompton-sync";
 const SYNC_PERIOD_MINUTES = 60;
-const GET_TOKEN_URL =
-  "https://open.spotify.com/get_access_token?reason=transport&productType=web-player";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(SYNC_ALARM, {
@@ -93,55 +92,60 @@ async function writeStatus(patch) {
   await chrome.storage.local.set(patch);
 }
 
-async function getWebPlayerToken() {
-  const cached = await chrome.storage.session.get(["webPlayerToken"]);
+async function getSpotifyAccessToken(backendOrigin, bearerToken) {
+  const cached = await chrome.storage.session.get(["spotifyToken"]);
   const now = Date.now();
-  if (
-    cached.webPlayerToken &&
-    cached.webPlayerToken.expiresAt > now + 60_000 &&
-    !cached.webPlayerToken.isAnonymous
-  ) {
-    return cached.webPlayerToken.accessToken;
+  if (cached.spotifyToken && cached.spotifyToken.expiresAt > now + 60_000) {
+    return cached.spotifyToken.accessToken;
   }
-  const response = await fetch(GET_TOKEN_URL, { credentials: "include" });
+  const response = await fetch(`${backendOrigin}/api/extension/spotify-token`, {
+    headers: { Authorization: `Bearer ${bearerToken}` },
+  });
+  const text = await response.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
+    const detail =
+      json?.message ?? text ?? `HTTP ${response.status} ${response.statusText}`;
     throw new Error(
-      `GET /get_access_token failed: HTTP ${response.status} ${response.statusText}. ` +
-        `Body: ${body.slice(0, 300)}. ` +
-        `Fix: open https://open.spotify.com in this browser and sign in with a crew account.`,
+      `GET ${backendOrigin}/api/extension/spotify-token → ${response.status}: ${detail}`,
     );
   }
-  const data = await response.json();
-  if (!data.accessToken) {
+  if (!json?.accessToken) {
     throw new Error(
-      `GET /get_access_token returned no accessToken. Body: ${JSON.stringify(data).slice(0, 300)}`,
+      `Backend returned no accessToken. Body: ${text.slice(0, 300)}`,
     );
   }
-  if (data.isAnonymous) {
-    throw new Error(
-      "Spotify web player returned an anonymous access token — that means you're not signed into open.spotify.com in this browser. " +
-        "Open https://open.spotify.com, sign in with a crew account, then click Sync now.",
-    );
-  }
-  const record = {
-    accessToken: data.accessToken,
-    expiresAt: data.accessTokenExpirationTimestampMs ?? now + 30 * 60_000,
-    isAnonymous: Boolean(data.isAnonymous),
-  };
-  await chrome.storage.session.set({ webPlayerToken: record });
+  // Backend returns expiresAt as unix seconds (from the NextAuth Account row).
+  // Fall back to a conservative 30-minute TTL if absent.
+  const expiresAtMs =
+    typeof json.expiresAt === "number"
+      ? json.expiresAt * 1000
+      : now + 30 * 60_000;
+  const record = { accessToken: json.accessToken, expiresAt: expiresAtMs };
+  await chrome.storage.session.set({ spotifyToken: record });
   return record.accessToken;
 }
 
 async function spotifyGet(path) {
-  const token = await getWebPlayerToken();
+  const { backendOrigin, bearerToken } = await readConfig();
+  if (!bearerToken) {
+    throw new Error(
+      "Extension is not configured. Paste an auth token (generated at /extension-setup) into the popup and click Save.",
+    );
+  }
+  const token = await getSpotifyAccessToken(backendOrigin, bearerToken);
   const response = await fetch(`https://api.spotify.com/v1${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (response.status === 401) {
     // Token expired mid-flight. Drop session cache and retry once.
-    await chrome.storage.session.remove("webPlayerToken");
-    const fresh = await getWebPlayerToken();
+    await chrome.storage.session.remove("spotifyToken");
+    const fresh = await getSpotifyAccessToken(backendOrigin, bearerToken);
     const retry = await fetch(`https://api.spotify.com/v1${path}`, {
       headers: { Authorization: `Bearer ${fresh}` },
     });
