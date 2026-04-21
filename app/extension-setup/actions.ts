@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateRawToken, hashToken } from "@/lib/extension-auth";
-import { runExtensionSchemaSetup } from "@/lib/extension-schema-setup";
 
 export type GenerateTokenResult =
   | { ok: true; raw: string; tokenId: string }
@@ -76,45 +75,5 @@ export async function revokeExtensionToken(
   });
   revalidatePath("/extension-setup");
   return { ok: true, alreadyRevoked: false };
-}
-
-export type InitializeTablesResult =
-  | { ok: true }
-  | { ok: false; error: string };
-
-// One-shot helper for initializing the extension tables in the connected
-// Neon database. Equivalent to `npm run db:push` for the three models
-// this feature added. Safe to re-run: every statement uses IF NOT EXISTS.
-export async function initializeExtensionTables(): Promise<InitializeTablesResult> {
-  const session = await auth();
-  if (!session?.user) {
-    return {
-      ok: false,
-      error:
-        "Unauthorized: sign in with a crew Spotify account first, then reload /extension-setup.",
-    };
-  }
-  try {
-    await runExtensionSchemaSetup();
-    console.log("[extension-setup.init-tables]", {
-      userId: session.user.id,
-      email: session.user.email,
-    });
-    revalidatePath("/extension-setup");
-    return { ok: true };
-  } catch (error) {
-    const name = error instanceof Error ? error.name : "UnknownError";
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[extension-setup.init-tables.failed]", {
-      userId: session.user.id,
-      name,
-      message,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    return {
-      ok: false,
-      error: `Schema setup failed: ${name}: ${message}. Check DATABASE_URL (Vercel env var), confirm the Neon branch is reachable, and that the connection role has CREATE privileges on the \`public\` schema. Full stack in Vercel logs under [extension-setup.init-tables.failed].`,
-    };
-  }
 }
 
