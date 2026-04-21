@@ -7,8 +7,6 @@ import {
   matchesBomptonYear,
   type BomptonYear,
 } from "@/lib/bompton";
-import { extensionTablesExist } from "@/lib/extension-schema-setup";
-import { InitializeTablesButton } from "./initialize-tables-button";
 import { RevokeButton, TokenGenerator } from "./token-generator";
 
 export const dynamic = "force-dynamic";
@@ -20,42 +18,6 @@ const EXTENSION_CONNECTED_WINDOW_MS = 90 * 60 * 1000;
 export default async function ExtensionSetupPage() {
   const session = await auth();
   if (!session?.user) redirect("/");
-
-  const tablesReady = await extensionTablesExist();
-  if (!tablesReady) {
-    return (
-      <section className="flex flex-col gap-8 py-6">
-        <header className="flex flex-col gap-2">
-          <p className="text-xs uppercase tracking-widest text-spotify-subtext">
-            One-time setup
-          </p>
-          <h1 className="text-4xl font-extrabold tracking-tight">
-            Bompton playlist sync extension
-          </h1>
-        </header>
-
-        <section className="flex flex-col gap-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-6">
-          <h2 className="text-2xl font-extrabold tracking-tight text-amber-200">
-            Step 0 · Initialize the database
-          </h2>
-          <p className="text-sm text-amber-100/80">
-            The Postgres tables this feature uses (<code className="font-mono">Playlist</code>,{" "}
-            <code className="font-mono">PlaylistTrack</code>,{" "}
-            <code className="font-mono">ExtensionToken</code>) haven't been
-            created yet. Click below to run the setup SQL against the
-            connected Neon database. It's idempotent — safe to click again if
-            something weird happens.
-          </p>
-          <InitializeTablesButton />
-          <p className="text-[10px] text-amber-100/60">
-            After the tables exist, this section disappears and the normal
-            setup steps show up. A follow-up PR removes this button once
-            every environment is initialized.
-          </p>
-        </section>
-      </section>
-    );
-  }
 
   const [tokens, playlists] = await Promise.all([
     prisma.extensionToken.findMany({
