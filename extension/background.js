@@ -190,32 +190,47 @@ async function fetchPlaylistSnapshot(playlistId) {
   };
 }
 
-async function fetchPlaylistTracks(playlistId) {
+async function fetchPlaylistTracks(playlistId, expectedTotal) {
+  try {
+    const items = await fetchPlaylistTracksViaTracksEndpoint(playlistId);
+    if (items.length === 0 && expectedTotal > 0) {
+      // Primary 200 OK with empty items — Spotify sometimes returns this
+      // when the token can reach the endpoint but isn't authorized to read
+      // the track list (app not in Extended Quota Mode, user not listed
+      // under User Management, etc). Retry via the detail endpoint.
+      return fetchPlaylistTracksViaDetail(
+        playlistId,
+        expectedTotal,
+        `/playlists/${playlistId}/tracks returned 200 with 0 items (snapshot reported ${expectedTotal} total)`,
+      );
+    }
+    return items;
+  } catch (error) {
+    if (error instanceof SpotifyHttpError && error.status === 403) {
+      // Known Spotify quirk: /playlists/{id}/tracks 403s on some app
+      // configurations even when /playlists/{id} itself is readable (the
+      // snapshot call at fetchPlaylistSnapshot proves that worked, or we
+      // wouldn't be here). Mirror the server-side fallback in
+      // lib/spotify.ts:fetchFromPlaylistEndpoint: read the inline tracks
+      // from the detail endpoint.
+      return fetchPlaylistTracksViaDetail(
+        playlistId,
+        expectedTotal,
+        `/playlists/${playlistId}/tracks returned 403`,
+      );
+    }
+    throw error;
+  }
+}
+
+async function fetchPlaylistTracksViaTracksEndpoint(playlistId) {
   const fields =
     "items(added_at,added_by.id,is_local,track(id,name,uri,duration_ms,explicit,preview_url,album(name,images),artists(id,name,uri))),next,total";
   const items = [];
   let url = `/playlists/${playlistId}/tracks?limit=100&fields=${encodeURIComponent(fields)}&additional_types=track`;
   let position = 0;
   while (url) {
-    let page;
-    try {
-      page = await spotifyGet(url);
-    } catch (error) {
-      if (
-        error instanceof SpotifyHttpError &&
-        error.status === 403 &&
-        items.length === 0
-      ) {
-        // Known Spotify quirk: /playlists/{id}/tracks 403s on some app
-        // configurations even when /playlists/{id} itself is readable (the
-        // snapshot call at fetchPlaylistSnapshot proves that worked, or we
-        // wouldn't be here). Mirror the server-side fallback in
-        // lib/spotify.ts:fetchFromPlaylistEndpoint: read the inline tracks
-        // from the detail endpoint.
-        return fetchPlaylistTracksViaDetail(playlistId);
-      }
-      throw error;
-    }
+    const page = await spotifyGet(url);
     for (const raw of page.items ?? []) {
       items.push(normalizeTrackItem(raw, position));
       position += 1;
@@ -227,31 +242,37 @@ async function fetchPlaylistTracks(playlistId) {
   return items;
 }
 
-async function fetchPlaylistTracksViaDetail(playlistId) {
-  // /playlists/{id} inlines the first 100 tracks via tracks.items and does
-  // not accept offset/limit, so we cannot page beyond 100 through this path.
-  // If the playlist is longer than that we refuse to overwrite stored data
-  // with a truncated list.
-  const inlineFields =
-    "tracks.total,tracks.items(added_at,added_by.id,is_local,track(id,name,uri,duration_ms,explicit,preview_url,album(name,images),artists(id,name,uri)))";
+async function fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason) {
+  // Mirror lib/spotify.ts:fetchFromPlaylistEndpoint exactly — no `fields`
+  // filter, just fetch the full playlist object and read tracks.items. The
+  // detail endpoint inlines up to 100 tracks and does not accept offset/limit
+  // for the embedded tracks, so we refuse to overwrite stored data if
+  // total > 100 and surface the remediation inline.
   const detail = await spotifyGet(
-    `/playlists/${playlistId}?fields=${encodeURIComponent(inlineFields)}&additional_types=track`,
+    `/playlists/${playlistId}?additional_types=track`,
   );
-  const inline = detail.tracks ?? { items: [], total: 0 };
+  const inline = detail?.tracks;
   const items = [];
   let position = 0;
-  for (const raw of inline.items ?? []) {
+  for (const raw of inline?.items ?? []) {
     items.push(normalizeTrackItem(raw, position));
     position += 1;
   }
   const total =
-    typeof inline.total === "number" ? inline.total : items.length;
+    typeof inline?.total === "number" ? inline.total : items.length;
   if (total > items.length) {
     throw new Error(
-      `Spotify returned 403 on /playlists/${playlistId}/tracks and the fallback via /playlists/${playlistId} only exposes the first ${items.length} of ${total} tracks. ` +
+      `${reason}, and the fallback via /playlists/${playlistId} only exposes the first ${items.length} of ${total} tracks. ` +
         `Fix in the Spotify Developer Dashboard (https://developer.spotify.com/dashboard → this app → Settings): ` +
         `either request Extended Quota Mode, or (if the app is in Development Mode) add every crew member as a user under User Management. ` +
         `Refusing to sync partial data.`,
+    );
+  }
+  if (items.length === 0 && expectedTotal > 0) {
+    throw new Error(
+      `${reason}, and the fallback via /playlists/${playlistId} also returned 0 tracks (snapshot reported ${expectedTotal} total). ` +
+        `Most likely the Spotify app lacks Extended Quota Mode or this user isn't listed under the app's User Management. ` +
+        `Fix at https://developer.spotify.com/dashboard → this app → Settings.`,
     );
   }
   return items;
@@ -341,7 +362,7 @@ async function runSync(trigger) {
       const snapshot = await fetchPlaylistSnapshot(descriptor.id);
       const snapshotChanged = snapshot.snapshotId !== descriptor.storedSnapshotId;
       const tracks = snapshotChanged
-        ? await fetchPlaylistTracks(descriptor.id)
+        ? await fetchPlaylistTracks(descriptor.id, snapshot.totalTracks)
         : undefined;
       const result = await pushSync(backendOrigin, bearerToken, {
         playlist: {
