@@ -190,11 +190,12 @@ async function fetchPlaylistSnapshot(playlistId) {
   };
 }
 
-async function fetchPlaylistTracks(playlistId, expectedTotal) {
+async function fetchPlaylistTracks(playlistId, snapshot) {
   // Primary: paginated /playlists/{id}/tracks — matches lib/spotify.ts:
   // fetchFromTracksEndpoint (no fields filter; additional_types=track,episode).
   // Fallback: /playlists/{id} inline tracks — matches
   // lib/spotify.ts:fetchFromPlaylistEndpoint. First 100 tracks only.
+  const expectedTotal = snapshot.totalTracks;
   let reason = null;
   let items = [];
   try {
@@ -207,7 +208,8 @@ async function fetchPlaylistTracks(playlistId, expectedTotal) {
     }
   } catch (error) {
     if (error instanceof SpotifyHttpError && error.status === 403) {
-      reason = `/playlists/${playlistId}/tracks returned 403`;
+      const bodySnippet = String(error.body ?? "").trim().slice(0, 400) || "(empty body)";
+      reason = `/playlists/${playlistId}/tracks returned 403. Spotify body: ${bodySnippet}`;
       console.warn(`[bompton-sync] ${reason}; falling back to detail endpoint`);
     } else {
       throw error;
@@ -215,7 +217,7 @@ async function fetchPlaylistTracks(playlistId, expectedTotal) {
   }
 
   if (reason) {
-    items = await fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason);
+    items = await fetchPlaylistTracksViaDetail(playlistId, snapshot, reason);
     console.log(
       `[bompton-sync] fallback /playlists/${playlistId} → ${items.length} items`,
     );
@@ -245,7 +247,7 @@ async function fetchPlaylistTracksViaTracksEndpoint(playlistId) {
   return items;
 }
 
-async function fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason) {
+async function fetchPlaylistTracksViaDetail(playlistId, snapshot, reason) {
   // Mirror lib/spotify.ts:fetchFromPlaylistEndpoint exactly — no `fields`
   // filter, just fetch the full playlist object and read tracks.items. The
   // detail endpoint inlines up to 100 tracks and does not accept offset/limit
@@ -263,9 +265,12 @@ async function fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason) {
   }
   const total =
     typeof inline?.total === "number" ? inline.total : items.length;
+  const ownerBlurb = snapshot.ownerName
+    ? `owner="${snapshot.ownerName}" (id=${snapshot.ownerId ?? "?"})`
+    : `owner id=${snapshot.ownerId ?? "?"}`;
   if (total > items.length) {
     throw new Error(
-      `${reason}, and the fallback via /playlists/${playlistId} only exposes the first ${items.length} of ${total} tracks. ` +
+      `${reason}. Fallback via /playlists/${playlistId} only exposes the first ${items.length} of ${total} tracks; ${ownerBlurb}. ` +
         `Fix in the Spotify Developer Dashboard (https://developer.spotify.com/dashboard → this app → Settings): ` +
         `either request Extended Quota Mode, or (if the app is in Development Mode) add every crew member as a user under User Management. ` +
         `Refusing to sync partial data.`,
@@ -273,9 +278,14 @@ async function fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason) {
   }
   if (items.length === 0) {
     throw new Error(
-      `${reason}, and the fallback via /playlists/${playlistId} also returned 0 tracks (detail endpoint reported tracks.total=${total}, snapshot expected ${expectedTotal}). ` +
-        `Most likely the Spotify app lacks Extended Quota Mode or this user isn't listed under the app's User Management. ` +
-        `Fix at https://developer.spotify.com/dashboard → this app → Settings.`,
+      `${reason}. Fallback via /playlists/${playlistId} also returned 0 tracks ` +
+        `(detail endpoint: tracks.total=${total}; snapshot: totalTracks=${snapshot.totalTracks}; ${ownerBlurb}). ` +
+        `Both the initial /playlists/${playlistId}?fields=...tracks(total) call and the detail call agree the track list is empty for this caller. ` +
+        `Possible causes: ` +
+        `(1) the playlist ID stored in Bompton doesn't match the real playlist — open the playlist in Spotify, copy its share URL, and compare the id after /playlist/ to ${playlistId}; ` +
+        `(2) the Spotify app is in Development Mode and this user isn't the playlist owner — in Dev Mode, non-owners can see metadata but not tracks even with playlist-read-private granted; ` +
+        `(3) Extended Quota Mode is required for this playlist's tracks. ` +
+        `Fix at https://developer.spotify.com/dashboard → this app → Settings (request Extended Quota Mode), or re-add the playlist to Bompton with the correct ID.`,
     );
   }
   return items;
@@ -365,7 +375,7 @@ async function runSync(trigger) {
       const snapshot = await fetchPlaylistSnapshot(descriptor.id);
       const snapshotChanged = snapshot.snapshotId !== descriptor.storedSnapshotId;
       const tracks = snapshotChanged
-        ? await fetchPlaylistTracks(descriptor.id, snapshot.totalTracks)
+        ? await fetchPlaylistTracks(descriptor.id, snapshot)
         : undefined;
       const result = await pushSync(backendOrigin, bearerToken, {
         playlist: {
