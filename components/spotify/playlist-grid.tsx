@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   pickImage,
+  formatDuration,
   type SpotifyPlaylist,
   type SpotifyPlaylistTrack,
   type SpotifyTrack,
@@ -10,7 +12,7 @@ import {
 import { TrackList } from "@/components/spotify/track-list";
 import { SpotifyEmbed } from "@/components/spotify/spotify-embed";
 
-type TracksState =
+type LiveTracksState =
   | { status: "idle" }
   | { status: "loading" }
   | {
@@ -21,12 +23,45 @@ type TracksState =
     }
   | { status: "error"; title: string; detail: string };
 
+type StoredTrack = {
+  position: number;
+  trackSpotifyId: string | null;
+  trackName: string;
+  trackUri: string;
+  trackDurationMs: number;
+  trackExplicit: boolean;
+  trackPreviewUrl: string | null;
+  albumName: string;
+  albumImageUrl: string | null;
+  artists: { id: string | null; name: string; uri: string | null }[];
+  addedAt: string;
+  addedBySpotifyId: string | null;
+  isLocal: boolean;
+};
+
+type StoredState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | {
+      status: "loaded";
+      tracks: StoredTrack[];
+      lastSyncAt: string | null;
+      totalTracks: number;
+    }
+  | { status: "error"; title: string; detail: string };
+
 export function PlaylistGrid({
   playlists,
   forUserId,
+  isSelf,
+  callerSpotifyId,
+  linkedPlaylistIds,
 }: {
   playlists: SpotifyPlaylist[];
   forUserId: string;
+  isSelf: boolean;
+  callerSpotifyId: string | null;
+  linkedPlaylistIds: string[];
 }) {
   const valid = playlists.filter((p) => p);
   if (valid.length === 0) {
@@ -36,6 +71,7 @@ export function PlaylistGrid({
       </p>
     );
   }
+  const linkedSet = new Set(linkedPlaylistIds);
   return (
     <ul className="flex flex-col gap-3">
       {valid.map((playlist) => (
@@ -43,18 +79,30 @@ export function PlaylistGrid({
           key={playlist.id}
           playlist={playlist}
           forUserId={forUserId}
+          isSelf={isSelf}
+          callerSpotifyId={callerSpotifyId}
+          linked={linkedSet.has(playlist.id)}
         />
       ))}
     </ul>
   );
 }
 
-function EmbedFallback({ playlistId }: { playlistId: string }) {
+function EmbedFallback({
+  playlistId,
+  note,
+}: {
+  playlistId: string;
+  note?: string;
+}) {
   return (
     <SpotifyEmbed
       type="playlist"
       id={playlistId}
-      note="Showing Spotify's embedded player because their API isn't returning track data for this app's quota tier. Apply for Extended Quota Mode in the Spotify developer dashboard if you want the native track list (plus aggregates, genre mixes, etc.)."
+      note={
+        note ??
+        "Showing Spotify's embedded player. Import this playlist (only works if you own it under Spotify's Dev-Mode rules) to get our own track table with per-song metadata."
+      }
     />
   );
 }
@@ -62,42 +110,82 @@ function EmbedFallback({ playlistId }: { playlistId: string }) {
 function PlaylistRow({
   playlist,
   forUserId,
+  isSelf,
+  callerSpotifyId,
+  linked,
 }: {
   playlist: SpotifyPlaylist;
   forUserId: string;
+  isSelf: boolean;
+  callerSpotifyId: string | null;
+  linked: boolean;
 }) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
-  const [tracksState, setTracksState] = useState<TracksState>({ status: "idle" });
+  const [liveState, setLiveState] = useState<LiveTracksState>({ status: "idle" });
+  const [storedState, setStoredState] = useState<StoredState>({ status: "idle" });
+  const [viewMode, setViewMode] = useState<"stored" | "embed">("stored");
+  const [syncPending, setSyncPending] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [removePending, setRemovePending] = useState(false);
 
   const image = pickImage(playlist.images, 200);
   const url = playlist.external_urls?.spotify ?? "#";
   const ownerLabel =
     playlist.owner?.display_name ?? playlist.owner?.id ?? "Unknown";
   const trackCount = playlist.tracks?.total ?? 0;
-  // Spotify's Nov 2024 API deprecation removed access to tracks for
-  // algorithmic + editorial playlists owned by Spotify itself
-  // (Daily Mix, Discover Weekly, Today's Top Hits, etc.). No path to
-  // re-enable for new apps, so detect and gate the expand action.
   const spotifyOwned = playlist.owner?.id === "spotify";
+  const callerIsOwner =
+    callerSpotifyId !== null && playlist.owner?.id === callerSpotifyId;
+  // Only the dashboard's owner can import/resync/remove playlists on their
+  // own dashboard — we don't let a visitor mutate someone else's linked list.
+  const canMutate = isSelf;
 
-  async function toggle() {
-    if (spotifyOwned) return;
-    const nextOpen = !expanded;
-    setExpanded(nextOpen);
-    if (nextOpen && tracksState.status === "idle") {
-      await loadTracks();
+  const loadStored = useCallback(async () => {
+    setStoredState({ status: "loading" });
+    try {
+      const response = await fetch(
+        `/api/playlists/${encodeURIComponent(playlist.id)}/stored-tracks`,
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setStoredState({
+          status: "error",
+          title:
+            body?.error ?? `HTTP ${response.status} ${response.statusText}`,
+          detail:
+            body?.message ??
+            `Couldn't fetch stored tracks for ${playlist.id}.`,
+        });
+        return;
+      }
+      setStoredState({
+        status: "loaded",
+        tracks: body.tracks ?? [],
+        lastSyncAt: body.playlist?.lastSyncAt ?? null,
+        totalTracks: body.playlist?.totalTracks ?? 0,
+      });
+    } catch (error) {
+      setStoredState({
+        status: "error",
+        title: "Couldn't load stored tracks",
+        detail:
+          error instanceof Error
+            ? `${error.name}: ${error.message}`
+            : String(error),
+      });
     }
-  }
+  }, [playlist.id]);
 
-  async function loadTracks() {
-    setTracksState({ status: "loading" });
+  const loadLive = useCallback(async () => {
+    setLiveState({ status: "loading" });
     try {
       const response = await fetch(
         `/api/spotify/playlists/${encodeURIComponent(playlist.id)}/tracks?forUserId=${encodeURIComponent(forUserId)}`,
       );
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setTracksState({
+        setLiveState({
           status: "error",
           title:
             body?.error?.title ?? `HTTP ${response.status} ${response.statusText}`,
@@ -107,14 +195,14 @@ function PlaylistRow({
         });
         return;
       }
-      setTracksState({
+      setLiveState({
         status: "loaded",
         items: body.items ?? [],
         total: body.total ?? 0,
         truncated: Boolean(body.truncated),
       });
     } catch (error) {
-      setTracksState({
+      setLiveState({
         status: "error",
         title: "Couldn't load playlist tracks",
         detail:
@@ -123,9 +211,75 @@ function PlaylistRow({
             : String(error),
       });
     }
+  }, [playlist.id, forUserId]);
+
+  async function toggle() {
+    if (spotifyOwned) return;
+    const nextOpen = !expanded;
+    setExpanded(nextOpen);
+    if (nextOpen) {
+      if (linked && storedState.status === "idle") await loadStored();
+      else if (!linked && liveState.status === "idle") await loadLive();
+    }
   }
 
-  const body = (
+  async function runSync() {
+    setSyncPending(true);
+    setSyncError(null);
+    try {
+      const response = await fetch("/api/playlists/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playlistInput: playlist.id }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSyncError(
+          `${body?.error ?? "SyncError"} (HTTP ${response.status}): ${body?.message ?? "unknown"}`,
+        );
+        return;
+      }
+      await loadStored();
+      // Server state changed (new UserPlaylistLink), re-render the page so
+      // the linkedPlaylistIds prop includes this playlist next render.
+      router.refresh();
+    } catch (error) {
+      setSyncError(
+        error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      );
+    } finally {
+      setSyncPending(false);
+    }
+  }
+
+  async function removeLink() {
+    setRemovePending(true);
+    try {
+      const response = await fetch(
+        `/api/playlists/${encodeURIComponent(playlist.id)}/link`,
+        { method: "DELETE" },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSyncError(
+          `${body?.error ?? "RemoveError"} (HTTP ${response.status}): ${body?.message ?? "unknown"}`,
+        );
+        return;
+      }
+      setStoredState({ status: "idle" });
+      router.refresh();
+    } catch (error) {
+      setSyncError(
+        error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      );
+    } finally {
+      setRemovePending(false);
+    }
+  }
+
+  const showImportButton = canMutate && callerIsOwner && !linked && !spotifyOwned;
+
+  const header = (
     <>
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -138,7 +292,14 @@ function PlaylistRow({
         <div className="h-14 w-14 shrink-0 rounded bg-spotify-highlight" />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-bold">{playlist.name}</p>
+        <p className="truncate font-bold">
+          {playlist.name}
+          {linked ? (
+            <span className="ml-2 rounded bg-spotify-green/20 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-widest text-spotify-green">
+              imported
+            </span>
+          ) : null}
+        </p>
         <p className="truncate text-xs text-spotify-subtext">
           by {ownerLabel}
           <span className="mx-1 text-spotify-border">·</span>
@@ -147,6 +308,7 @@ function PlaylistRow({
           {playlist.public === true ? " · public" : ""}
           {playlist.public === false ? " · private" : ""}
           {spotifyOwned ? " · spotify-curated" : ""}
+          {callerIsOwner ? " · you own this" : ""}
         </p>
       </div>
       <a
@@ -169,7 +331,7 @@ function PlaylistRow({
           className="flex w-full items-center gap-3 p-3 text-left opacity-80"
           title="Spotify-curated playlist — Spotify's API no longer exposes tracks for these to new apps."
         >
-          {body}
+          {header}
         </div>
       ) : (
         <button
@@ -178,42 +340,136 @@ function PlaylistRow({
           aria-expanded={expanded}
           className="flex w-full items-center gap-3 p-3 text-left transition hover:bg-spotify-highlight/40"
         >
-          {body}
+          {header}
         </button>
       )}
+
       {spotifyOwned ? (
         <p className="border-t border-spotify-border px-3 py-2 text-xs text-spotify-subtext">
-          Spotify-curated (algorithmic or editorial). Spotify's Nov 2024 API
-          deprecation blocks track-listing for these; open in Spotify to see
-          the songs.
+          Spotify-curated (algorithmic or editorial). Spotify&apos;s Nov 2024
+          API deprecation blocks track-listing for these; open in Spotify to
+          see the songs.
         </p>
       ) : null}
+
       {expanded && !spotifyOwned ? (
-        <div className="border-t border-spotify-border px-3 pb-4 pt-3">
-          <PlaylistTracksView
-            state={tracksState}
-            onRetry={loadTracks}
-            playlistId={playlist.id}
-          />
+        <div className="flex flex-col gap-3 border-t border-spotify-border px-3 pb-4 pt-3">
+          {/* Row-level action bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            {linked ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("stored")}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                    viewMode === "stored"
+                      ? "border-spotify-green bg-spotify-green/20 text-spotify-green"
+                      : "border-spotify-border text-spotify-subtext hover:bg-spotify-highlight"
+                  }`}
+                >
+                  Our table
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("embed")}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                    viewMode === "embed"
+                      ? "border-spotify-green bg-spotify-green/20 text-spotify-green"
+                      : "border-spotify-border text-spotify-subtext hover:bg-spotify-highlight"
+                  }`}
+                >
+                  Spotify embed
+                </button>
+                {canMutate ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={runSync}
+                      disabled={syncPending}
+                      className="rounded-full border border-spotify-border px-3 py-1 text-xs font-semibold text-spotify-subtext transition hover:bg-spotify-highlight disabled:opacity-60"
+                    >
+                      {syncPending ? "Resyncing…" : "Resync"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={removeLink}
+                      disabled={removePending}
+                      className="rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-60"
+                    >
+                      {removePending ? "Removing…" : "Remove"}
+                    </button>
+                  </>
+                ) : null}
+              </>
+            ) : (
+              showImportButton && (
+                <button
+                  type="button"
+                  onClick={runSync}
+                  disabled={syncPending}
+                  className="rounded-full bg-spotify-green px-3 py-1 text-xs font-bold text-black transition hover:bg-spotify-green-hover disabled:opacity-60"
+                >
+                  {syncPending ? "Importing…" : "Import to dashboard"}
+                </button>
+              )
+            )}
+            {storedState.status === "loaded" && storedState.lastSyncAt ? (
+              <span className="text-xs text-spotify-subtext">
+                last synced {new Date(storedState.lastSyncAt).toLocaleString()}
+              </span>
+            ) : null}
+          </div>
+
+          {syncError ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200 whitespace-pre-wrap"
+            >
+              {syncError}
+            </div>
+          ) : null}
+
+          {/* Body */}
+          {linked ? (
+            viewMode === "stored" ? (
+              <StoredTracksView
+                state={storedState}
+                onRetry={loadStored}
+                playlistId={playlist.id}
+              />
+            ) : (
+              <EmbedFallback
+                playlistId={playlist.id}
+                note="Showing Spotify's embed on request. Switch back to 'Our table' for sortable columns backed by our DB."
+              />
+            )
+          ) : (
+            <LiveTracksView
+              state={liveState}
+              onRetry={loadLive}
+              playlistId={playlist.id}
+              showImportHint={showImportButton}
+            />
+          )}
         </div>
       ) : null}
     </li>
   );
 }
 
-function PlaylistTracksView({
+function LiveTracksView({
   state,
   onRetry,
   playlistId,
+  showImportHint,
 }: {
-  state: TracksState;
+  state: LiveTracksState;
   onRetry: () => void;
   playlistId: string;
+  showImportHint: boolean;
 }) {
   if (state.status === "loading") {
-    return (
-      <p className="text-sm text-spotify-subtext">Loading tracks…</p>
-    );
+    return <p className="text-sm text-spotify-subtext">Loading tracks…</p>;
   }
   if (state.status === "error") {
     return (
@@ -234,7 +490,14 @@ function PlaylistTracksView({
             Retry
           </button>
         </div>
-        <EmbedFallback playlistId={playlistId} />
+        <EmbedFallback
+          playlistId={playlistId}
+          note={
+            showImportHint
+              ? "Spotify's API refused track data for this playlist. Click 'Import to dashboard' above to pull the items via your OAuth grant (works because you own it)."
+              : undefined
+          }
+        />
       </div>
     );
   }
@@ -243,7 +506,16 @@ function PlaylistTracksView({
       .map((item) => item.track)
       .filter((t): t is SpotifyTrack => Boolean(t));
     if (tracks.length === 0) {
-      return <EmbedFallback playlistId={playlistId} />;
+      return (
+        <EmbedFallback
+          playlistId={playlistId}
+          note={
+            showImportHint
+              ? "Spotify returned 0 tracks for this playlist via the public endpoint. Click 'Import to dashboard' above to pull the full track list via your OAuth grant."
+              : undefined
+          }
+        />
+      );
     }
     return (
       <div className="flex flex-col gap-2">
@@ -258,6 +530,121 @@ function PlaylistTracksView({
     );
   }
   return null;
+}
+
+function StoredTracksView({
+  state,
+  onRetry,
+  playlistId,
+}: {
+  state: StoredState;
+  onRetry: () => void;
+  playlistId: string;
+}) {
+  // Auto-load on first render if still idle (e.g. after an import action
+  // reset the state).
+  useEffect(() => {
+    if (state.status === "idle") {
+      onRetry();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.status]);
+
+  if (state.status === "idle" || state.status === "loading") {
+    return <p className="text-sm text-spotify-subtext">Loading stored tracks…</p>;
+  }
+  if (state.status === "error") {
+    return (
+      <div
+        role="alert"
+        className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200"
+      >
+        <p className="font-semibold">{state.title}</p>
+        <p className="mt-1 whitespace-pre-wrap font-mono text-xs text-red-300/80">
+          {state.detail}
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-2 rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold hover:bg-red-500/20"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+  if (state.tracks.length === 0) {
+    return (
+      <EmbedFallback
+        playlistId={playlistId}
+        note="No tracks stored yet for this playlist. Click 'Resync' to pull the latest items."
+      />
+    );
+  }
+  return <StoredTable tracks={state.tracks} />;
+}
+
+function StoredTable({ tracks }: { tracks: StoredTrack[] }) {
+  return (
+    <div className="overflow-x-auto rounded border border-spotify-border">
+      <table className="w-full min-w-[720px] text-left text-sm">
+        <thead className="bg-spotify-highlight/40 text-xs uppercase tracking-widest text-spotify-subtext">
+          <tr>
+            <th className="px-3 py-2">#</th>
+            <th className="px-3 py-2">Track</th>
+            <th className="px-3 py-2">Artist(s)</th>
+            <th className="px-3 py-2">Album</th>
+            <th className="px-3 py-2">Duration</th>
+            <th className="px-3 py-2">Added by</th>
+            <th className="px-3 py-2">Added at</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tracks.map((t) => (
+            <tr
+              key={`${t.position}-${t.trackSpotifyId ?? t.trackUri}`}
+              className="border-t border-spotify-border/60 align-top"
+            >
+              <td className="px-3 py-2 font-mono text-xs text-spotify-subtext">
+                {t.position + 1}
+              </td>
+              <td className="px-3 py-2">
+                <div className="flex items-center gap-2">
+                  {t.albumImageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={t.albumImageUrl}
+                      alt=""
+                      className="h-8 w-8 rounded object-cover"
+                    />
+                  ) : null}
+                  <span>{t.trackName}</span>
+                  {t.trackExplicit ? (
+                    <span className="rounded bg-spotify-highlight px-1 text-[10px] font-bold text-spotify-subtext">
+                      E
+                    </span>
+                  ) : null}
+                </div>
+              </td>
+              <td className="px-3 py-2 text-spotify-subtext">
+                {t.artists.map((a) => a.name).join(", ")}
+              </td>
+              <td className="px-3 py-2 text-spotify-subtext">{t.albumName}</td>
+              <td className="px-3 py-2 text-spotify-subtext">
+                {formatDuration(t.trackDurationMs)}
+              </td>
+              <td className="px-3 py-2 font-mono text-xs text-spotify-subtext">
+                {t.addedBySpotifyId ?? "—"}
+              </td>
+              <td className="px-3 py-2 text-xs text-spotify-subtext">
+                {new Date(t.addedAt).toLocaleDateString()}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function Chevron({ open }: { open: boolean }) {

@@ -48,6 +48,7 @@ import {
   ShowGrid,
 } from "@/components/spotify/show-grid";
 import { PlaylistGrid } from "@/components/spotify/playlist-grid";
+import { AddPlaylistForm } from "@/components/spotify/add-playlist-form";
 import { QueueList } from "@/components/spotify/queue-list";
 import { CollapsibleSection } from "@/components/spotify/collapsible-section";
 import {
@@ -85,7 +86,7 @@ async function renderDashboard(userId: string) {
   const session = await auth();
   if (!session?.user) redirect("/");
 
-  const [viewedUser, crew] = await Promise.all([
+  const [viewedUser, crew, playlistLinks] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -100,6 +101,10 @@ async function renderDashboard(userId: string) {
       where: { accounts: { some: { provider: "spotify" } } },
       select: { id: true, name: true, email: true, image: true },
       orderBy: { createdAt: "asc" },
+    }),
+    prisma.userPlaylistLink.findMany({
+      where: { userId },
+      select: { playlistId: true },
     }),
   ]);
 
@@ -443,19 +448,27 @@ async function renderDashboard(userId: string) {
       <CollapsibleSection
         eyebrow="Library"
         title="Playlists"
-        subtitle="Owned and followed playlists (up to 50)."
+        subtitle="Owned and followed playlists (up to 50). Import any you own to store tracks locally and get our own sortable table instead of Spotify's embedded player."
       >
-        {playlistsResult.error ? (
-          <SpotifyErrorBanner
-            title={playlistsResult.error.title}
-            detail={playlistsResult.error.detail}
-          />
-        ) : (
-          <PlaylistGrid
-            playlists={playlistsResult.value.items}
-            forUserId={userId}
-          />
-        )}
+        <div className="flex flex-col gap-4">
+          {playlistsResult.error ? (
+            <SpotifyErrorBanner
+              title={playlistsResult.error.title}
+              detail={playlistsResult.error.detail}
+            />
+          ) : (
+            <PlaylistGrid
+              playlists={playlistsResult.value.items}
+              forUserId={userId}
+              isSelf={session.user.id === userId}
+              callerSpotifyId={
+                session.user.id === userId ? (profile?.id ?? null) : null
+              }
+              linkedPlaylistIds={playlistLinks.map((l) => l.playlistId)}
+            />
+          )}
+          {session.user.id === userId ? <AddPlaylistForm /> : null}
+        </div>
       </CollapsibleSection>
     </section>
   );

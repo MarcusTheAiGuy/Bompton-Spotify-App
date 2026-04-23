@@ -77,6 +77,73 @@ export async function revokeExtensionToken(
   return { ok: true, alreadyRevoked: false };
 }
 
+export type InitPlaylistLinkTableResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// One-shot DDL to create the UserPlaylistLink table in prod. The project
+// uses `prisma db push` instead of migrations, so new tables need to be
+// applied to the deployed DB somehow; this button is the same pattern PR
+// #34 used for the ExtensionToken table. Idempotent — safe to click twice.
+export async function initUserPlaylistLinkTable(): Promise<InitPlaylistLinkTableResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "UserPlaylistLink" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "playlistId" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "UserPlaylistLink_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "UserPlaylistLink_userId_playlistId_key" ON "UserPlaylistLink"("userId", "playlistId")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "UserPlaylistLink_userId_idx" ON "UserPlaylistLink"("userId")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "UserPlaylistLink_playlistId_idx" ON "UserPlaylistLink"("playlistId")`,
+    );
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserPlaylistLink_userId_fkey') THEN
+          ALTER TABLE "UserPlaylistLink"
+            ADD CONSTRAINT "UserPlaylistLink_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES "User"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'UserPlaylistLink_playlistId_fkey') THEN
+          ALTER TABLE "UserPlaylistLink"
+            ADD CONSTRAINT "UserPlaylistLink_playlistId_fkey"
+            FOREIGN KEY ("playlistId") REFERENCES "Playlist"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+      END
+      $$
+    `);
+    revalidatePath("/extension-setup");
+    return {
+      ok: true,
+      message:
+        "UserPlaylistLink table + indexes + FKs are present (created if missing). Safe to click again.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
+
 export type ResetSyncStateResult =
   | { ok: true; playlistsCleared: number; tracksDeleted: number }
   | { ok: false; error: string };

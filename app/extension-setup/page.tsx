@@ -7,7 +7,12 @@ import {
   matchesBomptonYear,
   type BomptonYear,
 } from "@/lib/bompton";
-import { ResetSyncButton, RevokeButton, TokenGenerator } from "./token-generator";
+import {
+  InitPlaylistLinkButton,
+  ResetSyncButton,
+  RevokeButton,
+  TokenGenerator,
+} from "./token-generator";
 
 export const dynamic = "force-dynamic";
 
@@ -239,6 +244,20 @@ export default async function ExtensionSetupPage() {
           <strong>Sync now</strong> in the extension to re-pull everything.
         </p>
         <ResetSyncButton />
+
+        <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
+          <h3 className="text-base font-bold tracking-tight">
+            One-shot · Initialize UserPlaylistLink table
+          </h3>
+          <p className="text-sm text-spotify-subtext">
+            The dashboard now imports playlists into a shared Playlist/PlaylistTrack
+            store per user; the join table <code className="font-mono">UserPlaylistLink</code>{" "}
+            needs to exist in the prod DB before anyone clicks "Import". This
+            project doesn&apos;t use Prisma migrations, so click this once after
+            deploy to apply the DDL. Safe to click twice — it&apos;s idempotent.
+          </p>
+          <InitPlaylistLinkButton />
+        </div>
       </section>
     </section>
   );
