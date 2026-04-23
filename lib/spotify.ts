@@ -38,6 +38,29 @@ export class SpotifyRefreshFailedError extends Error {
 }
 
 export async function getFreshAccessToken(userId: string): Promise<string> {
+  // Dedupe concurrent refreshes for the same user within this Node process.
+  // Spotify rotates refresh_tokens under the Feb-2026 Dev-Mode rules, so if
+  // two requests both try to refresh with the same stored refresh_token in
+  // parallel, only the first call wins and the rest get HTTP 400 invalid_grant
+  // against a token Spotify has already invalidated. The dashboard fans out
+  // ~18 Spotify calls via Promise.all, which used to be fine but now trips
+  // this race on every cold-cache hit.
+  const existing = inFlightRefresh.get(userId);
+  if (existing) return existing;
+  const promise = (async () => {
+    try {
+      return await getFreshAccessTokenImpl(userId);
+    } finally {
+      inFlightRefresh.delete(userId);
+    }
+  })();
+  inFlightRefresh.set(userId, promise);
+  return promise;
+}
+
+const inFlightRefresh = new Map<string, Promise<string>>();
+
+async function getFreshAccessTokenImpl(userId: string): Promise<string> {
   const account = await prisma.account.findFirst({
     where: { userId, provider: "spotify" },
   });
