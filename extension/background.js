@@ -131,6 +131,19 @@ async function getSpotifyAccessToken(backendOrigin, bearerToken) {
   return record.accessToken;
 }
 
+class SpotifyHttpError extends Error {
+  constructor(status, path, body, { afterRetry = false } = {}) {
+    const suffix = afterRetry ? " after retry" : "";
+    super(
+      `Spotify API ${status} on ${path}${suffix}. Body: ${String(body).slice(0, 300)}`,
+    );
+    this.name = "SpotifyHttpError";
+    this.status = status;
+    this.path = path;
+    this.body = body;
+  }
+}
+
 async function spotifyGet(path) {
   const { backendOrigin, bearerToken } = await readConfig();
   if (!bearerToken) {
@@ -151,17 +164,13 @@ async function spotifyGet(path) {
     });
     if (!retry.ok) {
       const body = await retry.text().catch(() => "");
-      throw new Error(
-        `Spotify API ${retry.status} on ${path} after retry. Body: ${body.slice(0, 300)}`,
-      );
+      throw new SpotifyHttpError(retry.status, path, body, { afterRetry: true });
     }
     return retry.json();
   }
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(
-      `Spotify API ${response.status} on ${path}. Body: ${body.slice(0, 300)}`,
-    );
+    throw new SpotifyHttpError(response.status, path, body);
   }
   return response.json();
 }
@@ -188,7 +197,25 @@ async function fetchPlaylistTracks(playlistId) {
   let url = `/playlists/${playlistId}/tracks?limit=100&fields=${encodeURIComponent(fields)}&additional_types=track`;
   let position = 0;
   while (url) {
-    const page = await spotifyGet(url);
+    let page;
+    try {
+      page = await spotifyGet(url);
+    } catch (error) {
+      if (
+        error instanceof SpotifyHttpError &&
+        error.status === 403 &&
+        items.length === 0
+      ) {
+        // Known Spotify quirk: /playlists/{id}/tracks 403s on some app
+        // configurations even when /playlists/{id} itself is readable (the
+        // snapshot call at fetchPlaylistSnapshot proves that worked, or we
+        // wouldn't be here). Mirror the server-side fallback in
+        // lib/spotify.ts:fetchFromPlaylistEndpoint: read the inline tracks
+        // from the detail endpoint.
+        return fetchPlaylistTracksViaDetail(playlistId);
+      }
+      throw error;
+    }
     for (const raw of page.items ?? []) {
       items.push(normalizeTrackItem(raw, position));
       position += 1;
@@ -196,6 +223,36 @@ async function fetchPlaylistTracks(playlistId) {
     if (!page.next) break;
     const nextUrl = new URL(page.next);
     url = `${nextUrl.pathname.replace(/^\/v1/, "")}${nextUrl.search}`;
+  }
+  return items;
+}
+
+async function fetchPlaylistTracksViaDetail(playlistId) {
+  // /playlists/{id} inlines the first 100 tracks via tracks.items and does
+  // not accept offset/limit, so we cannot page beyond 100 through this path.
+  // If the playlist is longer than that we refuse to overwrite stored data
+  // with a truncated list.
+  const inlineFields =
+    "tracks.total,tracks.items(added_at,added_by.id,is_local,track(id,name,uri,duration_ms,explicit,preview_url,album(name,images),artists(id,name,uri)))";
+  const detail = await spotifyGet(
+    `/playlists/${playlistId}?fields=${encodeURIComponent(inlineFields)}&additional_types=track`,
+  );
+  const inline = detail.tracks ?? { items: [], total: 0 };
+  const items = [];
+  let position = 0;
+  for (const raw of inline.items ?? []) {
+    items.push(normalizeTrackItem(raw, position));
+    position += 1;
+  }
+  const total =
+    typeof inline.total === "number" ? inline.total : items.length;
+  if (total > items.length) {
+    throw new Error(
+      `Spotify returned 403 on /playlists/${playlistId}/tracks and the fallback via /playlists/${playlistId} only exposes the first ${items.length} of ${total} tracks. ` +
+        `Fix in the Spotify Developer Dashboard (https://developer.spotify.com/dashboard → this app → Settings): ` +
+        `either request Extended Quota Mode, or (if the app is in Development Mode) add every crew member as a user under User Management. ` +
+        `Refusing to sync partial data.`,
+    );
   }
   return items;
 }
