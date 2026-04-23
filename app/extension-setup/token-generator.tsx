@@ -3,8 +3,10 @@
 import { useState, useTransition } from "react";
 import {
   generateExtensionToken,
+  resetPlaylistSyncState,
   revokeExtensionToken,
   type GenerateTokenResult,
+  type ResetSyncStateResult,
 } from "./actions";
 
 export function TokenGenerator() {
@@ -80,6 +82,44 @@ export function TokenGenerator() {
           <p className="font-bold text-red-300">Token generation failed</p>
           <p className="mt-1 whitespace-pre-wrap text-red-200">{result.error}</p>
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function ResetSyncButton() {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<ResetSyncStateResult | null>(null);
+
+  function onClick() {
+    setResult(null);
+    startTransition(async () => {
+      const r = await resetPlaylistSyncState();
+      setResult(r);
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className="btn-spotify self-start disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Resetting…" : "Reset sync state"}
+      </button>
+      {result && result.ok ? (
+        <p className="text-xs text-spotify-green">
+          Cleared snapshotId on {result.playlistsCleared} playlist row(s) and
+          deleted {result.tracksDeleted} PlaylistTrack row(s). Open the
+          extension popup and click <strong>Sync now</strong>.
+        </p>
+      ) : null}
+      {result && !result.ok ? (
+        <p className="whitespace-pre-wrap text-xs text-red-300">
+          {result.error}
+        </p>
       ) : null}
     </div>
   );

@@ -77,3 +77,39 @@ export async function revokeExtensionToken(
   return { ok: true, alreadyRevoked: false };
 }
 
+export type ResetSyncStateResult =
+  | { ok: true; playlistsCleared: number; tracksDeleted: number }
+  | { ok: false; error: string };
+
+// Clears Playlist.snapshotId (and any already-stored PlaylistTrack rows) so
+// the next extension sync treats every Bompton playlist as changed and
+// re-fetches its full track list. Needed after the v0.1.2 bug that wrote
+// current snapshotIds with 0 tracks — without this, v0.1.3 sees snapshot
+// unchanged and skips every playlist.
+export async function resetPlaylistSyncState(): Promise<ResetSyncStateResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    const [deleted, updated] = await prisma.$transaction([
+      prisma.playlistTrack.deleteMany({}),
+      prisma.playlist.updateMany({ data: { snapshotId: null } }),
+    ]);
+    revalidatePath("/extension-setup");
+    return {
+      ok: true,
+      playlistsCleared: updated.count,
+      tracksDeleted: deleted.count,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Database write failed while resetting sync state: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL.`,
+    };
+  }
+}
+
