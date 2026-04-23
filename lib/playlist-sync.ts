@@ -150,15 +150,11 @@ export async function syncPlaylistForUser(
   }
 
   // 4. Paginate /items. Spotify's new endpoint caps at limit=100.
+  type ItemsPage = { items: SpotifyPlaylistItem[]; next: string | null };
   const items: SpotifyPlaylistItem[] = [];
-  let nextPath:
-    | string
-    | null = `/playlists/${playlistId}/items?limit=100&additional_types=track,episode`;
-  while (nextPath) {
-    const page = await spotifyFetch<{
-      items: SpotifyPlaylistItem[];
-      next: string | null;
-    }>(userId, nextPath);
+  let nextPath: string | null = `/playlists/${playlistId}/items?limit=100&additional_types=track,episode`;
+  while (nextPath !== null) {
+    const page: ItemsPage = await spotifyFetch<ItemsPage>(userId, nextPath);
     items.push(...(page.items ?? []));
     if (!page.next) break;
     const nextUrl = new URL(page.next);

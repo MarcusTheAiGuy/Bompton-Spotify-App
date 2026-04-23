@@ -464,7 +464,9 @@ async function renderDashboard(userId: string) {
               callerSpotifyId={
                 session.user.id === userId ? (profile?.id ?? null) : null
               }
-              linkedPlaylistIds={playlistLinks.map((l) => l.playlistId)}
+              linkedPlaylistIds={playlistLinks.map(
+              (l: { playlistId: string }) => l.playlistId,
+            )}
             />
           )}
           {session.user.id === userId ? <AddPlaylistForm /> : null}
