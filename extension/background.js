@@ -191,43 +191,46 @@ async function fetchPlaylistSnapshot(playlistId) {
 }
 
 async function fetchPlaylistTracks(playlistId, expectedTotal) {
+  // Primary: paginated /playlists/{id}/tracks — matches lib/spotify.ts:
+  // fetchFromTracksEndpoint (no fields filter; additional_types=track,episode).
+  // Fallback: /playlists/{id} inline tracks — matches
+  // lib/spotify.ts:fetchFromPlaylistEndpoint. First 100 tracks only.
+  let reason = null;
+  let items = [];
   try {
-    const items = await fetchPlaylistTracksViaTracksEndpoint(playlistId);
-    if (items.length === 0 && expectedTotal > 0) {
-      // Primary 200 OK with empty items — Spotify sometimes returns this
-      // when the token can reach the endpoint but isn't authorized to read
-      // the track list (app not in Extended Quota Mode, user not listed
-      // under User Management, etc). Retry via the detail endpoint.
-      return fetchPlaylistTracksViaDetail(
-        playlistId,
-        expectedTotal,
-        `/playlists/${playlistId}/tracks returned 200 with 0 items (snapshot reported ${expectedTotal} total)`,
-      );
+    items = await fetchPlaylistTracksViaTracksEndpoint(playlistId);
+    console.log(
+      `[bompton-sync] /playlists/${playlistId}/tracks → ${items.length} items (snapshot expected ${expectedTotal})`,
+    );
+    if (items.length === 0) {
+      reason = `/playlists/${playlistId}/tracks returned 200 with 0 items (snapshot expected ${expectedTotal})`;
     }
-    return items;
   } catch (error) {
     if (error instanceof SpotifyHttpError && error.status === 403) {
-      // Known Spotify quirk: /playlists/{id}/tracks 403s on some app
-      // configurations even when /playlists/{id} itself is readable (the
-      // snapshot call at fetchPlaylistSnapshot proves that worked, or we
-      // wouldn't be here). Mirror the server-side fallback in
-      // lib/spotify.ts:fetchFromPlaylistEndpoint: read the inline tracks
-      // from the detail endpoint.
-      return fetchPlaylistTracksViaDetail(
-        playlistId,
-        expectedTotal,
-        `/playlists/${playlistId}/tracks returned 403`,
-      );
+      reason = `/playlists/${playlistId}/tracks returned 403`;
+      console.warn(`[bompton-sync] ${reason}; falling back to detail endpoint`);
+    } else {
+      throw error;
     }
-    throw error;
   }
+
+  if (reason) {
+    items = await fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason);
+    console.log(
+      `[bompton-sync] fallback /playlists/${playlistId} → ${items.length} items`,
+    );
+  }
+
+  return items;
 }
 
 async function fetchPlaylistTracksViaTracksEndpoint(playlistId) {
-  const fields =
-    "items(added_at,added_by.id,is_local,track(id,name,uri,duration_ms,explicit,preview_url,album(name,images),artists(id,name,uri))),next,total";
+  // No fields filter — mirrors lib/spotify.ts:fetchFromTracksEndpoint. Earlier
+  // versions included fields=items(added_at,added_by.id,is_local,track(...))
+  // which appears to cause Spotify to return 200 with an empty items array on
+  // some app configurations (v0.1.3 observed this on every Bompton playlist).
   const items = [];
-  let url = `/playlists/${playlistId}/tracks?limit=100&fields=${encodeURIComponent(fields)}&additional_types=track`;
+  let url = `/playlists/${playlistId}/tracks?limit=100&additional_types=track,episode`;
   let position = 0;
   while (url) {
     const page = await spotifyGet(url);
@@ -249,7 +252,7 @@ async function fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason) {
   // for the embedded tracks, so we refuse to overwrite stored data if
   // total > 100 and surface the remediation inline.
   const detail = await spotifyGet(
-    `/playlists/${playlistId}?additional_types=track`,
+    `/playlists/${playlistId}?additional_types=track,episode`,
   );
   const inline = detail?.tracks;
   const items = [];
@@ -268,9 +271,9 @@ async function fetchPlaylistTracksViaDetail(playlistId, expectedTotal, reason) {
         `Refusing to sync partial data.`,
     );
   }
-  if (items.length === 0 && expectedTotal > 0) {
+  if (items.length === 0) {
     throw new Error(
-      `${reason}, and the fallback via /playlists/${playlistId} also returned 0 tracks (snapshot reported ${expectedTotal} total). ` +
+      `${reason}, and the fallback via /playlists/${playlistId} also returned 0 tracks (detail endpoint reported tracks.total=${total}, snapshot expected ${expectedTotal}). ` +
         `Most likely the Spotify app lacks Extended Quota Mode or this user isn't listed under the app's User Management. ` +
         `Fix at https://developer.spotify.com/dashboard → this app → Settings.`,
     );
