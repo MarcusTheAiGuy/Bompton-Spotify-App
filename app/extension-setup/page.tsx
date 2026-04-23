@@ -7,7 +7,7 @@ import {
   matchesBomptonYear,
   type BomptonYear,
 } from "@/lib/bompton";
-import { RevokeButton, TokenGenerator } from "./token-generator";
+import { ResetSyncButton, RevokeButton, TokenGenerator } from "./token-generator";
 
 export const dynamic = "force-dynamic";
 
@@ -223,6 +223,22 @@ export default async function ExtensionSetupPage() {
             . After that it syncs hourly in the background.
           </li>
         </ol>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border border-spotify-border bg-spotify-elevated/30 p-6">
+        <h2 className="text-2xl font-extrabold tracking-tight">
+          Troubleshooting · Reset sync state
+        </h2>
+        <p className="text-sm text-spotify-subtext">
+          Clears every Playlist row's stored <code className="font-mono">snapshotId</code>{" "}
+          and deletes all PlaylistTrack rows. The extension short-circuits its
+          sync when the stored snapshot matches Spotify's current one, so if
+          you ever end up with a Playlist row holding a current snapshotId but
+          no (or wrong) tracks — e.g. after the v0.1.2 sync bug, or if the
+          track table got out of sync with Spotify — click this, then hit{" "}
+          <strong>Sync now</strong> in the extension to re-pull everything.
+        </p>
+        <ResetSyncButton />
       </section>
     </section>
   );
