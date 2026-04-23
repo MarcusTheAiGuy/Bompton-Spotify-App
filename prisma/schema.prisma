@@ -49,9 +49,10 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
 
-  accounts         Account[]
-  sessions         Session[]
-  extensionTokens  ExtensionToken[]
+  accounts          Account[]
+  sessions          Session[]
+  extensionTokens   ExtensionToken[]
+  playlistLinks     UserPlaylistLink[]
 }
 
 model VerificationToken {
@@ -79,6 +80,25 @@ model Playlist {
   updatedAt   DateTime  @updatedAt
 
   tracks PlaylistTrack[]
+  links  UserPlaylistLink[]
+}
+
+// UserPlaylistLink says "this user has imported this playlist onto their
+// dashboard." The underlying Playlist + PlaylistTrack data is shared (deduped
+// by playlist id), so two users who import the same playlist share storage.
+// The link is what scopes which playlists appear on whose dashboard.
+model UserPlaylistLink {
+  id         String   @id @default(cuid())
+  userId     String
+  playlistId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, playlistId])
+  @@index([userId])
+  @@index([playlistId])
 }
 
 model PlaylistTrack {
