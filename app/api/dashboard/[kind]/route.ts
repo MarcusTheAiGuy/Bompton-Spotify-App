@@ -6,6 +6,7 @@ import {
   getDevices,
   getFollowedArtists,
   getPlaybackState,
+  getPlaylists,
   getQueue,
   getRecentlyPlayed,
   getSavedAlbums,
@@ -47,6 +48,7 @@ const VALID_KINDS = new Set([
   "saved-episodes",
   "saved-audiobooks",
   "followed-artists",
+  "playlists",
   "saved-top-track-check",
   "followed-top-artist-check",
 ]);
@@ -89,6 +91,8 @@ async function fetchKind(
       return getSavedAudiobooks(userId);
     case "followed-artists":
       return getFollowedArtists(userId);
+    case "playlists":
+      return getPlaylists(userId);
     case "saved-top-track-check": {
       const ids = request.nextUrl.searchParams.getAll("id").slice(0, 50);
       return checkSavedTracks(userId, ids);

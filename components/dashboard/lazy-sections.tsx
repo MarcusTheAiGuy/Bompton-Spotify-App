@@ -15,6 +15,7 @@ import type {
   SpotifySavedShowItem,
   SpotifySavedEpisodeItem,
   SpotifySavedAudiobookItem,
+  SpotifyPlaylist,
 } from "@/lib/spotify";
 import { TIME_RANGES } from "@/lib/spotify";
 import { SectionHeader, SpotifyErrorBanner } from "@/components/spotify/section-header";
@@ -38,6 +39,8 @@ import {
   GenreDistribution,
   ReleaseDecadeDistribution,
 } from "@/components/spotify/derived-stats";
+import { PlaylistGrid, type PreloadedLink } from "@/components/spotify/playlist-grid";
+import { AddPlaylistForm } from "@/components/spotify/add-playlist-form";
 
 type SectionState<T> =
   | { status: "idle" }
@@ -52,6 +55,9 @@ type StateByKind = Record<string, SectionState<unknown>>;
 // before the next starts, which is what avoided the 429s.
 const LAZY_KINDS = [
   "playback",
+  // Playlists runs early because its UI is meaningful to users and it
+  // was the section most prone to blocking the old server render.
+  "playlists",
   "queue",
   "devices",
   "recently-played",
@@ -69,7 +75,17 @@ const LAZY_KINDS = [
   "followed-artists",
 ] as const;
 
-export function LazyDashboardSections() {
+export function LazyDashboardSections({
+  forUserId,
+  isSelf,
+  callerSpotifyId,
+  preloadedLinks,
+}: {
+  forUserId: string;
+  isSelf: boolean;
+  callerSpotifyId: string | null;
+  preloadedLinks: PreloadedLink[];
+}) {
   const [state, setState] = useState<StateByKind>(() => {
     const initial: StateByKind = {};
     for (const kind of LAZY_KINDS) initial[kind] = { status: "idle" };
@@ -400,6 +416,30 @@ export function LazyDashboardSections() {
           }
           render={(data) => <ArtistGrid artists={data.artists.items} />}
         />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        eyebrow="Library"
+        title="Playlists"
+        subtitle="Owned and followed playlists (up to 50). Import any you own or collaborate on to store tracks locally and get our own sortable table instead of Spotify's embedded player."
+      >
+        <div className="flex flex-col gap-4">
+          <LoadedOrBanner
+            state={
+              state["playlists"] as SectionState<SpotifyPaged<SpotifyPlaylist>>
+            }
+            render={(data) => (
+              <PlaylistGrid
+                playlists={data.items}
+                forUserId={forUserId}
+                isSelf={isSelf}
+                callerSpotifyId={callerSpotifyId}
+                preloadedLinks={preloadedLinks}
+              />
+            )}
+          />
+          {isSelf ? <AddPlaylistForm /> : null}
+        </div>
       </CollapsibleSection>
     </>
   );

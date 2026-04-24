@@ -2,7 +2,6 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  getPlaylists,
   getSpotifyProfile,
   type SpotifyProfile,
 } from "@/lib/spotify";
@@ -13,13 +12,7 @@ import {
 } from "@/lib/next-control-flow";
 import { CrashCard } from "@/components/crash-card";
 import { UserTabs, type TabUser } from "@/components/user-tabs";
-import {
-  SectionHeader,
-  SpotifyErrorBanner,
-} from "@/components/spotify/section-header";
-import { CollapsibleSection } from "@/components/spotify/collapsible-section";
-import { PlaylistGrid } from "@/components/spotify/playlist-grid";
-import { AddPlaylistForm } from "@/components/spotify/add-playlist-form";
+import { SpotifyErrorBanner } from "@/components/spotify/section-header";
 import { LazyDashboardSections } from "@/components/dashboard/lazy-sections";
 
 export const dynamic = "force-dynamic";
@@ -59,8 +52,7 @@ async function renderDashboard(userId: string) {
   // devices, recently-played, followed artists) is fetched client-side
   // by LazyDashboardSections so the page renders immediately and sections
   // fill in one-at-a-time in the background.
-  const [viewedUser, crew, playlistLinks, profileResult, playlistsResult] =
-    await Promise.all([
+  const [viewedUser, crew, playlistLinks, profileResult] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -100,7 +92,6 @@ async function renderDashboard(userId: string) {
         throw error;
       }),
     settleSpotify(getSpotifyProfile(userId)),
-    settleSpotify(getPlaylists(userId)),
   ]);
 
   if (!viewedUser) notFound();
@@ -127,35 +118,16 @@ async function renderDashboard(userId: string) {
       ) : null}
       {profile ? <ProfileStats profile={profile} /> : null}
 
-      {/* All deferred Spotify-backed sections load client-side sequentially
-          after the page renders. This is what keeps the initial paint
-          fast — the old server component was blocking on 18 parallel
-          Spotify calls and hanging 30s on any 429. */}
-      <LazyDashboardSections />
-
-      <CollapsibleSection
-        eyebrow="Library"
-        title="Playlists"
-        subtitle="Owned and followed playlists (up to 50). Import any you own or collaborate on to store tracks locally and get our own sortable table instead of Spotify's embedded player."
-      >
-        <div className="flex flex-col gap-4">
-          {playlistsResult.error ? (
-            <SpotifyErrorBanner
-              title={playlistsResult.error.title}
-              detail={playlistsResult.error.detail}
-            />
-          ) : (
-            <PlaylistGrid
-              playlists={playlistsResult.value.items}
-              forUserId={userId}
-              isSelf={isSelf}
-              callerSpotifyId={isSelf ? (profile?.id ?? null) : null}
-              preloadedLinks={buildPreloadedLinks(playlistLinks)}
-            />
-          )}
-          {isSelf ? <AddPlaylistForm /> : null}
-        </div>
-      </CollapsibleSection>
+      {/* Every Spotify-backed section (including Playlists) loads
+          client-side sequentially after the page renders. The server
+          component does zero Spotify calls on the critical path, which
+          is what guarantees an instant paint even under a 429 cooldown. */}
+      <LazyDashboardSections
+        forUserId={userId}
+        isSelf={isSelf}
+        callerSpotifyId={isSelf ? (profile?.id ?? null) : null}
+        preloadedLinks={buildPreloadedLinks(playlistLinks)}
+      />
     </section>
   );
 }
