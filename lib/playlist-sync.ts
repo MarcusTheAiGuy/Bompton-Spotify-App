@@ -140,19 +140,14 @@ export async function syncPlaylistForUser(
     throw error;
   }
 
-  if (detail.owner.id !== profile.id) {
-    throw new PlaylistSyncError(
-      `You don't own "${detail.name}" — it's owned by ${detail.owner.display_name ?? detail.owner.id}. Under Spotify's Feb-2026 Dev Mode rules, only the playlist owner can read its items via the API. Ask the owner to import it from their dashboard, or the app will fall back to Spotify's embed player.`,
-      "NOT_OWNER",
-      {
-        playlistId,
-        playlistName: detail.name,
-        ownerId: detail.owner.id,
-        ownerDisplayName: detail.owner.display_name,
-        callerSpotifyId: profile.id,
-      },
-    );
-  }
+  // Note: we intentionally do NOT pre-flight owner.id === profile.id.
+  // Spotify's Feb-2026 Dev-Mode docs say non-owners get only metadata
+  // and items are absent. But collaborator access appears to be an
+  // exception worth testing empirically: if Spotify returns the items
+  // for a collaborator, we accept the sync. If it returns fewer items
+  // than tracks(total), we throw a post-fetch error with the owner
+  // context so the UI can fall back to the embed.
+  const callerIsOwner = detail.owner.id === profile.id;
 
   // 4. Paginate /items. Spotify's new endpoint caps at limit=100.
   type ItemsPage = { items: SpotifyPlaylistItem[]; next: string | null };
@@ -164,6 +159,28 @@ export async function syncPlaylistForUser(
     if (!page.next) break;
     const nextUrl = new URL(page.next);
     nextPath = `${nextUrl.pathname.replace(/^\/v1/, "")}${nextUrl.search}`;
+  }
+
+  // Post-fetch sanity check. Spotify's Feb-2026 Dev-Mode rules restrict
+  // items reads to owners in most cases; if we paginated cleanly but got
+  // fewer items than the playlist says it contains, it's almost always
+  // that restriction kicking in (e.g. a collaborator trying to sync).
+  // Fail hard with context instead of writing a half-empty row.
+  const expectedTotal = detail.items?.total ?? 0;
+  if (!callerIsOwner && items.length < expectedTotal) {
+    throw new PlaylistSyncError(
+      `"${detail.name}" is owned by ${detail.owner.display_name ?? detail.owner.id}, not you. Spotify returned ${items.length} items but the playlist has ${expectedTotal}. Under Feb-2026 Dev-Mode rules, non-owners generally can't read playlist items via the API even as collaborators. Ask the owner to import it from their dashboard, or use the Spotify embed fallback.`,
+      "NOT_OWNER",
+      {
+        playlistId,
+        playlistName: detail.name,
+        ownerId: detail.owner.id,
+        ownerDisplayName: detail.owner.display_name,
+        callerSpotifyId: profile.id,
+        returnedItems: items.length,
+        expectedTotal,
+      },
+    );
   }
 
   // 5. Normalize into the shape applyExtensionSync expects. Our internal

@@ -406,6 +406,14 @@ function PlaylistRow({
   }
 
   const showImportButton = canMutate && callerIsOwner && !linked && !spotifyOwned;
+  // Allow attempting an import on non-owned playlists too — Spotify's Feb-2026
+  // Dev-Mode rules say non-owners can't read items, but collaborator access
+  // is worth testing empirically. The server returns NOT_OWNER if it confirms
+  // the restriction, and the UI surfaces the error. Gated on callerSpotifyId
+  // being known (i.e. self-view) and excluding Spotify-curated playlists
+  // (Nov-2024 deprecation blocks those regardless of ownership).
+  const showNonOwnerImportButton =
+    canMutate && !callerIsOwner && !linked && !spotifyOwned && callerSpotifyId !== null;
 
   const header = (
     <>
@@ -530,16 +538,31 @@ function PlaylistRow({
                 ) : null}
               </>
             ) : (
-              showImportButton && (
-                <button
-                  type="button"
-                  onClick={runSync}
-                  disabled={syncPending}
-                  className="rounded-full bg-spotify-green px-3 py-1 text-xs font-bold text-black transition hover:bg-spotify-green-hover disabled:opacity-60"
-                >
-                  {syncPending ? "Importing…" : "Import to dashboard"}
-                </button>
-              )
+              <>
+                {showImportButton ? (
+                  <button
+                    type="button"
+                    onClick={runSync}
+                    disabled={syncPending}
+                    className="rounded-full bg-spotify-green px-3 py-1 text-xs font-bold text-black transition hover:bg-spotify-green-hover disabled:opacity-60"
+                  >
+                    {syncPending ? "Importing…" : "Import to dashboard"}
+                  </button>
+                ) : null}
+                {showNonOwnerImportButton ? (
+                  <button
+                    type="button"
+                    onClick={runSync}
+                    disabled={syncPending}
+                    className="rounded-full border border-yellow-500/50 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-200 transition hover:bg-yellow-500/20 disabled:opacity-60"
+                    title="Spotify Dev-Mode usually blocks non-owners from reading playlist items; this tries anyway and will show an error if it fails."
+                  >
+                    {syncPending
+                      ? "Trying…"
+                      : "⚠ Try import (non-owner, experimental)"}
+                  </button>
+                ) : null}
+              </>
             )}
             {storedState.status === "loaded" && storedState.lastSyncAt ? (
               <span className="text-xs text-spotify-subtext">
