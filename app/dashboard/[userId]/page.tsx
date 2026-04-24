@@ -105,10 +105,19 @@ async function renderDashboard(userId: string) {
     // UserPlaylistLink is a newer table; swallow "table doesn't exist"
     // so the dashboard still renders and points the user at the
     // init-table button on /extension-setup instead of hard-crashing.
+    // Also inline-load the linked playlists' stored tracks so the custom
+    // tables auto-populate on page load without the user clicking expand.
     prisma.userPlaylistLink
       .findMany({
         where: { userId },
-        select: { playlistId: true },
+        select: {
+          playlistId: true,
+          playlist: {
+            include: {
+              tracks: { orderBy: { position: "asc" } },
+            },
+          },
+        },
       })
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -117,7 +126,7 @@ async function renderDashboard(userId: string) {
             "[dashboard] UserPlaylistLink table missing — visit /extension-setup and click 'Initialize UserPlaylistLink table'. Rendering dashboard with no linked playlists.",
             { userId, message },
           );
-          return [] as { playlistId: string }[];
+          return [];
         }
         throw error;
       }),
@@ -479,9 +488,7 @@ async function renderDashboard(userId: string) {
               callerSpotifyId={
                 session.user.id === userId ? (profile?.id ?? null) : null
               }
-              linkedPlaylistIds={playlistLinks.map(
-              (l: { playlistId: string }) => l.playlistId,
-            )}
+              preloadedLinks={buildPreloadedLinks(playlistLinks)}
             />
           )}
           {session.user.id === userId ? <AddPlaylistForm /> : null}
@@ -489,6 +496,58 @@ async function renderDashboard(userId: string) {
       </CollapsibleSection>
     </section>
   );
+}
+
+type DbPlaylistTrackRow = {
+  position: number;
+  trackSpotifyId: string | null;
+  trackName: string;
+  trackUri: string;
+  trackDurationMs: number;
+  trackExplicit: boolean;
+  trackPreviewUrl: string | null;
+  albumName: string;
+  albumImageUrl: string | null;
+  artistsJson: unknown;
+  addedAt: Date;
+  addedBySpotifyId: string | null;
+  isLocal: boolean;
+};
+
+type DbPlaylistLinkRow = {
+  playlistId: string;
+  playlist: {
+    lastSyncAt: Date | null;
+    totalTracks: number;
+    tracks: DbPlaylistTrackRow[];
+  } | null;
+};
+
+function buildPreloadedLinks(rows: DbPlaylistLinkRow[]) {
+  return rows.map((l) => ({
+    playlistId: l.playlistId,
+    lastSyncAt: l.playlist?.lastSyncAt?.toISOString() ?? null,
+    totalTracks: l.playlist?.totalTracks ?? 0,
+    tracks: (l.playlist?.tracks ?? []).map((t) => ({
+      position: t.position,
+      trackSpotifyId: t.trackSpotifyId,
+      trackName: t.trackName,
+      trackUri: t.trackUri,
+      trackDurationMs: t.trackDurationMs,
+      trackExplicit: t.trackExplicit,
+      trackPreviewUrl: t.trackPreviewUrl,
+      albumName: t.albumName,
+      albumImageUrl: t.albumImageUrl,
+      artists: (t.artistsJson ?? []) as {
+        id: string | null;
+        name: string;
+        uri: string | null;
+      }[],
+      addedAt: t.addedAt.toISOString(),
+      addedBySpotifyId: t.addedBySpotifyId,
+      isLocal: t.isLocal,
+    })),
+  }));
 }
 
 function ProfileHeader({
