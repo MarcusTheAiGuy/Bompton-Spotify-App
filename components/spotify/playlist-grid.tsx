@@ -50,20 +50,75 @@ type StoredState =
     }
   | { status: "error"; title: string; detail: string };
 
+export type PreloadedLink = {
+  playlistId: string;
+  lastSyncAt: string | null;
+  totalTracks: number;
+  tracks: StoredTrack[];
+};
+
 export function PlaylistGrid({
   playlists,
   forUserId,
   isSelf,
   callerSpotifyId,
-  linkedPlaylistIds,
+  preloadedLinks,
 }: {
   playlists: SpotifyPlaylist[];
   forUserId: string;
   isSelf: boolean;
   callerSpotifyId: string | null;
-  linkedPlaylistIds: string[];
+  preloadedLinks: PreloadedLink[];
 }) {
+  const router = useRouter();
+  const [resyncAllPending, setResyncAllPending] = useState(false);
+  const [resyncAllError, setResyncAllError] = useState<string | null>(null);
+  const [resyncAllProgress, setResyncAllProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+
   const valid = playlists.filter((p) => p);
+  const preloadedById = new Map(preloadedLinks.map((l) => [l.playlistId, l]));
+
+  async function resyncAll() {
+    if (preloadedLinks.length === 0) return;
+    setResyncAllPending(true);
+    setResyncAllError(null);
+    setResyncAllProgress({ done: 0, total: preloadedLinks.length });
+    const errors: string[] = [];
+    for (let i = 0; i < preloadedLinks.length; i++) {
+      const link = preloadedLinks[i];
+      try {
+        const response = await fetch("/api/playlists/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playlistInput: link.playlistId }),
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          errors.push(
+            `${link.playlistId}: ${body?.error ?? "err"} ${response.status} ${body?.message ?? ""}`,
+          );
+        }
+      } catch (error) {
+        errors.push(
+          `${link.playlistId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      setResyncAllProgress({ done: i + 1, total: preloadedLinks.length });
+    }
+    setResyncAllPending(false);
+    if (errors.length) {
+      setResyncAllError(
+        `Resync finished with ${errors.length} error(s):\n${errors.join("\n")}`,
+      );
+    } else {
+      setResyncAllProgress(null);
+    }
+    router.refresh();
+  }
+
   if (valid.length === 0) {
     return (
       <p className="rounded-lg bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
@@ -71,20 +126,41 @@ export function PlaylistGrid({
       </p>
     );
   }
-  const linkedSet = new Set(linkedPlaylistIds);
+
   return (
-    <ul className="flex flex-col gap-3">
-      {valid.map((playlist) => (
-        <PlaylistRow
-          key={playlist.id}
-          playlist={playlist}
-          forUserId={forUserId}
-          isSelf={isSelf}
-          callerSpotifyId={callerSpotifyId}
-          linked={linkedSet.has(playlist.id)}
-        />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-3">
+      {isSelf && preloadedLinks.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={resyncAll}
+            disabled={resyncAllPending}
+            className="btn-ghost self-start disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {resyncAllPending && resyncAllProgress
+              ? `Resyncing ${resyncAllProgress.done}/${resyncAllProgress.total}…`
+              : `Resync all ${preloadedLinks.length} imported`}
+          </button>
+          {resyncAllError ? (
+            <p className="whitespace-pre-wrap text-xs text-red-300">
+              {resyncAllError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <ul className="flex flex-col gap-3">
+        {valid.map((playlist) => (
+          <PlaylistRow
+            key={playlist.id}
+            playlist={playlist}
+            forUserId={forUserId}
+            isSelf={isSelf}
+            callerSpotifyId={callerSpotifyId}
+            preloaded={preloadedById.get(playlist.id) ?? null}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -112,18 +188,44 @@ function PlaylistRow({
   forUserId,
   isSelf,
   callerSpotifyId,
-  linked,
+  preloaded,
 }: {
   playlist: SpotifyPlaylist;
   forUserId: string;
   isSelf: boolean;
   callerSpotifyId: string | null;
-  linked: boolean;
+  preloaded: PreloadedLink | null;
 }) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
+  const linked = preloaded !== null;
+  // Linked rows default to expanded so the custom table shows up on page
+  // load without the user clicking every row.
+  const [expanded, setExpanded] = useState(linked);
   const [liveState, setLiveState] = useState<LiveTracksState>({ status: "idle" });
-  const [storedState, setStoredState] = useState<StoredState>({ status: "idle" });
+  const [storedState, setStoredState] = useState<StoredState>(
+    preloaded
+      ? {
+          status: "loaded",
+          tracks: preloaded.tracks,
+          lastSyncAt: preloaded.lastSyncAt,
+          totalTracks: preloaded.totalTracks,
+        }
+      : { status: "idle" },
+  );
+  // When the server re-renders with fresh preloaded data (e.g. after a
+  // "Resync all" triggered router.refresh), pull the new tracks into
+  // local state. Keyed on lastSyncAt so we don't thrash on every render.
+  useEffect(() => {
+    if (preloaded) {
+      setStoredState({
+        status: "loaded",
+        tracks: preloaded.tracks,
+        lastSyncAt: preloaded.lastSyncAt,
+        totalTracks: preloaded.totalTracks,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preloaded?.lastSyncAt]);
   const [viewMode, setViewMode] = useState<"stored" | "embed">("stored");
   const [syncPending, setSyncPending] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -240,8 +342,11 @@ function PlaylistRow({
         return;
       }
       await loadStored();
+      // If this was a fresh import (row was unlinked before the click),
+      // auto-expand so the user sees the new table without another tap.
+      if (!linked) setExpanded(true);
       // Server state changed (new UserPlaylistLink), re-render the page so
-      // the linkedPlaylistIds prop includes this playlist next render.
+      // the preloadedLinks prop includes this playlist next render.
       router.refresh();
     } catch (error) {
       setSyncError(

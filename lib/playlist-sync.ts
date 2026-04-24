@@ -207,6 +207,20 @@ export async function syncPlaylistForUser(
     tracks: normalized,
   };
 
+  // applyExtensionSync short-circuits when the stored snapshot_id matches
+  // the incoming one — an extension-era optimization to skip track writes
+  // when nothing changed upstream. Our user-triggered sync path needs the
+  // opposite: always rewrite, because the stored data might be stale for
+  // reasons besides an upstream snapshot change (e.g. the first v0.1.0
+  // import of this path wrote every row as "(unavailable)" with 0ms due
+  // to the raw.track/raw.item rename bug, yet captured the current
+  // snapshot_id, so the skip path would refuse to ever fix itself).
+  // Clearing stored snapshotId first forces the rewrite branch.
+  await prisma.playlist.updateMany({
+    where: { id: detail.id },
+    data: { snapshotId: null },
+  });
+
   const syncResult = await applyExtensionSync(payload, userId);
 
   // 6. Ensure the link exists so this playlist appears on the user's dashboard.
