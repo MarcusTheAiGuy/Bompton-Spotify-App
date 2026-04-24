@@ -71,50 +71,63 @@ export function PlaylistGrid({
   preloadedLinks: PreloadedLink[];
 }) {
   const router = useRouter();
-  const [resyncAllPending, setResyncAllPending] = useState(false);
-  const [resyncAllError, setResyncAllError] = useState<string | null>(null);
-  const [resyncAllProgress, setResyncAllProgress] = useState<{
+  const [syncAllPending, setSyncAllPending] = useState(false);
+  const [syncAllError, setSyncAllError] = useState<string | null>(null);
+  const [syncAllProgress, setSyncAllProgress] = useState<{
     done: number;
     total: number;
   } | null>(null);
 
   const valid = playlists.filter((p) => p);
   const preloadedById = new Map(preloadedLinks.map((l) => [l.playlistId, l]));
+  // Every playlist in the caller's /me/playlists that they actually own —
+  // these are the ones the "Sync all" button can operate on (import if
+  // unlinked, resync if linked). Playlists they only follow are excluded
+  // because non-owner syncs would hit NOT_OWNER 403. Spotify-curated ones
+  // (owner.id === "spotify") are also excluded — Nov-2024 deprecation
+  // blocks their items for new apps regardless of ownership.
+  const ownedPlaylists =
+    callerSpotifyId === null
+      ? []
+      : valid.filter(
+          (p) =>
+            p.owner?.id === callerSpotifyId && p.owner?.id !== "spotify",
+        );
 
-  async function resyncAll() {
-    if (preloadedLinks.length === 0) return;
-    setResyncAllPending(true);
-    setResyncAllError(null);
-    setResyncAllProgress({ done: 0, total: preloadedLinks.length });
+  async function syncAllOwned() {
+    if (ownedPlaylists.length === 0) return;
+    setSyncAllPending(true);
+    setSyncAllError(null);
+    setSyncAllProgress({ done: 0, total: ownedPlaylists.length });
     const errors: string[] = [];
-    for (let i = 0; i < preloadedLinks.length; i++) {
-      const link = preloadedLinks[i];
+    for (let i = 0; i < ownedPlaylists.length; i++) {
+      const playlist = ownedPlaylists[i];
       try {
         const response = await fetch("/api/playlists/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ playlistInput: link.playlistId }),
+          body: JSON.stringify({ playlistInput: playlist.id }),
         });
         if (!response.ok) {
           const body = await response.json().catch(() => ({}));
           errors.push(
-            `${link.playlistId}: ${body?.error ?? "err"} ${response.status} ${body?.message ?? ""}`,
+            `${playlist.name} (${playlist.id}): ${body?.error ?? "err"} ${response.status} ${body?.message ?? ""}`,
           );
         }
       } catch (error) {
         errors.push(
-          `${link.playlistId}: ${error instanceof Error ? error.message : String(error)}`,
+          `${playlist.name} (${playlist.id}): ${error instanceof Error ? error.message : String(error)}`,
         );
       }
-      setResyncAllProgress({ done: i + 1, total: preloadedLinks.length });
+      setSyncAllProgress({ done: i + 1, total: ownedPlaylists.length });
     }
-    setResyncAllPending(false);
+    setSyncAllPending(false);
     if (errors.length) {
-      setResyncAllError(
-        `Resync finished with ${errors.length} error(s):\n${errors.join("\n")}`,
+      setSyncAllError(
+        `Sync finished with ${errors.length} error(s):\n${errors.join("\n")}`,
       );
     } else {
-      setResyncAllProgress(null);
+      setSyncAllProgress(null);
     }
     router.refresh();
   }
@@ -127,23 +140,33 @@ export function PlaylistGrid({
     );
   }
 
+  const importedCount = preloadedLinks.length;
+  const unimportedOwnedCount = ownedPlaylists.filter(
+    (p) => !preloadedById.has(p.id),
+  ).length;
+
   return (
     <div className="flex flex-col gap-3">
-      {isSelf && preloadedLinks.length > 0 ? (
+      {isSelf && ownedPlaylists.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={resyncAll}
-            disabled={resyncAllPending}
+            onClick={syncAllOwned}
+            disabled={syncAllPending}
             className="btn-ghost self-start disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {resyncAllPending && resyncAllProgress
-              ? `Resyncing ${resyncAllProgress.done}/${resyncAllProgress.total}…`
-              : `Resync all ${preloadedLinks.length} imported`}
+            {syncAllPending && syncAllProgress
+              ? `Syncing ${syncAllProgress.done}/${syncAllProgress.total}…`
+              : `Sync all ${ownedPlaylists.length} owned playlist${ownedPlaylists.length === 1 ? "" : "s"}`}
           </button>
-          {resyncAllError ? (
+          <p className="text-xs text-spotify-subtext">
+            {unimportedOwnedCount > 0
+              ? `${unimportedOwnedCount} new to import, ${importedCount} to resync`
+              : `all ${importedCount} already imported; click to resync`}
+          </p>
+          {syncAllError ? (
             <p className="whitespace-pre-wrap text-xs text-red-300">
-              {resyncAllError}
+              {syncAllError}
             </p>
           ) : null}
         </div>
