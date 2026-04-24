@@ -8,6 +8,7 @@ import {
   type BomptonYear,
 } from "@/lib/bompton";
 import {
+  InitCachedResponseButton,
   InitPlaylistLinkButton,
   ResetSyncButton,
   RevokeButton,
@@ -257,6 +258,19 @@ export default async function ExtensionSetupPage() {
             deploy to apply the DDL. Safe to click twice — it&apos;s idempotent.
           </p>
           <InitPlaylistLinkButton />
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
+          <h3 className="text-base font-bold tracking-tight">
+            One-shot · Initialize CachedSpotifyResponse table
+          </h3>
+          <p className="text-sm text-spotify-subtext">
+            Durable per-user cache for Spotify responses so we don&apos;t
+            re-hit the API for slow-changing data (profile, devices,
+            saved content, followed artists) — 24h TTL on those, 5 min
+            on everything else. Click once after deploy.
+          </p>
+          <InitCachedResponseButton />
         </div>
       </section>
     </section>

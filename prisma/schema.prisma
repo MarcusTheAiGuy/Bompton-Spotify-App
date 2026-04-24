@@ -53,6 +53,7 @@ model User {
   sessions          Session[]
   extensionTokens   ExtensionToken[]
   playlistLinks     UserPlaylistLink[]
+  cachedResponses   CachedSpotifyResponse[]
 }
 
 model VerificationToken {
@@ -140,4 +141,28 @@ model ExtensionToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Durable Spotify response cache. Populated whenever the dashboard's
+// /api/dashboard/[kind] route fetches fresh data from Spotify; read
+// on subsequent requests until expiresAt. Lets us honor long TTLs
+// (24h for profile / devices / saved content / followed artists)
+// across serverless cold starts, so a user pinging the dashboard
+// multiple times a day only hits Spotify once for those slow-
+// changing endpoints. Shorter TTLs for things that actually change
+// often (playlists, top items) stay in a lightweight in-memory
+// cache layered on top.
+model CachedSpotifyResponse {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String
+  data      Json
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind])
+  @@index([userId])
+  @@index([expiresAt])
 }

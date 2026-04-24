@@ -57,16 +57,28 @@ export default async function BomptonPlaylistPage() {
     spotifyUserId: u.accounts[0]?.providerAccountId ?? null,
   }));
 
-  // Find which Bompton playlists this user has in their own Spotify
-  // library so BomptonAutoSync knows what ids to re-sync on mount.
-  const autoSyncTargets: { year: BomptonYear; playlistId: string }[] = [];
+  const dataByYear = new Map(bomptonData.map((d) => [d.year, d]));
+
+  // Find which Bompton playlists the caller has in their library, and
+  // pass lastSyncAt so BomptonAutoSync can skip auto-syncing freshly
+  // synced ones. The refresh button on the page lets the user force a
+  // sync regardless of staleness.
+  const autoSyncTargets: {
+    year: BomptonYear;
+    playlistId: string;
+    lastSyncAt: string | null;
+  }[] = [];
   const callerPlaylists = callerPlaylistsResult.value?.items ?? [];
   for (const year of BOMPTON_YEARS) {
     const match = findBomptonPlaylist(callerPlaylists, year);
-    if (match) autoSyncTargets.push({ year, playlistId: match.id });
+    if (!match) continue;
+    const storedLastSync = dataByYear.get(year)?.playlist?.lastSyncAt ?? null;
+    autoSyncTargets.push({
+      year,
+      playlistId: match.id,
+      lastSyncAt: storedLastSync?.toISOString() ?? null,
+    });
   }
-
-  const dataByYear = new Map(bomptonData.map((d) => [d.year, d]));
   const anyDataAtAll = bomptonData.some((d) => d.tracks.length > 0);
 
   const currentSeason = dataByYear.get(CURRENT_BOMPTON_YEAR);
