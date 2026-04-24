@@ -9,8 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",
-    "db:push": "prisma db push",
-    "extension:zip": "bash extension/build-zip.sh"
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
