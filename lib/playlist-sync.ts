@@ -83,11 +83,21 @@ export type SyncPlaylistResult = {
   tracksWritten: number;
   snapshotChanged: boolean;
   linkCreated: boolean;
+  skipped?: boolean;
+};
+
+export type SyncPlaylistOptions = {
+  // When true, always paginate /items and rewrite stored tracks even if
+  // Spotify's snapshot_id matches what we have on file. Use for the
+  // user-triggered Resync button — the escape hatch when stored data is
+  // bad but the snapshot looks current (the Party-import regression).
+  force?: boolean;
 };
 
 export async function syncPlaylistForUser(
   userId: string,
   playlistId: string,
+  options: SyncPlaylistOptions = {},
 ): Promise<SyncPlaylistResult> {
   // 1. Verify we can mint a token for this user.
   try {
@@ -148,6 +158,57 @@ export async function syncPlaylistForUser(
   // than tracks(total), we throw a post-fetch error with the owner
   // context so the UI can fall back to the embed.
   const callerIsOwner = detail.owner.id === profile.id;
+
+  // 3b. Smart-skip: if the stored snapshot_id matches and we already have
+  // tracks on file, the playlist hasn't changed upstream — no need to
+  // paginate /items. Saves ~ceil(N/100) API calls per unchanged playlist
+  // on every Sync / Refresh burst, which is the main source of 429s.
+  // Skipped when force=true so the per-row Resync button still fixes
+  // cases where stored data is junk but snapshot happens to match.
+  if (!options.force) {
+    const stored = await prisma.playlist.findUnique({
+      where: { id: playlistId },
+      select: {
+        snapshotId: true,
+        _count: { select: { tracks: true } },
+      },
+    });
+    const snapshotMatch =
+      stored?.snapshotId !== null &&
+      stored?.snapshotId === detail.snapshot_id;
+    const hasStoredTracks = (stored?._count.tracks ?? 0) > 0;
+    if (stored && snapshotMatch && hasStoredTracks) {
+      await prisma.playlist.update({
+        where: { id: playlistId },
+        data: {
+          name: detail.name,
+          ownerId: detail.owner.id,
+          ownerName: detail.owner.display_name,
+          imageUrl: detail.images?.[0]?.url ?? null,
+          totalTracks: detail.items?.total ?? 0,
+          lastSyncAt: new Date(),
+          lastSyncBy: userId,
+        },
+      });
+      const link = await prisma.userPlaylistLink.upsert({
+        where: { userId_playlistId: { userId, playlistId } },
+        create: { userId, playlistId },
+        update: {},
+        select: { createdAt: true },
+      });
+      // linkCreated when createdAt is within the last few ms (freshly
+      // created by this upsert) — close enough for the UI.
+      const linkCreated = Date.now() - link.createdAt.getTime() < 2000;
+      return {
+        playlistId: detail.id,
+        playlistName: detail.name,
+        tracksWritten: 0,
+        snapshotChanged: false,
+        linkCreated,
+        skipped: true,
+      };
+    }
+  }
 
   // 4. Paginate /items. Spotify's new endpoint caps at limit=100.
   type ItemsPage = { items: SpotifyPlaylistItem[]; next: string | null };

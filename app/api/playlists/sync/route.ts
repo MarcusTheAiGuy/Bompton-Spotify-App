@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     typeof (body as { playlistInput?: unknown })?.playlistInput === "string"
       ? (body as { playlistInput: string }).playlistInput
       : "";
+  const force = Boolean((body as { force?: unknown })?.force);
   const playlistId = extractPlaylistId(playlistInput);
   if (!playlistId) {
     return NextResponse.json(
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await syncPlaylistForUser(userId, playlistId);
+    const result = await syncPlaylistForUser(userId, playlistId, { force });
     console.log("[playlists.sync]", {
       userId,
       playlistId: result.playlistId,
