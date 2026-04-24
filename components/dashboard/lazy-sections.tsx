@@ -6,6 +6,7 @@ import type {
   SpotifyPaged,
   SpotifyTrack,
   SpotifyPlaybackState,
+  SpotifyProfile,
   SpotifyQueue,
   SpotifyDevice,
   SpotifyCursorPaged,
@@ -54,6 +55,11 @@ type StateByKind = Record<string, SectionState<unknown>>;
 // don't burst 15 calls at Spotify in one tick — each finishes (or fails)
 // before the next starts, which is what avoided the 429s.
 const LAZY_KINDS = [
+  // /me must be first — the PlaylistGrid below needs the caller's
+  // Spotify id for ownership checks, and ProfileStats needs country /
+  // product / followers info. Still cheap: /me is cached server-side
+  // for 5 minutes, so only the first load in the window hits Spotify.
+  "me",
   "playback",
   // Playlists runs early because its UI is meaningful to users and it
   // was the section most prone to blocking the old server render.
@@ -78,12 +84,10 @@ const LAZY_KINDS = [
 export function LazyDashboardSections({
   forUserId,
   isSelf,
-  callerSpotifyId,
   preloadedLinks,
 }: {
   forUserId: string;
   isSelf: boolean;
-  callerSpotifyId: string | null;
   preloadedLinks: PreloadedLink[];
 }) {
   const [state, setState] = useState<StateByKind>(() => {
@@ -98,8 +102,17 @@ export function LazyDashboardSections({
       for (const kind of LAZY_KINDS) {
         if (cancelled) return;
         setState((prev: StateByKind) => ({ ...prev, [kind]: { status: "loading" } }));
+        // Per-fetch timeout: Spotify's Retry-After on 429 is clamped to
+        // 30s inside spotifyFetch, but a dead connection can hang the
+        // fetch() longer than that. 45s is a safe upper bound — after
+        // that we move on to the next kind so the queue doesn't pin
+        // the whole dashboard waiting on a single flaky section.
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45_000);
         try {
-          const response = await fetch(`/api/dashboard/${kind}`);
+          const response = await fetch(`/api/dashboard/${kind}`, {
+            signal: controller.signal,
+          });
           const body = await response.json().catch(() => ({}));
           if (!response.ok) {
             if (!cancelled) {
@@ -120,18 +133,23 @@ export function LazyDashboardSections({
           }
         } catch (error) {
           if (!cancelled) {
+            const isAbort =
+              error instanceof Error && error.name === "AbortError";
             setState((prev: StateByKind) => ({
               ...prev,
               [kind]: {
                 status: "error",
-                title: "Network error",
-                detail:
-                  error instanceof Error
+                title: isAbort ? "Timed out" : "Network error",
+                detail: isAbort
+                  ? `${kind} didn't respond within 45s; moved on to the next section. Retry by reloading the page.`
+                  : error instanceof Error
                     ? `${error.name}: ${error.message}`
                     : String(error),
               },
             }));
           }
+        } finally {
+          clearTimeout(timeout);
         }
       }
     })();
@@ -140,6 +158,7 @@ export function LazyDashboardSections({
     };
   }, []);
 
+  const meState = state["me"] as SectionState<SpotifyProfile>;
   const topTracksByRange = useMemo(
     () => ({
       short_term: state["top-tracks-short"] as SectionState<
@@ -214,6 +233,12 @@ export function LazyDashboardSections({
 
   return (
     <>
+      {meState.status === "error" ? (
+        <SpotifyErrorBanner title={meState.title} detail={meState.detail} />
+      ) : meState.status === "loaded" ? (
+        <ProfileStats profile={meState.data} />
+      ) : null}
+
       <div className="flex flex-col gap-4">
         <SectionHeader
           eyebrow="Right now"
@@ -433,7 +458,11 @@ export function LazyDashboardSections({
                 playlists={data.items}
                 forUserId={forUserId}
                 isSelf={isSelf}
-                callerSpotifyId={callerSpotifyId}
+                callerSpotifyId={
+                  isSelf && meState.status === "loaded"
+                    ? meState.data.id
+                    : null
+                }
                 preloadedLinks={preloadedLinks}
               />
             )}
@@ -560,5 +589,32 @@ function TopItemOverlapClient({
       followedTopArtistCount={followedCount}
       totalTopArtists={mediumArtists.slice(0, 50).length}
     />
+  );
+}
+
+function ProfileStats({ profile }: { profile: SpotifyProfile }) {
+  return (
+    <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+      <Stat label="Followers" value={profile.followers?.total ?? 0} />
+      <Stat label="Country" value={profile.country ?? "—"} />
+      <Stat label="Plan" value={profile.product ?? "—"} />
+      <Stat
+        label="Explicit filter"
+        value={profile.explicit_content?.filter_enabled ? "on" : "off"}
+      />
+    </dl>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-lg border border-spotify-border bg-spotify-elevated/40 p-3">
+      <dt className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
+        {label}
+      </dt>
+      <dd className="mt-1 text-base font-semibold text-spotify-text">
+        {value}
+      </dd>
+    </div>
   );
 }

@@ -14,6 +14,7 @@ import {
   getSavedEpisodes,
   getSavedShows,
   getSavedTracks,
+  getSpotifyProfile,
   getTopArtists,
   getTopTracks,
   SpotifyError,
@@ -32,6 +33,7 @@ const responseCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 5 * 60_000;
 
 const VALID_KINDS = new Set([
+  "me",
   "playback",
   "queue",
   "devices",
@@ -59,6 +61,8 @@ async function fetchKind(
   request: NextRequest,
 ): Promise<unknown> {
   switch (kind) {
+    case "me":
+      return getSpotifyProfile(userId);
     case "playback":
       return getPlaybackState(userId);
     case "queue":
