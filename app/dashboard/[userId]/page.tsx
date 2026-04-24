@@ -1,18 +1,13 @@
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  getSpotifyProfile,
-  type SpotifyProfile,
-} from "@/lib/spotify";
-import { settleSpotify } from "@/lib/describe-spotify-error";
+import type { SpotifyProfile } from "@/lib/spotify";
 import {
   captureErrorDetail,
   isNextControlFlowError,
 } from "@/lib/next-control-flow";
 import { CrashCard } from "@/components/crash-card";
 import { UserTabs, type TabUser } from "@/components/user-tabs";
-import { SpotifyErrorBanner } from "@/components/spotify/section-header";
 import { LazyDashboardSections } from "@/components/dashboard/lazy-sections";
 
 export const dynamic = "force-dynamic";
@@ -43,16 +38,11 @@ async function renderDashboard(userId: string) {
   const session = await auth();
   if (!session?.user) redirect("/");
 
-  // Only fetch the must-have-immediately stuff server-side:
-  //  - viewedUser: for the profile header
-  //  - crew: for the user tabs
-  //  - playlistLinks: for the bottom Playlists section (DB-backed, no Spotify)
-  //  - profile: for the "Connected as" line; /me is 5-min cached per user
-  // Everything else (top tracks/artists, saved content, playback, queue,
-  // devices, recently-played, followed artists) is fetched client-side
-  // by LazyDashboardSections so the page renders immediately and sections
-  // fill in one-at-a-time in the background.
-  const [viewedUser, crew, playlistLinks, profileResult] = await Promise.all([
+  // Zero Spotify calls on the critical render path. ProfileHeader
+  // renders with DB fallback first, then LazyDashboardSections fetches
+  // /me and every other Spotify-backed section client-side from a
+  // sequential queue after the page is already on screen.
+  const [viewedUser, crew, playlistLinks] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -91,14 +81,11 @@ async function renderDashboard(userId: string) {
         }
         throw error;
       }),
-    settleSpotify(getSpotifyProfile(userId)),
   ]);
 
   if (!viewedUser) notFound();
 
   const tabUsers: TabUser[] = crew;
-  const profile = profileResult.value;
-  const profileError = profileResult.error;
   const isSelf = session.user.id === userId;
 
   return (
@@ -107,25 +94,13 @@ async function renderDashboard(userId: string) {
 
       <ProfileHeader
         session={session}
-        profile={profile}
+        profile={null}
         viewedUser={viewedUser}
       />
-      {profileError ? (
-        <SpotifyErrorBanner
-          title={profileError.title}
-          detail={profileError.detail}
-        />
-      ) : null}
-      {profile ? <ProfileStats profile={profile} /> : null}
 
-      {/* Every Spotify-backed section (including Playlists) loads
-          client-side sequentially after the page renders. The server
-          component does zero Spotify calls on the critical path, which
-          is what guarantees an instant paint even under a 429 cooldown. */}
       <LazyDashboardSections
         forUserId={userId}
         isSelf={isSelf}
-        callerSpotifyId={isSelf ? (profile?.id ?? null) : null}
         preloadedLinks={buildPreloadedLinks(playlistLinks)}
       />
     </section>
@@ -226,34 +201,5 @@ function ProfileHeader({
         </p>
       </div>
     </header>
-  );
-}
-
-function ProfileStats({ profile }: { profile: SpotifyProfile }) {
-  return (
-    <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-      <Stat label="Followers" value={profile.followers?.total ?? 0} />
-      <Stat label="Country" value={profile.country ?? "—"} />
-      <Stat label="Plan" value={profile.product ?? "—"} />
-      <Stat
-        label="Explicit filter"
-        value={
-          profile.explicit_content?.filter_enabled ? "on" : "off"
-        }
-      />
-    </dl>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-lg border border-spotify-border bg-spotify-elevated/40 p-3">
-      <dt className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
-        {label}
-      </dt>
-      <dd className="mt-1 text-base font-semibold text-spotify-text">
-        {value}
-      </dd>
-    </div>
   );
 }
