@@ -81,6 +81,67 @@ export type InitPlaylistLinkTableResult =
   | { ok: true; message: string }
   | { ok: false; error: string };
 
+export type InitCachedResponseTableResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// Same idempotent DDL pattern as initUserPlaylistLinkTable. Click once
+// after deploy so the CachedSpotifyResponse table exists in prod.
+export async function initCachedSpotifyResponseTable(): Promise<InitCachedResponseTableResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "CachedSpotifyResponse" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "kind" TEXT NOT NULL,
+        "data" JSONB NOT NULL,
+        "expiresAt" TIMESTAMP(3) NOT NULL,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "CachedSpotifyResponse_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "CachedSpotifyResponse_userId_kind_key" ON "CachedSpotifyResponse"("userId", "kind")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "CachedSpotifyResponse_userId_idx" ON "CachedSpotifyResponse"("userId")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "CachedSpotifyResponse_expiresAt_idx" ON "CachedSpotifyResponse"("expiresAt")`,
+    );
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'CachedSpotifyResponse_userId_fkey') THEN
+          ALTER TABLE "CachedSpotifyResponse"
+            ADD CONSTRAINT "CachedSpotifyResponse_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES "User"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+      END
+      $$
+    `);
+    revalidatePath("/extension-setup");
+    return {
+      ok: true,
+      message:
+        "CachedSpotifyResponse table + indexes + FK are present (created if missing). Safe to click again.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
+
 // One-shot DDL to create the UserPlaylistLink table in prod. The project
 // uses `prisma db push` instead of migrations, so new tables need to be
 // applied to the deployed DB somehow; this button is the same pattern PR

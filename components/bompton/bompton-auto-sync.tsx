@@ -4,92 +4,135 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { BomptonYear } from "@/lib/bompton";
 
-type Target = { year: BomptonYear; playlistId: string };
+export type SyncTarget = {
+  year: BomptonYear;
+  playlistId: string;
+  lastSyncAt: string | null;
+};
 
 type SyncState =
   | { status: "idle" }
   | { status: "running"; done: number; total: number; current: BomptonYear }
-  | { status: "done"; errors: string[] };
+  | { status: "done"; errors: string[]; ranCount: number };
 
-// Fires one /api/playlists/sync POST per Bompton playlist id the caller
-// has in /me/playlists, sequentially, on mount. After the loop finishes
-// we router.refresh() so the server component pulls the fresh DB data.
-// Runs once per full mount — if the caller navigates away and back, it
-// runs again, which is what the user asked for ("auto-sync on load").
-export function BomptonAutoSync({ targets }: { targets: Target[] }) {
+// On mount: sync each Bompton playlist whose last sync is >= staleMs old.
+// Playlists that are fresher are skipped entirely — no API call. A
+// refresh button is also rendered that re-syncs EVERY target
+// (regardless of lastSyncAt) for when the user wants to force an update.
+export function BomptonAutoSync({
+  targets,
+  staleMs = 60 * 60_000, // 1 hour default; caller override via prop
+}: {
+  targets: SyncTarget[];
+  staleMs?: number;
+}) {
   const router = useRouter();
   const [state, setState] = useState<SyncState>({ status: "idle" });
-  const hasRun = useRef(false);
+  const hasAutoRun = useRef(false);
 
-  useEffect(() => {
-    if (hasRun.current) return;
-    if (targets.length === 0) {
-      setState({ status: "done", errors: [] });
+  async function runSyncOnSet(set: SyncTarget[]) {
+    if (set.length === 0) {
+      setState({ status: "done", errors: [], ranCount: 0 });
       return;
     }
-    hasRun.current = true;
-
-    (async () => {
-      const errors: string[] = [];
-      for (let i = 0; i < targets.length; i++) {
-        const target = targets[i];
-        setState({
-          status: "running",
-          done: i,
-          total: targets.length,
-          current: target.year,
+    const errors: string[] = [];
+    for (let i = 0; i < set.length; i++) {
+      const target = set[i];
+      setState({
+        status: "running",
+        done: i,
+        total: set.length,
+        current: target.year,
+      });
+      try {
+        const response = await fetch("/api/playlists/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playlistInput: target.playlistId }),
         });
-        try {
-          const response = await fetch("/api/playlists/sync", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ playlistInput: target.playlistId }),
-          });
-          if (!response.ok) {
-            const body = await response.json().catch(() => ({}));
-            errors.push(
-              `${target.year}: ${body?.error ?? "SyncError"} ${response.status} — ${body?.message ?? "unknown"}`,
-            );
-          }
-        } catch (error) {
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
           errors.push(
-            `${target.year}: ${error instanceof Error ? error.message : String(error)}`,
+            `${target.year}: ${body?.error ?? "SyncError"} ${response.status} — ${body?.message ?? "unknown"}`,
           );
         }
+      } catch (error) {
+        errors.push(
+          `${target.year}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
-      setState({ status: "done", errors });
-      router.refresh();
-    })();
-  }, [targets, router]);
+    }
+    setState({ status: "done", errors, ranCount: set.length });
+    router.refresh();
+  }
 
-  if (state.status === "idle") return null;
-  if (state.status === "running") {
-    return (
-      <div className="rounded-lg border border-spotify-green/40 bg-spotify-green/10 px-4 py-3 text-sm text-spotify-text">
-        <p className="font-semibold">
-          Auto-syncing Bompton playlists ({state.done}/{state.total})…
+  useEffect(() => {
+    if (hasAutoRun.current) return;
+    hasAutoRun.current = true;
+    const now = Date.now();
+    const stale = targets.filter((t) => {
+      if (!t.lastSyncAt) return true;
+      return now - new Date(t.lastSyncAt).getTime() >= staleMs;
+    });
+    if (stale.length === 0) {
+      setState({ status: "done", errors: [], ranCount: 0 });
+      return;
+    }
+    void runSyncOnSet(stale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const running = state.status === "running";
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            if (running) return;
+            hasAutoRun.current = true;
+            void runSyncOnSet(targets);
+          }}
+          disabled={running || targets.length === 0}
+          className="btn-ghost self-start disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {running
+            ? `Refreshing ${state.done + 1}/${state.total}…`
+            : `Refresh all ${targets.length} Bompton playlists`}
+        </button>
+        <p className="text-xs text-spotify-subtext">
+          Auto-syncs on page open only if a playlist hasn&apos;t been updated
+          in over an hour. Click to force a fresh pull regardless.
         </p>
-        <p className="mt-1 text-xs text-spotify-subtext">
+      </div>
+
+      {state.status === "running" ? (
+        <p className="text-xs text-spotify-subtext">
           Current: {state.current}. Tables below will refresh when done.
         </p>
-      </div>
-    );
-  }
-  if (state.errors.length > 0) {
-    return (
-      <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-        <p className="font-semibold">
-          Sync finished with {state.errors.length} error(s).
+      ) : null}
+
+      {state.status === "done" && state.ranCount > 0 && state.errors.length === 0 ? (
+        <p className="text-xs text-spotify-green">
+          Synced {state.ranCount} playlist{state.ranCount === 1 ? "" : "s"}.
         </p>
-        <ul className="mt-1 flex flex-col gap-1 text-xs">
-          {state.errors.map((err, i) => (
-            <li key={i} className="whitespace-pre-wrap">
-              {err}
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  }
-  return null;
+      ) : null}
+
+      {state.status === "done" && state.errors.length > 0 ? (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <p className="font-semibold">
+            Sync finished with {state.errors.length} error(s).
+          </p>
+          <ul className="mt-1 flex flex-col gap-1 text-xs">
+            {state.errors.map((err, i) => (
+              <li key={i} className="whitespace-pre-wrap">
+                {err}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
 }
