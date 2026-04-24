@@ -102,10 +102,25 @@ async function renderDashboard(userId: string) {
       select: { id: true, name: true, email: true, image: true },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.userPlaylistLink.findMany({
-      where: { userId },
-      select: { playlistId: true },
-    }),
+    // UserPlaylistLink is a newer table; swallow "table doesn't exist"
+    // so the dashboard still renders and points the user at the
+    // init-table button on /extension-setup instead of hard-crashing.
+    prisma.userPlaylistLink
+      .findMany({
+        where: { userId },
+        select: { playlistId: true },
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        if (/does not exist/i.test(message)) {
+          console.warn(
+            "[dashboard] UserPlaylistLink table missing — visit /extension-setup and click 'Initialize UserPlaylistLink table'. Rendering dashboard with no linked playlists.",
+            { userId, message },
+          );
+          return [] as { playlistId: string }[];
+        }
+        throw error;
+      }),
   ]);
 
   if (!viewedUser) notFound();
