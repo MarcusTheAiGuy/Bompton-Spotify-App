@@ -6,7 +6,7 @@ import { MobileMenu } from "@/components/mobile-menu";
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/bompton-playlist", label: "Bompton Playlist" },
-  { href: "/extension-setup", label: "Extension" },
+  { href: "/troubleshooting", label: "Troubleshooting" },
 ];
 
 export async function Nav() {

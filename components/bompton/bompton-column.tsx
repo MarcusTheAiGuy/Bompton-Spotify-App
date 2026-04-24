@@ -6,6 +6,7 @@ import type {
   CrewMember,
 } from "@/lib/bompton";
 import { tallyContributors } from "@/lib/bompton";
+import { BomptonTrackList } from "@/components/bompton/bompton-track-list";
 
 function shortYear(year: BomptonYear): string {
   const [start, end] = year.split("-");
@@ -103,6 +104,8 @@ export function BomptonColumn({
         hasRealData={hasRealTracks}
         lastSyncAt={lastSyncAt}
       />
+
+      <BomptonTrackList tracks={tracks ?? []} crew={crew} />
     </article>
   );
 }

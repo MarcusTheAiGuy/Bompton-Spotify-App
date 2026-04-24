@@ -16,7 +16,6 @@ import { getPlaylists } from "@/lib/spotify";
 import { settleSpotify } from "@/lib/describe-spotify-error";
 import { BomptonColumn } from "@/components/bompton/bompton-column";
 import { BomptonAutoSync } from "@/components/bompton/bompton-auto-sync";
-import { BomptonTrackTable } from "@/components/bompton/bompton-track-table";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
 
 export const dynamic = "force-dynamic";
@@ -186,29 +185,6 @@ export default async function BomptonPlaylistPage() {
               isCurrent={year === CURRENT_BOMPTON_YEAR}
               lastSyncAt={data?.playlist?.lastSyncAt ?? null}
             />
-          );
-        })}
-      </div>
-
-      <div className="flex flex-col gap-8">
-        {BOMPTON_YEARS.map((year) => {
-          const data = dataByYear.get(year);
-          if (!data?.playlist) return null;
-          return (
-            <section key={year} className="flex flex-col gap-3">
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="text-xl font-bold tracking-tight">
-                  {data.playlist.name}
-                </h2>
-                <span className="text-xs text-spotify-subtext">
-                  {data.tracks.length} of {data.playlist.totalTracks} tracks
-                  {data.playlist.lastSyncAt
-                    ? ` · synced ${data.playlist.lastSyncAt.toLocaleString()}`
-                    : ""}
-                </span>
-              </div>
-              <BomptonTrackTable tracks={data.tracks} />
-            </section>
           );
         })}
       </div>
