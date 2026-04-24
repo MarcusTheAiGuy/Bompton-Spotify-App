@@ -81,13 +81,17 @@ export function PlaylistGrid({
 
   const valid = playlists.filter((p) => p);
   const preloadedById = new Map(preloadedLinks.map((l) => [l.playlistId, l]));
-  // Every non-Spotify-curated playlist in the caller's /me/playlists, owned
-  // or not. Spotify-curated (owner.id === "spotify") are excluded because
-  // the Nov-2024 editorial-API deprecation blocks their tracks for new apps
-  // regardless of ownership. Non-owned are kept because we validated
-  // empirically that Spotify's Feb-2026 Dev-Mode rules allow collaborators
-  // (and sometimes followers) to read items.
-  const syncablePlaylists = valid.filter((p) => p.owner?.id !== "spotify");
+  // Spotify's Feb-2026 Dev-Mode rules let owners and collaborators read
+  // playlist items; followers (just saving a playlist to their library)
+  // can't. Filter to what will actually succeed so the Sync / Refresh
+  // button doesn't rack up N NOT_OWNER errors on follower-only rows.
+  // Spotify-curated (owner.id === "spotify") are always excluded —
+  // Nov-2024 editorial API deprecation blocks them regardless.
+  const syncablePlaylists = valid.filter(
+    (p) =>
+      p.owner?.id !== "spotify" &&
+      (p.owner?.id === callerSpotifyId || p.collaborative === true),
+  );
 
   async function syncAll() {
     if (syncablePlaylists.length === 0) return;
@@ -329,7 +333,10 @@ function PlaylistRow({
     setExpanded(nextOpen);
     if (nextOpen) {
       if (linked && storedState.status === "idle") await loadStored();
-      else if (!linked && liveState.status === "idle") await loadLive();
+      // Follower-only rows render a direct embed-fallback card; skip the
+      // live-fetch round-trip that would always fail for them.
+      else if (!linked && !isFollowerOnly && liveState.status === "idle")
+        await loadLive();
     }
   }
 
@@ -391,14 +398,23 @@ function PlaylistRow({
   }
 
   const showImportButton = canMutate && callerIsOwner && !linked && !spotifyOwned;
-  // Allow attempting an import on non-owned playlists too — Spotify's Feb-2026
-  // Dev-Mode rules say non-owners can't read items, but collaborator access
-  // is worth testing empirically. The server returns NOT_OWNER if it confirms
-  // the restriction, and the UI surfaces the error. Gated on callerSpotifyId
-  // being known (i.e. self-view) and excluding Spotify-curated playlists
-  // (Nov-2024 deprecation blocks those regardless of ownership).
-  const showNonOwnerImportButton =
-    canMutate && !callerIsOwner && !linked && !spotifyOwned && callerSpotifyId !== null;
+  // Collaborator rows get the experimental import button — Spotify's
+  // Dev-Mode rules permit item reads for them. Follower-only rows skip
+  // the button entirely and explain why in the expanded body, since
+  // the sync would always fail with NOT_OWNER.
+  const isCollaborative = playlist.collaborative === true;
+  const showCollaboratorImportButton =
+    canMutate &&
+    !callerIsOwner &&
+    isCollaborative &&
+    !linked &&
+    !spotifyOwned &&
+    callerSpotifyId !== null;
+  const isFollowerOnly =
+    !callerIsOwner &&
+    !isCollaborative &&
+    !spotifyOwned &&
+    callerSpotifyId !== null;
 
   const header = (
     <>
@@ -534,17 +550,17 @@ function PlaylistRow({
                     {syncPending ? "Importing…" : "Import to dashboard"}
                   </button>
                 ) : null}
-                {showNonOwnerImportButton ? (
+                {showCollaboratorImportButton ? (
                   <button
                     type="button"
                     onClick={runSync}
                     disabled={syncPending}
                     className="rounded-full border border-yellow-500/50 bg-yellow-500/10 px-3 py-1 text-xs font-semibold text-yellow-200 transition hover:bg-yellow-500/20 disabled:opacity-60"
-                    title="Spotify Dev-Mode usually blocks non-owners from reading playlist items; this tries anyway and will show an error if it fails."
+                    title="You're listed as a collaborator on this playlist; Spotify's Dev-Mode rules let collaborators read items."
                   >
                     {syncPending
-                      ? "Trying…"
-                      : "⚠ Try import (non-owner, experimental)"}
+                      ? "Importing…"
+                      : "Import (as collaborator)"}
                   </button>
                 ) : null}
               </>
@@ -579,6 +595,26 @@ function PlaylistRow({
                 note="Showing Spotify's embed on request. Switch back to 'Our table' for sortable columns backed by our DB."
               />
             )
+          ) : isFollowerOnly ? (
+            <div className="flex flex-col gap-3">
+              <div className="rounded-lg border border-spotify-border bg-spotify-highlight/30 px-3 py-2 text-sm text-spotify-subtext">
+                <p className="font-semibold text-spotify-text">
+                  Can&apos;t import this one.
+                </p>
+                <p className="mt-1 text-xs">
+                  You only follow this playlist — you&apos;re not the owner or a
+                  collaborator. Under Spotify&apos;s Feb-2026 Dev-Mode rules,
+                  only owners and collaborators can read a playlist&apos;s items
+                  via the API, so we can&apos;t build a custom table. Spotify&apos;s
+                  embed shown instead. Ask the owner to add you as a
+                  collaborator if you want this on your dashboard.
+                </p>
+              </div>
+              <EmbedFallback
+                playlistId={playlist.id}
+                note="Follower-only rows fall back to Spotify's embed — their items aren't readable via the API for your account."
+              />
+            </div>
           ) : (
             <LiveTracksView
               state={liveState}
