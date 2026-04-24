@@ -344,10 +344,14 @@ function PlaylistRow({
     setSyncPending(true);
     setSyncError(null);
     try {
+      // Per-row actions: if the row is already linked this is a user-
+      // triggered Resync (force full rewrite, bypass snapshot-skip).
+      // Otherwise it's a first-time import and we take the default
+      // (smart-skip is a no-op on fresh data anyway).
       const response = await fetch("/api/playlists/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlistInput: playlist.id }),
+        body: JSON.stringify({ playlistInput: playlist.id, force: linked }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
