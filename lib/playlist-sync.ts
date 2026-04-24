@@ -48,7 +48,10 @@ type SpotifyPlaylistItem = {
   added_at: string;
   added_by: { id: string | null } | null;
   is_local: boolean;
-  track: {
+  // Spotify's Feb-2026 rename of /tracks → /items also renamed the inner
+  // track field to `item` (so the field name stays accurate when the row
+  // is an episode). The old /tracks endpoint is dead; we only read `item`.
+  item: {
     id: string | null;
     name: string;
     uri: string;
@@ -69,7 +72,9 @@ type SpotifyPlaylistDetail = {
   snapshot_id: string;
   owner: { id: string; display_name: string | null };
   images: { url: string }[];
-  tracks: { total: number };
+  // Feb-2026 rename: the detail endpoint's `tracks` sub-object is now
+  // `items`. We ask for `items(total)` in the fields filter.
+  items: { total: number };
 };
 
 export type SyncPlaylistResult = {
@@ -115,7 +120,7 @@ export async function syncPlaylistForUser(
   try {
     detail = await spotifyFetch<SpotifyPlaylistDetail>(
       userId,
-      `/playlists/${playlistId}?fields=${encodeURIComponent("id,name,snapshot_id,owner(id,display_name),images,tracks(total)")}`,
+      `/playlists/${playlistId}?fields=${encodeURIComponent("id,name,snapshot_id,owner(id,display_name),images,items(total)")}`,
     );
   } catch (error) {
     if (error instanceof SpotifyError && error.status === 404) {
@@ -161,23 +166,26 @@ export async function syncPlaylistForUser(
     nextPath = `${nextUrl.pathname.replace(/^\/v1/, "")}${nextUrl.search}`;
   }
 
-  // 5. Normalize into the shape applyExtensionSync expects.
+  // 5. Normalize into the shape applyExtensionSync expects. Our internal
+  // shape still uses `track` for the nested object because that's what the
+  // DB layer and existing Bompton code keys off of; only the Spotify API
+  // response uses `item`.
   const normalized: ExtensionSyncTrackItem[] = items.map((raw, index) => ({
     position: index,
     addedAt: raw.added_at,
     addedBySpotifyId: raw.added_by?.id ?? null,
     isLocal: Boolean(raw.is_local),
-    track: raw.track
+    track: raw.item
       ? {
-          id: raw.track.id ?? null,
-          name: raw.track.name ?? "(unavailable)",
-          uri: raw.track.uri ?? "",
-          durationMs: raw.track.duration_ms ?? 0,
-          explicit: Boolean(raw.track.explicit),
-          previewUrl: raw.track.preview_url ?? null,
-          albumName: raw.track.album?.name ?? "",
-          albumImageUrl: raw.track.album?.images?.[0]?.url ?? null,
-          artists: (raw.track.artists ?? []).map((a) => ({
+          id: raw.item.id ?? null,
+          name: raw.item.name ?? "(unavailable)",
+          uri: raw.item.uri ?? "",
+          durationMs: raw.item.duration_ms ?? 0,
+          explicit: Boolean(raw.item.explicit),
+          previewUrl: raw.item.preview_url ?? null,
+          albumName: raw.item.album?.name ?? "",
+          albumImageUrl: raw.item.album?.images?.[0]?.url ?? null,
+          artists: (raw.item.artists ?? []).map((a) => ({
             id: a.id ?? null,
             name: a.name ?? "",
             uri: a.uri ?? null,
@@ -194,7 +202,7 @@ export async function syncPlaylistForUser(
       ownerName: detail.owner.display_name,
       snapshotId: detail.snapshot_id,
       imageUrl: detail.images?.[0]?.url ?? null,
-      totalTracks: detail.tracks?.total ?? items.length,
+      totalTracks: detail.items?.total ?? items.length,
     },
     tracks: normalized,
   };
@@ -230,14 +238,14 @@ export async function fetchPlaylistSnapshotId(
   try {
     const detail = await spotifyFetch<{
       snapshot_id: string;
-      tracks: { total: number };
+      items: { total: number };
     }>(
       userId,
-      `/playlists/${playlistId}?fields=${encodeURIComponent("snapshot_id,tracks(total)")}`,
+      `/playlists/${playlistId}?fields=${encodeURIComponent("snapshot_id,items(total)")}`,
     );
     return {
       snapshotId: detail.snapshot_id,
-      totalTracks: detail.tracks?.total ?? 0,
+      totalTracks: detail.items?.total ?? 0,
     };
   } catch (error) {
     if (error instanceof SpotifyError && error.status === 404) return null;
