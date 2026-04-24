@@ -148,6 +148,42 @@ export async function spotifyFetch<T>(
     cache: "no-store",
   });
 
+  // Spotify returns 429 + Retry-After (seconds) when we hit the API rate
+  // limit. Respect it and retry once — saves the caller from having to
+  // implement this everywhere. Cap the wait so a misbehaving server can't
+  // pin a request forever.
+  if (response.status === 429) {
+    const retryAfterRaw = response.headers.get("retry-after");
+    const retryAfterSec = retryAfterRaw ? parseInt(retryAfterRaw, 10) : 1;
+    const waitMs = Math.min(
+      30_000,
+      Math.max(500, Number.isFinite(retryAfterSec) ? retryAfterSec * 1000 : 1000),
+    );
+    console.warn(
+      `[spotifyFetch] 429 on ${path}; retrying after ${waitMs}ms (Retry-After=${retryAfterRaw})`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    const retry = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        ...init?.headers,
+        Authorization: `Bearer ${token}`,
+      },
+      cache: "no-store",
+    });
+    if (retry.status === 204) return undefined as T;
+    const retryText = await retry.text();
+    if (!retry.ok) {
+      throw new SpotifyError(
+        `Spotify API ${retry.status} ${retry.statusText} on ${path} after 429 retry`,
+        retry.status,
+        path,
+        retryText,
+      );
+    }
+    return retryText ? (JSON.parse(retryText) as T) : (undefined as T);
+  }
+
   if (response.status === 204) return undefined as T;
 
   const text = await response.text();
@@ -184,8 +220,23 @@ export type SpotifyProfile = {
   explicit_content: { filter_enabled: boolean; filter_locked: boolean };
 };
 
+// Per-process cache for /me. The caller's Spotify profile (id,
+// display_name, etc.) doesn't change across sync operations, so
+// hitting /me once per sync was wasting an API call per playlist
+// and contributing to 429 rate-limit errors on batch syncs. 5 min
+// TTL is short enough that email/name edits surface quickly.
+const profileCache = new Map<string, { profile: SpotifyProfile; expiresAt: number }>();
+const PROFILE_CACHE_TTL_MS = 5 * 60_000;
+
 export async function getSpotifyProfile(userId: string): Promise<SpotifyProfile> {
-  return spotifyFetch<SpotifyProfile>(userId, "/me");
+  const cached = profileCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.profile;
+  const profile = await spotifyFetch<SpotifyProfile>(userId, "/me");
+  profileCache.set(userId, {
+    profile,
+    expiresAt: Date.now() + PROFILE_CACHE_TTL_MS,
+  });
+  return profile;
 }
 
 export type SpotifyExternalUrls = { spotify: string };
