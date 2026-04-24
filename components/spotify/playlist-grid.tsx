@@ -11,6 +11,7 @@ import {
 } from "@/lib/spotify";
 import { TrackList } from "@/components/spotify/track-list";
 import { SpotifyEmbed } from "@/components/spotify/spotify-embed";
+import { displaySpotifyUserName } from "@/lib/spotify-user-names";
 
 type LiveTracksState =
   | { status: "idle" }
@@ -80,28 +81,22 @@ export function PlaylistGrid({
 
   const valid = playlists.filter((p) => p);
   const preloadedById = new Map(preloadedLinks.map((l) => [l.playlistId, l]));
-  // Every playlist in the caller's /me/playlists that they actually own —
-  // these are the ones the "Sync all" button can operate on (import if
-  // unlinked, resync if linked). Playlists they only follow are excluded
-  // because non-owner syncs would hit NOT_OWNER 403. Spotify-curated ones
-  // (owner.id === "spotify") are also excluded — Nov-2024 deprecation
-  // blocks their items for new apps regardless of ownership.
-  const ownedPlaylists =
-    callerSpotifyId === null
-      ? []
-      : valid.filter(
-          (p) =>
-            p.owner?.id === callerSpotifyId && p.owner?.id !== "spotify",
-        );
+  // Every non-Spotify-curated playlist in the caller's /me/playlists, owned
+  // or not. Spotify-curated (owner.id === "spotify") are excluded because
+  // the Nov-2024 editorial-API deprecation blocks their tracks for new apps
+  // regardless of ownership. Non-owned are kept because we validated
+  // empirically that Spotify's Feb-2026 Dev-Mode rules allow collaborators
+  // (and sometimes followers) to read items.
+  const syncablePlaylists = valid.filter((p) => p.owner?.id !== "spotify");
 
-  async function syncAllOwned() {
-    if (ownedPlaylists.length === 0) return;
+  async function syncAll() {
+    if (syncablePlaylists.length === 0) return;
     setSyncAllPending(true);
     setSyncAllError(null);
-    setSyncAllProgress({ done: 0, total: ownedPlaylists.length });
+    setSyncAllProgress({ done: 0, total: syncablePlaylists.length });
     const errors: string[] = [];
-    for (let i = 0; i < ownedPlaylists.length; i++) {
-      const playlist = ownedPlaylists[i];
+    for (let i = 0; i < syncablePlaylists.length; i++) {
+      const playlist = syncablePlaylists[i];
       try {
         const response = await fetch("/api/playlists/sync", {
           method: "POST",
@@ -119,7 +114,7 @@ export function PlaylistGrid({
           `${playlist.name} (${playlist.id}): ${error instanceof Error ? error.message : String(error)}`,
         );
       }
-      setSyncAllProgress({ done: i + 1, total: ownedPlaylists.length });
+      setSyncAllProgress({ done: i + 1, total: syncablePlaylists.length });
     }
     setSyncAllPending(false);
     if (errors.length) {
@@ -140,30 +135,20 @@ export function PlaylistGrid({
     );
   }
 
-  const importedCount = preloadedLinks.length;
-  const unimportedOwnedCount = ownedPlaylists.filter(
-    (p) => !preloadedById.has(p.id),
-  ).length;
-
   return (
     <div className="flex flex-col gap-3">
-      {isSelf && ownedPlaylists.length > 0 ? (
+      {isSelf && syncablePlaylists.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={syncAllOwned}
+            onClick={syncAll}
             disabled={syncAllPending}
             className="btn-ghost self-start disabled:cursor-not-allowed disabled:opacity-60"
           >
             {syncAllPending && syncAllProgress
               ? `Syncing ${syncAllProgress.done}/${syncAllProgress.total}…`
-              : `Sync all ${ownedPlaylists.length} owned playlist${ownedPlaylists.length === 1 ? "" : "s"}`}
+              : "Sync / Refresh Playlists"}
           </button>
-          <p className="text-xs text-spotify-subtext">
-            {unimportedOwnedCount > 0
-              ? `${unimportedOwnedCount} new to import, ${importedCount} to resync`
-              : `all ${importedCount} already imported; click to resync`}
-          </p>
           {syncAllError ? (
             <p className="whitespace-pre-wrap text-xs text-red-300">
               {syncAllError}
@@ -784,8 +769,8 @@ function StoredTable({ tracks }: { tracks: StoredTrack[] }) {
               <td className="px-3 py-2 text-spotify-subtext">
                 {formatDuration(t.trackDurationMs)}
               </td>
-              <td className="px-3 py-2 font-mono text-xs text-spotify-subtext">
-                {t.addedBySpotifyId ?? "—"}
+              <td className="px-3 py-2 text-xs text-spotify-subtext">
+                {displaySpotifyUserName(t.addedBySpotifyId)}
               </td>
               <td className="px-3 py-2 text-xs text-spotify-subtext">
                 {new Date(t.addedAt).toLocaleDateString()}

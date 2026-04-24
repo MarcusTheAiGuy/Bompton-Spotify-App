@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { SignOutButton } from "@/components/sign-out-button";
+import { MobileMenu } from "@/components/mobile-menu";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
@@ -13,12 +14,12 @@ export async function Nav() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-spotify-border bg-spotify-base/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+      <div className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2 font-extrabold tracking-tight">
           <span className="inline-block h-3 w-3 rounded-full bg-spotify-green" />
           <span className="text-lg">Bompton</span>
         </Link>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
           <nav className="hidden items-center gap-6 text-sm font-semibold text-spotify-subtext sm:flex">
             {links.map((link) => (
               <Link
@@ -38,6 +39,7 @@ export async function Nav() {
               <SignOutButton />
             </div>
           ) : null}
+          {session?.user ? <MobileMenu links={links} /> : null}
         </div>
       </div>
     </header>

@@ -6,12 +6,17 @@ import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
 import {
   BOMPTON_YEARS,
   CURRENT_BOMPTON_YEAR,
+  findBomptonPlaylist,
   scoreSeason,
   seasonStart,
   type BomptonYear,
   type CrewMember,
 } from "@/lib/bompton";
+import { getPlaylists } from "@/lib/spotify";
+import { settleSpotify } from "@/lib/describe-spotify-error";
 import { BomptonColumn } from "@/components/bompton/bompton-column";
+import { BomptonAutoSync } from "@/components/bompton/bompton-auto-sync";
+import { BomptonTrackTable } from "@/components/bompton/bompton-track-table";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +25,7 @@ export default async function BomptonPlaylistPage() {
   const session = await auth();
   if (!session?.user) redirect("/");
 
-  const [crewRecords, bomptonData] = await Promise.all([
+  const [crewRecords, bomptonData, callerPlaylistsResult] = await Promise.all([
     prisma.user.findMany({
       where: { accounts: { some: { provider: "spotify" } } },
       select: {
@@ -37,6 +42,11 @@ export default async function BomptonPlaylistPage() {
       orderBy: { createdAt: "asc" },
     }),
     loadBomptonDataFromDb(),
+    // Match the caller's Bompton playlist ids from their /me/playlists
+    // so BomptonAutoSync can re-sync them on mount. settleSpotify means
+    // a token issue on this user doesn't crash the page — we just skip
+    // the auto-sync and render whatever's in the DB.
+    settleSpotify(getPlaylists(session.user.id, 50)),
   ]);
 
   const crew: CrewMember[] = crewRecords.map((u) => ({
@@ -46,6 +56,15 @@ export default async function BomptonPlaylistPage() {
     image: u.image,
     spotifyUserId: u.accounts[0]?.providerAccountId ?? null,
   }));
+
+  // Find which Bompton playlists this user has in their own Spotify
+  // library so BomptonAutoSync knows what ids to re-sync on mount.
+  const autoSyncTargets: { year: BomptonYear; playlistId: string }[] = [];
+  const callerPlaylists = callerPlaylistsResult.value?.items ?? [];
+  for (const year of BOMPTON_YEARS) {
+    const match = findBomptonPlaylist(callerPlaylists, year);
+    if (match) autoSyncTargets.push({ year, playlistId: match.id });
+  }
 
   const dataByYear = new Map(bomptonData.map((d) => [d.year, d]));
   const anyDataAtAll = bomptonData.some((d) => d.tracks.length > 0);
@@ -76,20 +95,18 @@ export default async function BomptonPlaylistPage() {
         </p>
       </header>
 
-      {!anyDataAtAll ? (
+      <BomptonAutoSync targets={autoSyncTargets} />
+
+      {!anyDataAtAll && autoSyncTargets.length === 0 ? (
         <div className="rounded-lg border border-spotify-border bg-spotify-highlight/40 px-4 py-3 text-sm">
           <p className="font-semibold text-spotify-text">
-            No sync data yet.
+            No sync data yet and no Bompton playlists found in your Spotify
+            library.
           </p>
           <p className="mt-1 text-spotify-subtext">
-            Install the browser extension once per crew member to unlock
-            contributor counts and Friday standings.{" "}
-            <Link
-              href="/extension-setup"
-              className="font-semibold text-spotify-green hover:underline"
-            >
-              Set up the extension →
-            </Link>
+            Follow the Bompton season playlists on Spotify so they show up
+            in your library, then reload this page — the sync runs
+            automatically on load for whoever has them in their library.
           </p>
         </div>
       ) : null}
@@ -157,6 +174,29 @@ export default async function BomptonPlaylistPage() {
               isCurrent={year === CURRENT_BOMPTON_YEAR}
               lastSyncAt={data?.playlist?.lastSyncAt ?? null}
             />
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col gap-8">
+        {BOMPTON_YEARS.map((year) => {
+          const data = dataByYear.get(year);
+          if (!data?.playlist) return null;
+          return (
+            <section key={year} className="flex flex-col gap-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-xl font-bold tracking-tight">
+                  {data.playlist.name}
+                </h2>
+                <span className="text-xs text-spotify-subtext">
+                  {data.tracks.length} of {data.playlist.totalTracks} tracks
+                  {data.playlist.lastSyncAt
+                    ? ` · synced ${data.playlist.lastSyncAt.toLocaleString()}`
+                    : ""}
+                </span>
+              </div>
+              <BomptonTrackTable tracks={data.tracks} />
+            </section>
           );
         })}
       </div>

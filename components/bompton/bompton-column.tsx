@@ -6,7 +6,6 @@ import type {
   CrewMember,
 } from "@/lib/bompton";
 import { tallyContributors } from "@/lib/bompton";
-import { SpotifyEmbed } from "@/components/spotify/spotify-embed";
 
 function shortYear(year: BomptonYear): string {
   const [start, end] = year.split("-");
@@ -104,25 +103,8 @@ export function BomptonColumn({
         hasRealData={hasRealTracks}
         lastSyncAt={lastSyncAt}
       />
-
-      <SpotifyEmbed
-        type="playlist"
-        id={playlist.id}
-        height={embedHeightForTrackCount(playlist.tracks?.total ?? 0)}
-        note="Spotify's embedded player caps at 100 tracks. Open in Spotify to see the rest of the playlist."
-      />
     </article>
   );
-}
-
-// Spotify's embed renders ~56px per track row on top of a ~160px
-// header, and caps the visible list at 100 tracks regardless of
-// iframe height. Size to exactly 100 rows' worth so we don't leave
-// blank space below the last row on the bigger playlists.
-function embedHeightForTrackCount(_trackCount: number): number {
-  const base = 160;
-  const perRow = 56;
-  return base + 100 * perRow;
 }
 
 function ContributorPanel({
