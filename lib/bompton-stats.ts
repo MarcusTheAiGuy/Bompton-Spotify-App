@@ -233,14 +233,23 @@ export function getGenreBreakdown(
 
   for (const { track } of flat) {
     if (!track.track) continue;
-    const primary = track.track.artists?.[0]?.id;
-    if (!primary) continue;
-    const data = artistGenres.get(primary);
-    const genres = data?.genres ?? [];
-    if (genres.length === 0) continue;
+    // Union of every genre across every artist on this track. A genre
+    // shared by multiple credited artists still only contributes +1
+    // for the track — e.g. a feature where artist A is tagged
+    // {rock, alt rock} and artist B is tagged {rock, rap} adds +1 to
+    // rock, +1 to alt rock, +1 to rap.
+    const trackGenres = new Set<string>();
+    for (const artistRef of track.track.artists ?? []) {
+      const id = artistRef?.id;
+      if (!id) continue;
+      const data = artistGenres.get(id);
+      if (!data) continue;
+      for (const g of data.genres) trackGenres.add(g);
+    }
+    if (trackGenres.size === 0) continue;
     const member = findCrewBySpotifyId(crew, track.added_by?.id);
     const memberCounts = member ? perCrewCounts.get(member.id) : null;
-    for (const g of genres) {
+    for (const g of trackGenres) {
       overallCounts.set(g, (overallCounts.get(g) ?? 0) + 1);
       if (memberCounts && member) {
         memberCounts.set(g, (memberCounts.get(g) ?? 0) + 1);
@@ -822,8 +831,9 @@ export async function buildBomptonStats(
 
   const artistIds = new Set<string>();
   for (const { track } of flat) {
-    const id = track.track?.artists?.[0]?.id;
-    if (id) artistIds.add(id);
+    for (const a of track.track?.artists ?? []) {
+      if (a?.id) artistIds.add(a.id);
+    }
   }
   let artistGenres = new Map<string, ArtistGenres>();
   try {
