@@ -2,11 +2,17 @@ import type { SpotifyPlaylistTrack } from "@/lib/spotify";
 import type { BomptonPlaylistByYear } from "@/lib/bompton-playlist-db";
 import type { BomptonYear, CrewMember } from "@/lib/bompton";
 import {
+  CURRENT_BOMPTON_YEAR,
   fridaysBetween,
   mostRecentFriday,
   seasonEnd,
   seasonStart,
 } from "@/lib/bompton";
+import {
+  getArtistGenresForIds,
+  type ArtistGenres,
+} from "@/lib/artist-genres";
+import { prisma } from "@/lib/prisma";
 
 // Aggregations over the four-season Bompton dataset for the deep-stats
 // page. Every function is a pure transform of what loadBomptonDataFromDb
@@ -38,8 +44,88 @@ function findCrewBySpotifyId(
   return crew.find((m) => m.spotifyUserId === spotifyId) ?? null;
 }
 
-// ---------- Card 1: Playlist vitals ----------
+// ---------- Repeated tracks across all four seasons ----------
 
+export type RepeatedTrackOccurrence = {
+  year: BomptonYear;
+  playlistName: string;
+  position: number;
+  addedAt: string;
+  addedBySpotifyId: string | null;
+  addedByCrew: CrewMember | null;
+  addedByLabel: string;
+  addedByImage: string | null;
+};
+
+export type RepeatedTrack = {
+  key: string;
+  trackName: string;
+  artist: string;
+  albumImageUrl: string | null;
+  occurrences: RepeatedTrackOccurrence[];
+};
+
+function trackDedupeKey(
+  trackId: string | null | undefined,
+  trackName: string,
+  artistName: string,
+): string {
+  if (trackId) return `id:${trackId}`;
+  const n = (trackName ?? "").trim().toLowerCase();
+  const a = (artistName ?? "").trim().toLowerCase();
+  if (!n) return "";
+  return `na:${n}|||${a}`;
+}
+
+export function findRepeatedTracks(
+  data: BomptonPlaylistByYear[],
+  crew: CrewMember[],
+): RepeatedTrack[] {
+  const map = new Map<string, RepeatedTrack>();
+  for (const season of data) {
+    const playlistName = season.playlist?.name ?? `Bompton ${season.year}`;
+    season.tracks.forEach((t, position) => {
+      if (!t.track) return;
+      const trackName = t.track.name;
+      const artist = t.track.artists?.[0]?.name ?? "";
+      const key = trackDedupeKey(t.track.id, trackName, artist);
+      if (!key) return;
+      const member = findCrewBySpotifyId(crew, t.added_by?.id);
+      const occ: RepeatedTrackOccurrence = {
+        year: season.year,
+        playlistName,
+        position: position + 1,
+        addedAt: t.added_at,
+        addedBySpotifyId: t.added_by?.id ?? null,
+        addedByCrew: member,
+        addedByLabel:
+          member?.name ?? member?.email ?? t.added_by?.id ?? "Unknown",
+        addedByImage: member?.image ?? null,
+      };
+      const existing = map.get(key);
+      if (existing) {
+        existing.occurrences.push(occ);
+        return;
+      }
+      map.set(key, {
+        key,
+        trackName,
+        artist,
+        albumImageUrl: t.track.album?.images?.[0]?.url ?? null,
+        occurrences: [occ],
+      });
+    });
+  }
+  return [...map.values()]
+    .filter((r) => r.occurrences.length > 1)
+    .sort((a, b) => b.occurrences.length - a.occurrences.length);
+}
+
+// ---------- Stat helpers shared across cards ----------
+
+// Lightweight summary used by the main page's PlaylistStatsSummary block.
+// Computed alongside the full bundle but not surfaced as a card on the
+// stats page itself.
 export type PlaylistVitals = {
   totalTracks: number;
   totalDurationMs: number;
@@ -83,8 +169,8 @@ export function getPlaylistVitals(
   };
 }
 
-// ---------- Card 2: All-time crew leaderboard ----------
-
+// All-time crew leaderboard (used by the main page summary block; the
+// stats page replaces this slot with the listening dedication card).
 export type CrewLeaderboardEntry = {
   crewMember: CrewMember;
   totalAdds: number;
@@ -113,6 +199,198 @@ export function getAllTimeLeaderboard(
     }
   }
   return entries.sort((a, b) => b.totalAdds - a.totalAdds);
+}
+
+// ---------- Card 1: Genre tracker ----------
+
+export type GenreCount = { genre: string; count: number };
+
+export type GenreBreakdownPerCrew = {
+  crewMember: CrewMember;
+  topGenres: GenreCount[];
+  totalGenreHits: number;
+};
+
+export type GenreBreakdown = {
+  perCrew: GenreBreakdownPerCrew[];
+  overall: GenreCount[];
+  totalArtistsLookedUp: number;
+  totalArtistsWithGenres: number;
+};
+
+export function getGenreBreakdown(
+  flat: FlattenedTrack[],
+  crew: CrewMember[],
+  artistGenres: Map<string, ArtistGenres>,
+): GenreBreakdown {
+  const perCrewCounts = new Map<string, Map<string, number>>();
+  const perCrewTotals = new Map<string, number>();
+  for (const c of crew) {
+    perCrewCounts.set(c.id, new Map());
+    perCrewTotals.set(c.id, 0);
+  }
+  const overallCounts = new Map<string, number>();
+
+  for (const { track } of flat) {
+    if (!track.track) continue;
+    const primary = track.track.artists?.[0]?.id;
+    if (!primary) continue;
+    const data = artistGenres.get(primary);
+    const genres = data?.genres ?? [];
+    if (genres.length === 0) continue;
+    const member = findCrewBySpotifyId(crew, track.added_by?.id);
+    const memberCounts = member ? perCrewCounts.get(member.id) : null;
+    for (const g of genres) {
+      overallCounts.set(g, (overallCounts.get(g) ?? 0) + 1);
+      if (memberCounts && member) {
+        memberCounts.set(g, (memberCounts.get(g) ?? 0) + 1);
+        perCrewTotals.set(
+          member.id,
+          (perCrewTotals.get(member.id) ?? 0) + 1,
+        );
+      }
+    }
+  }
+
+  const perCrew: GenreBreakdownPerCrew[] = crew.map((c) => {
+    const counts = perCrewCounts.get(c.id) ?? new Map<string, number>();
+    return {
+      crewMember: c,
+      topGenres: [...counts.entries()]
+        .map(([genre, count]) => ({ genre, count }))
+        .sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre))
+        .slice(0, 3),
+      totalGenreHits: perCrewTotals.get(c.id) ?? 0,
+    };
+  });
+
+  const overall: GenreCount[] = [...overallCounts.entries()]
+    .map(([genre, count]) => ({ genre, count }))
+    .sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre))
+    .slice(0, 3);
+
+  let totalWithGenres = 0;
+  for (const a of artistGenres.values()) {
+    if (a.genres.length > 0) totalWithGenres += 1;
+  }
+
+  return {
+    perCrew,
+    overall,
+    totalArtistsLookedUp: artistGenres.size,
+    totalArtistsWithGenres: totalWithGenres,
+  };
+}
+
+// ---------- Card 2: Listening dedication ----------
+
+export type DedicationEntry = {
+  crewMember: CrewMember;
+  listenCount: number;
+  listenedMs: number;
+  uniqueTracks: number;
+  isCrown: boolean;
+};
+
+// "How many times has user U played a track that someone else added to a
+// Bompton playlist after that track was added?" Reads from the
+// ListeningPlay table populated by the dashboard's recently-played
+// fetch path. Returns one entry per crew member with the crown flag set
+// on the leader.
+export async function getListeningDedication(
+  data: BomptonPlaylistByYear[],
+  crew: CrewMember[],
+): Promise<DedicationEntry[]> {
+  // Map track id → list of (added_by spotify id, addedAt) entries
+  // across every season so a play counts as soon as ANY non-self crew
+  // member had added it before the play.
+  const trackAdds = new Map<
+    string,
+    { addedBySpotifyId: string; addedAtMs: number }[]
+  >();
+  for (const season of data) {
+    for (const t of season.tracks) {
+      const tid = t.track?.id;
+      const addedBy = t.added_by?.id;
+      if (!tid || !addedBy || !t.added_at) continue;
+      const addedAtMs = new Date(t.added_at).getTime();
+      if (Number.isNaN(addedAtMs)) continue;
+      let arr = trackAdds.get(tid);
+      if (!arr) {
+        arr = [];
+        trackAdds.set(tid, arr);
+      }
+      arr.push({ addedBySpotifyId: addedBy, addedAtMs });
+    }
+  }
+
+  const entries: DedicationEntry[] = crew.map((c) => ({
+    crewMember: c,
+    listenCount: 0,
+    listenedMs: 0,
+    uniqueTracks: 0,
+    isCrown: false,
+  }));
+  if (trackAdds.size === 0 || crew.length === 0) return entries;
+
+  let plays: {
+    userId: string;
+    trackSpotifyId: string;
+    trackDurationMs: number;
+    playedAt: Date;
+  }[] = [];
+  try {
+    plays = await prisma.listeningPlay.findMany({
+      where: {
+        userId: { in: crew.map((c) => c.id) },
+        trackSpotifyId: { in: [...trackAdds.keys()] },
+      },
+      select: {
+        userId: true,
+        trackSpotifyId: true,
+        trackDurationMs: true,
+        playedAt: true,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/does not exist/i.test(message)) {
+      console.warn(
+        "[bompton-stats] ListeningPlay table missing — run `npm run db:push` to create it. Dedication card will show 0s until a dashboard recently-played fetch runs.",
+      );
+      return entries;
+    }
+    throw error;
+  }
+
+  const byUser = new Map(entries.map((e) => [e.crewMember.id, e]));
+  const uniqueTracksByUser = new Map<string, Set<string>>();
+  for (const c of crew) uniqueTracksByUser.set(c.id, new Set());
+
+  for (const play of plays) {
+    const adds = trackAdds.get(play.trackSpotifyId);
+    if (!adds || adds.length === 0) continue;
+    const member = crew.find((c) => c.id === play.userId);
+    if (!member) continue;
+    const playMs = play.playedAt.getTime();
+    const validAdd = adds.find(
+      (a) =>
+        a.addedBySpotifyId !== member.spotifyUserId && a.addedAtMs <= playMs,
+    );
+    if (!validAdd) continue;
+    const entry = byUser.get(member.id);
+    if (!entry) continue;
+    entry.listenCount += 1;
+    entry.listenedMs += play.trackDurationMs ?? 0;
+    uniqueTracksByUser.get(member.id)?.add(play.trackSpotifyId);
+  }
+  for (const e of entries) {
+    e.uniqueTracks = uniqueTracksByUser.get(e.crewMember.id)?.size ?? 0;
+  }
+
+  entries.sort((a, b) => b.listenCount - a.listenCount);
+  if (entries[0] && entries[0].listenCount > 0) entries[0].isCrown = true;
+  return entries;
 }
 
 // ---------- Card 3: Top artists ----------
@@ -178,80 +456,168 @@ export function getTopAlbums(
     .slice(0, limit);
 }
 
-// ---------- Card 5: Friday discipline across all seasons ----------
+// ---------- Card 5: On-time stats (cumulative late days over time) ----------
 
-export type DisciplineEntry = {
-  crewMember: CrewMember;
-  onTime: number;
-  late: number;
-  missed: number;
-  totalWeeks: number;
-  onTimeRate: number;
+// One late day = one calendar day that has elapsed past a Friday for
+// which the crew member has not yet added a song. If a member is X
+// weeks behind, each new day adds X to their total. The card renders
+// this as a line graph (X = date, Y = cumulative late days), with the
+// crown going to the member with the fewest late days at the latest
+// point. The series covers a single season (current by default).
+
+export type OnTimeSeriesPoint = {
+  // ISO date string (UTC date midnight) for the X axis tick.
+  date: string;
+  // crewMember.id → cumulative late days at this date.
+  perCrew: Record<string, number>;
 };
 
-export function getFridayDiscipline(
+export type OnTimeMemberTotal = {
+  crewMember: CrewMember;
+  lateDays: number;
+  weeksBehind: number;
+  color: string;
+  isCrown: boolean;
+};
+
+export type OnTimeStats = {
+  year: BomptonYear;
+  series: OnTimeSeriesPoint[];
+  totals: OnTimeMemberTotal[];
+  hasData: boolean;
+};
+
+// Distinct, color-blind friendly palette for line + ring colors.
+// Indexed by crew sort order so the colors are stable across renders.
+export const ON_TIME_COLORS = [
+  "#1DB954", // Spotify green
+  "#3B82F6", // blue
+  "#F59E0B", // amber
+  "#EC4899", // pink
+  "#A855F7", // purple
+  "#14B8A6", // teal
+];
+
+export function getOnTimeStats(
   data: BomptonPlaylistByYear[],
   crew: CrewMember[],
+  year: BomptonYear = CURRENT_BOMPTON_YEAR,
   now: Date = new Date(),
-): DisciplineEntry[] {
-  const entries: DisciplineEntry[] = crew.map((c) => ({
+): OnTimeStats {
+  const totals: OnTimeMemberTotal[] = crew.map((c, idx) => ({
     crewMember: c,
-    onTime: 0,
-    late: 0,
-    missed: 0,
-    totalWeeks: 0,
-    onTimeRate: 0,
+    lateDays: 0,
+    weeksBehind: 0,
+    color: ON_TIME_COLORS[idx % ON_TIME_COLORS.length] ?? "#ffffff",
+    isCrown: false,
   }));
-  const byId = new Map(entries.map((e) => [e.crewMember.id, e]));
-  const dayMs = 1000 * 60 * 60 * 24;
-  const weekMs = dayMs * 7;
+  if (crew.length === 0) {
+    return { year, series: [], totals, hasData: false };
+  }
 
-  for (const season of data) {
-    if (season.tracks.length === 0) continue;
-    const start = seasonStart(season.year);
-    const end = seasonEnd(season.year);
-    const lastFriday = mostRecentFriday(now);
-    const clamped = lastFriday.getTime() > end.getTime() ? end : lastFriday;
-    const fridays =
-      clamped.getTime() < start.getTime()
-        ? []
-        : fridaysBetween(start, clamped);
+  const seasonStartAt = seasonStart(year);
+  const seasonEndAt = seasonEnd(year);
+  const todayMs = Math.min(now.getTime(), seasonEndAt.getTime());
+  const today = new Date(todayMs);
+  today.setUTCHours(0, 0, 0, 0);
+  if (today.getTime() < seasonStartAt.getTime()) {
+    return { year, series: [], totals, hasData: false };
+  }
 
-    const tsByMember = new Map<string, number[]>();
-    for (const m of crew) tsByMember.set(m.id, []);
-    for (const t of season.tracks) {
-      if (!t.added_by?.id || !t.added_at) continue;
-      const member = findCrewBySpotifyId(crew, t.added_by.id);
-      if (!member) continue;
-      tsByMember.get(member.id)?.push(new Date(t.added_at).getTime());
+  const season = data.find((d) => d.year === year);
+  const tracks = season?.tracks ?? [];
+
+  // member id → sorted list of add timestamps for the chosen season
+  const addsByMember = new Map<string, number[]>();
+  for (const c of crew) addsByMember.set(c.id, []);
+  for (const t of tracks) {
+    const addedBy = t.added_by?.id;
+    if (!addedBy || !t.added_at) continue;
+    const member = findCrewBySpotifyId(crew, addedBy);
+    if (!member) continue;
+    const ts = new Date(t.added_at).getTime();
+    if (!Number.isNaN(ts)) addsByMember.get(member.id)?.push(ts);
+  }
+  for (const [, arr] of addsByMember) arr.sort((a, b) => a - b);
+
+  // Pre-compute, for each Friday in the season so far, when each
+  // member satisfied that Friday (the first add inside [F, F+7d)).
+  // null = never satisfied.
+  const fridays = fridaysBetween(
+    seasonStartAt,
+    mostRecentFriday(today).getTime() < seasonStartAt.getTime()
+      ? seasonStartAt
+      : mostRecentFriday(today),
+  );
+  const dayMs = 24 * 60 * 60 * 1000;
+  const weekMs = 7 * dayMs;
+  const fridaySatisfaction = fridays.map((friday) => {
+    const fMs = friday.getTime();
+    const sat = new Map<string, number | null>();
+    for (const c of crew) {
+      const adds = addsByMember.get(c.id) ?? [];
+      const found = adds.find((a) => a >= fMs && a < fMs + weekMs);
+      sat.set(c.id, found ?? null);
     }
-    for (const [, arr] of tsByMember) arr.sort((a, b) => a - b);
+    return { fridayMs: fMs, satisfied: sat };
+  });
 
-    for (const member of crew) {
-      const entry = byId.get(member.id);
-      if (!entry) continue;
-      const ts = tsByMember.get(member.id) ?? [];
-      for (const friday of fridays) {
-        entry.totalWeeks += 1;
-        const fridayMs = friday.getTime();
-        const inWeek = ts.filter(
-          (t) => t >= fridayMs && t < fridayMs + weekMs,
-        );
-        if (inWeek.length === 0) {
-          entry.missed += 1;
-          continue;
+  const cumulative = new Map<string, number>();
+  for (const c of crew) cumulative.set(c.id, 0);
+  const series: OnTimeSeriesPoint[] = [];
+
+  for (
+    let dt = seasonStartAt.getTime();
+    dt <= today.getTime();
+    dt += dayMs
+  ) {
+    for (const fd of fridaySatisfaction) {
+      const deadline = fd.fridayMs + dayMs; // first late day = day after Friday (UTC)
+      if (dt < deadline) continue;
+      for (const c of crew) {
+        const sat = fd.satisfied.get(c.id);
+        const stillUnsatisfiedAtDayStart =
+          sat === null || sat === undefined || sat > dt;
+        if (stillUnsatisfiedAtDayStart) {
+          cumulative.set(c.id, (cumulative.get(c.id) ?? 0) + 1);
         }
-        const earliest = inWeek[0];
-        if (earliest - fridayMs < dayMs) entry.onTime += 1;
-        else entry.late += 1;
       }
     }
+    series.push({
+      date: new Date(dt).toISOString(),
+      perCrew: Object.fromEntries(cumulative),
+    });
   }
 
-  for (const e of entries) {
-    e.onTimeRate = e.totalWeeks > 0 ? e.onTime / e.totalWeeks : 0;
+  // Compute weeks-behind right now (count of un-satisfied past Fridays).
+  const todayDt = today.getTime();
+  for (const fd of fridaySatisfaction) {
+    if (todayDt < fd.fridayMs + dayMs) continue;
+    for (const total of totals) {
+      const sat = fd.satisfied.get(total.crewMember.id);
+      const open = sat === null || sat === undefined || sat > todayDt;
+      if (open) total.weeksBehind += 1;
+    }
   }
-  return entries.sort((a, b) => b.onTimeRate - a.onTimeRate);
+
+  const last = series[series.length - 1]?.perCrew ?? {};
+  for (const total of totals) {
+    total.lateDays = last[total.crewMember.id] ?? 0;
+  }
+  const sorted = [...totals].sort((a, b) => a.lateDays - b.lateDays);
+  if (sorted[0]) {
+    const winner = totals.find(
+      (t) => t.crewMember.id === sorted[0].crewMember.id,
+    );
+    if (winner) winner.isCrown = true;
+  }
+
+  return {
+    year,
+    series,
+    totals,
+    hasData: tracks.length > 0,
+  };
 }
 
 // ---------- Card 6: Time-of-day distribution per crew (UTC) ----------
@@ -425,11 +791,15 @@ export function getExplicitContent(
 // ---------- Bundle for the page ----------
 
 export type BomptonStatsBundle = {
+  // Used by the main-page summary block
   vitals: PlaylistVitals;
   leaderboard: CrewLeaderboardEntry[];
+  // Used by the deep-stats grid
+  genres: GenreBreakdown;
+  dedication: DedicationEntry[];
   topArtists: ArtistCount[];
   topAlbums: AlbumCount[];
-  discipline: DisciplineEntry[];
+  onTime: OnTimeStats;
   timeOfDay: TimeOfDayEntry[];
   dayOfWeek: DayOfWeekDistribution;
   trackLength: TrackLengthStats;
@@ -437,18 +807,45 @@ export type BomptonStatsBundle = {
   totalTracks: number;
 };
 
-export function buildBomptonStats(
+// Builds every bundle field. Genres require a Spotify lookup against
+// /v1/artists for any artist id we haven't cached yet, so this is async
+// and must be passed the caller's Spotify-linked user id. If we can't
+// reach Spotify (token expired, etc.) the genre card just degrades to
+// whatever we have cached — the rest of the bundle is unaffected.
+export async function buildBomptonStats(
   data: BomptonPlaylistByYear[],
   crew: CrewMember[],
+  callerUserId: string,
   now: Date = new Date(),
-): BomptonStatsBundle {
+): Promise<BomptonStatsBundle> {
   const flat = flattenAllSeasons(data);
+
+  const artistIds = new Set<string>();
+  for (const { track } of flat) {
+    const id = track.track?.artists?.[0]?.id;
+    if (id) artistIds.add(id);
+  }
+  let artistGenres = new Map<string, ArtistGenres>();
+  try {
+    artistGenres = await getArtistGenresForIds(callerUserId, [...artistIds]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[bompton-stats.genres-failed]", {
+      callerUserId,
+      message,
+    });
+  }
+
+  const dedication = await getListeningDedication(data, crew);
+
   return {
     vitals: getPlaylistVitals(flat, data),
     leaderboard: getAllTimeLeaderboard(data, crew),
+    genres: getGenreBreakdown(flat, crew, artistGenres),
+    dedication,
     topArtists: getTopArtists(flat),
     topAlbums: getTopAlbums(flat),
-    discipline: getFridayDiscipline(data, crew, now),
+    onTime: getOnTimeStats(data, crew, CURRENT_BOMPTON_YEAR, now),
     timeOfDay: getTimeOfDayDistribution(flat, crew),
     dayOfWeek: getDayOfWeekDistribution(flat),
     trackLength: getTrackLengthStats(flat),

@@ -59,9 +59,11 @@ export function PlaylistStatsSummary({
             <Vital
               label="Seasons synced"
               value={`${stats.vitals.seasonsWithData} / ${stats.vitals.totalSeasons}`}
-              hint={`Friday discipline ${(
-                averageOnTimeRate(stats) * 100
-              ).toFixed(0)}%`}
+              hint={
+                stats.onTime.hasData
+                  ? `${onTimeLeader(stats)} leads on-time`
+                  : "no on-time data yet"
+              }
             />
           </dl>
 
@@ -171,9 +173,13 @@ function Highlight({
   );
 }
 
-function averageOnTimeRate(stats: BomptonStatsBundle): number {
-  const counted = stats.discipline.filter((d) => d.totalWeeks > 0);
-  if (counted.length === 0) return 0;
-  const sum = counted.reduce((acc, d) => acc + d.onTimeRate, 0);
-  return sum / counted.length;
+function onTimeLeader(stats: BomptonStatsBundle): string {
+  const sorted = [...stats.onTime.totals].sort(
+    (a, b) => a.lateDays - b.lateDays,
+  );
+  const winner = sorted[0];
+  if (!winner) return "—";
+  return (
+    winner.crewMember.name ?? winner.crewMember.email ?? "Unknown"
+  );
 }

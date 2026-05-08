@@ -53,6 +53,7 @@ model User {
   sessions          Session[]
   playlistLinks     UserPlaylistLink[]
   cachedResponses   CachedSpotifyResponse[]
+  listeningPlays    ListeningPlay[]
 }
 
 model VerificationToken {
@@ -123,6 +124,43 @@ model PlaylistTrack {
   @@unique([playlistId, position])
   @@index([playlistId])
   @@index([addedBySpotifyId])
+}
+
+// Cached artist metadata for genre lookups. Track rows only store
+// {id, name, uri} per artist — genres come from /v1/artists. We
+// populate this table on demand when the stats page asks for genres
+// for tracks we haven't seen the artist for yet, using the caller's
+// Spotify token. 30-day staleness window.
+model Artist {
+  spotifyId String   @id
+  name      String
+  genres    Json     // string[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Append-only mirror of /me/player/recently-played. Whenever the
+// dashboard's recently-played fetch runs we upsert each play here so
+// the deep-stats page can compute "how many times has user A played a
+// track that user B added to a Bompton playlist after the add date"
+// without re-hitting Spotify on every render. Spotify only returns
+// the last 50 plays, so this slowly fills as users hit the dashboard.
+model ListeningPlay {
+  id              String   @id @default(cuid())
+  userId          String
+  trackSpotifyId  String
+  trackName       String
+  trackArtist     String
+  trackDurationMs Int
+  playedAt        DateTime
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trackSpotifyId, playedAt])
+  @@index([userId])
+  @@index([userId, playedAt])
+  @@index([trackSpotifyId])
 }
 
 // Durable Spotify response cache. Populated whenever the dashboard's

@@ -18,7 +18,8 @@ import { BomptonColumn } from "@/components/bompton/bompton-column";
 import { BomptonAutoSync } from "@/components/bompton/bompton-auto-sync";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
 import { PlaylistStatsSummary } from "@/components/bompton/playlist-stats-summary";
-import { buildBomptonStats } from "@/lib/bompton-stats";
+import { RepeatedSongsWarning } from "@/components/bompton/repeated-songs-warning";
+import { buildBomptonStats, findRepeatedTracks } from "@/lib/bompton-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -92,7 +93,8 @@ export default async function BomptonPlaylistPage() {
     CURRENT_BOMPTON_YEAR,
   );
 
-  const stats = buildBomptonStats(bomptonData, crew);
+  const stats = await buildBomptonStats(bomptonData, crew, session.user.id);
+  const repeats = findRepeatedTracks(bomptonData, crew);
 
   return (
     <section className="flex flex-col gap-10 py-6">
@@ -125,6 +127,8 @@ export default async function BomptonPlaylistPage() {
           </p>
         </div>
       ) : null}
+
+      <RepeatedSongsWarning repeats={repeats} />
 
       <PlaylistStatsSummary stats={stats} />
 
