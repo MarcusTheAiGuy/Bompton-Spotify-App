@@ -7,16 +7,16 @@ import { spotifyFetch, SpotifyError, type SpotifyArtist } from "@/lib/spotify";
 //
 // Strategy:
 //  - Bulk-load every artist id we need from the Artist table.
-//  - For ids we don't have OR rows older than the staleness window,
-//    batch-fetch from Spotify using a caller-authenticated token (the
-//    /artists endpoint accepts up to 50 ids per call).
+//  - For ids we don't have OR rows older than 60 days, batch-fetch
+//    from Spotify using a caller-authenticated token (the /artists
+//    endpoint accepts up to 50 ids per call).
 //  - Upsert results so subsequent renders are free.
 //
 // If the Artist table doesn't exist yet (fresh DB before db push),
 // every code path returns the cached map we already have without
 // throwing — the genre card just shows "no data yet".
 
-const STALE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
+const STALE_AFTER_MS = 60 * 24 * 60 * 60 * 1000;
 const BATCH_SIZE = 50;
 
 export type ArtistGenres = { name: string; genres: string[] };
