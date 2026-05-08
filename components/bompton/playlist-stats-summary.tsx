@@ -1,0 +1,179 @@
+import Link from "next/link";
+import { formatLongDuration } from "@/lib/spotify";
+import type { BomptonStatsBundle } from "@/lib/bompton-stats";
+
+// Compact stats overview that appears on the main /bompton-playlist
+// page above the season columns. The "See more" button at the bottom
+// links to the deep-dive /bompton-playlist/stats page.
+
+export function PlaylistStatsSummary({
+  stats,
+}: {
+  stats: BomptonStatsBundle;
+}) {
+  const hasData = stats.totalTracks > 0;
+  const topContributor = stats.leaderboard[0] ?? null;
+  const topArtist = stats.topArtists[0] ?? null;
+  const topAlbum = stats.topAlbums[0] ?? null;
+
+  return (
+    <section className="flex flex-col gap-5 rounded-lg border border-spotify-border bg-spotify-elevated/50 p-6">
+      <header className="flex flex-col gap-1">
+        <p className="text-xs uppercase tracking-widest text-spotify-subtext">
+          Playlist stats
+        </p>
+        <h2 className="text-2xl font-extrabold tracking-tight">
+          Bompton, by the numbers
+        </h2>
+        <p className="text-sm text-spotify-subtext">
+          A snapshot across all four seasons. Hit{" "}
+          <span className="font-semibold text-spotify-text">See more</span> for
+          the full breakdown.
+        </p>
+      </header>
+
+      {hasData ? (
+        <>
+          <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Vital
+              label="Tracks"
+              value={stats.vitals.totalTracks.toLocaleString()}
+              hint={`${stats.vitals.uniqueTracks.toLocaleString()} unique`}
+            />
+            <Vital
+              label="Total runtime"
+              value={formatLongDuration(stats.vitals.totalDurationMs)}
+              hint={
+                stats.vitals.totalTracks > 0
+                  ? `${formatLongDuration(
+                      stats.vitals.totalDurationMs / stats.vitals.totalTracks,
+                    )} avg`
+                  : ""
+              }
+            />
+            <Vital
+              label="Unique artists"
+              value={stats.vitals.uniqueArtists.toLocaleString()}
+              hint={`${stats.vitals.uniqueAlbums.toLocaleString()} albums`}
+            />
+            <Vital
+              label="Seasons synced"
+              value={`${stats.vitals.seasonsWithData} / ${stats.vitals.totalSeasons}`}
+              hint={`Friday discipline ${(
+                averageOnTimeRate(stats) * 100
+              ).toFixed(0)}%`}
+            />
+          </dl>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Highlight
+              label="Top contributor"
+              primary={
+                topContributor
+                  ? topContributor.crewMember.name ??
+                    topContributor.crewMember.email ??
+                    "Unknown"
+                  : "—"
+              }
+              secondary={
+                topContributor
+                  ? `${topContributor.totalAdds} adds`
+                  : "no adds yet"
+              }
+            />
+            <Highlight
+              label="Most-added artist"
+              primary={topArtist?.name ?? "—"}
+              secondary={
+                topArtist
+                  ? `${topArtist.count} track${topArtist.count === 1 ? "" : "s"}`
+                  : "no tracks yet"
+              }
+            />
+            <Highlight
+              label="Most-added album"
+              primary={topAlbum?.name ?? "—"}
+              secondary={
+                topAlbum
+                  ? `${topAlbum.artist || "—"} · ${topAlbum.count} track${
+                      topAlbum.count === 1 ? "" : "s"
+                    }`
+                  : "no tracks yet"
+              }
+            />
+          </div>
+        </>
+      ) : (
+        <div className="rounded-lg border border-spotify-border bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
+          <p className="font-semibold text-spotify-text">
+            No track data synced yet.
+          </p>
+          <p className="mt-1">
+            Once the extension pushes track-level data for at least one
+            Bompton season, the stats overview and the deep-dive page populate
+            automatically.
+          </p>
+        </div>
+      )}
+
+      <div className="flex justify-center">
+        <Link
+          href="/bompton-playlist/stats"
+          className="inline-flex items-center gap-2 rounded-full bg-spotify-green px-6 py-2.5 text-sm font-bold uppercase tracking-wide text-black transition hover:bg-spotify-green-hover hover:scale-[1.03] active:scale-[0.98]"
+        >
+          See more
+          <span aria-hidden="true">→</span>
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function Vital({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
+        {label}
+      </dt>
+      <dd className="text-2xl font-extrabold tracking-tight">{value}</dd>
+      {hint ? (
+        <span className="text-[11px] text-spotify-subtext">{hint}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function Highlight({
+  label,
+  primary,
+  secondary,
+}: {
+  label: string;
+  primary: string;
+  secondary: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-lg bg-spotify-base/50 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
+        {label}
+      </p>
+      <p className="truncate font-bold">{primary}</p>
+      <p className="text-xs text-spotify-subtext">{secondary}</p>
+    </div>
+  );
+}
+
+function averageOnTimeRate(stats: BomptonStatsBundle): number {
+  const counted = stats.discipline.filter((d) => d.totalWeeks > 0);
+  if (counted.length === 0) return 0;
+  const sum = counted.reduce((acc, d) => acc + d.onTimeRate, 0);
+  return sum / counted.length;
+}

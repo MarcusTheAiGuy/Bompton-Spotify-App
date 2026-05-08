@@ -17,6 +17,8 @@ import { settleSpotify } from "@/lib/describe-spotify-error";
 import { BomptonColumn } from "@/components/bompton/bompton-column";
 import { BomptonAutoSync } from "@/components/bompton/bompton-auto-sync";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
+import { PlaylistStatsSummary } from "@/components/bompton/playlist-stats-summary";
+import { buildBomptonStats } from "@/lib/bompton-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +92,8 @@ export default async function BomptonPlaylistPage() {
     CURRENT_BOMPTON_YEAR,
   );
 
+  const stats = buildBomptonStats(bomptonData, crew);
+
   return (
     <section className="flex flex-col gap-10 py-6">
       <header className="flex flex-col gap-2">
@@ -121,6 +125,8 @@ export default async function BomptonPlaylistPage() {
           </p>
         </div>
       ) : null}
+
+      <PlaylistStatsSummary stats={stats} />
 
       <FridayLeaderboard
         scores={seasonResult.scores}
