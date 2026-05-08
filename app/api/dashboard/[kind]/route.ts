@@ -20,6 +20,7 @@ import {
   getTopTracks,
   SpotifyError,
 } from "@/lib/spotify";
+import { appendRecentPlays } from "@/lib/listening-history";
 
 export const dynamic = "force-dynamic";
 
@@ -178,8 +179,17 @@ async function fetchKind(
       return getQueue(userId);
     case "devices":
       return getDevices(userId);
-    case "recently-played":
-      return getRecentlyPlayed(userId);
+    case "recently-played": {
+      const result = await getRecentlyPlayed(userId);
+      // Append plays to the durable ListeningPlay table so the Bompton
+      // dedication card has data to read later. Idempotent via the
+      // (userId, trackSpotifyId, playedAt) unique constraint. We await
+      // it here on purpose: serverless functions can be killed once the
+      // HTTP response is sent, dropping in-flight writes if we don't.
+      // appendRecentPlays handles its own errors so this can't throw.
+      await appendRecentPlays(userId, result.items ?? []);
+      return result;
+    }
     case "top-tracks-short":
       return getTopTracks(userId, "short_term");
     case "top-tracks-medium":

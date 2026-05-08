@@ -40,7 +40,7 @@ export default async function BomptonStatsPage() {
     spotifyUserId: u.accounts[0]?.providerAccountId ?? null,
   }));
 
-  const stats = buildBomptonStats(bomptonData, crew);
+  const stats = await buildBomptonStats(bomptonData, crew, session.user.id);
 
   return (
     <section className="flex flex-col gap-8 py-6">

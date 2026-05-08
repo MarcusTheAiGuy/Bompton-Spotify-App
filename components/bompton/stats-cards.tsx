@@ -4,11 +4,11 @@ import type {
   AlbumCount,
   ArtistCount,
   BomptonStatsBundle,
-  CrewLeaderboardEntry,
   DayOfWeekDistribution,
-  DisciplineEntry,
+  DedicationEntry,
   ExplicitEntry,
-  PlaylistVitals,
+  GenreBreakdown,
+  OnTimeStats,
   TimeOfDayEntry,
   TrackLengthStats,
 } from "@/lib/bompton-stats";
@@ -49,116 +49,159 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ---------- Card 1: Playlist vitals ----------
+// ---------- Card 1: Genre tracker ----------
 
-export function VitalsCard({ vitals }: { vitals: PlaylistVitals }) {
-  if (vitals.totalTracks === 0) {
+export function GenreCard({ genres }: { genres: GenreBreakdown }) {
+  const hasOverall = genres.overall.length > 0;
+  const hasAnyPerCrew = genres.perCrew.some((c) => c.topGenres.length > 0);
+  if (!hasOverall && !hasAnyPerCrew) {
     return (
-      <StatCardShell title="Playlist vitals" subtitle="Card 1 · Overview">
+      <StatCardShell title="Genre tracker" subtitle="Card 1 · Catalog">
         <EmptyHint>
-          No tracks synced yet — vitals populate as soon as the extension
-          pushes data for any season.
+          No genre data yet. Genres come from Spotify's /v1/artists endpoint
+          — we cache them in the Artist table on first lookup. If this stays
+          empty, the caller's Spotify token may be expired (sign out and
+          back in) or the Artist table needs `npm run db:push`.
         </EmptyHint>
       </StatCardShell>
     );
   }
-  const avgMs =
-    vitals.totalTracks > 0 ? vitals.totalDurationMs / vitals.totalTracks : 0;
-  const maxSeasonCount = Math.max(
-    1,
-    ...vitals.perSeasonCounts.map((s) => s.count),
-  );
   return (
-    <StatCardShell title="Playlist vitals" subtitle="Card 1 · Overview">
-      <dl className="grid grid-cols-2 gap-3">
-        <Stat label="Total tracks" value={vitals.totalTracks.toLocaleString()} />
-        <Stat
-          label="Total runtime"
-          value={formatLongDuration(vitals.totalDurationMs)}
-        />
-        <Stat
-          label="Unique artists"
-          value={vitals.uniqueArtists.toLocaleString()}
-        />
-        <Stat
-          label="Unique albums"
-          value={vitals.uniqueAlbums.toLocaleString()}
-        />
-        <Stat label="Unique tracks" value={vitals.uniqueTracks.toLocaleString()} />
-        <Stat
-          label="Avg track length"
-          value={avgMs > 0 ? formatDuration(avgMs) : "—"}
-        />
-      </dl>
-      <div className="flex flex-col gap-1.5">
+    <StatCardShell title="Genre tracker" subtitle="Card 1 · Catalog">
+      <p className="text-xs text-spotify-subtext">
+        Top three genres for each crew member, plus the top three across the
+        playlist as a whole. Each genre tag on an artist counts once per
+        track.
+      </p>
+
+      <div className="flex flex-col gap-2">
         <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
-          Tracks per season
+          Bompton overall
         </p>
-        <ul className="flex flex-col gap-1">
-          {vitals.perSeasonCounts.map((season) => (
+        {hasOverall ? (
+          <ol className="flex flex-col gap-1.5">
+            {genres.overall.map((g, idx) => (
+              <li
+                key={g.genre}
+                className="flex items-center gap-2 text-sm"
+              >
+                <span className="w-4 text-center font-mono text-xs text-spotify-subtext">
+                  {idx + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-semibold capitalize">
+                  {g.genre}
+                </span>
+                <span className="font-mono text-xs text-spotify-subtext">
+                  {g.count}
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="text-xs text-spotify-subtext">
+            No artist genres have been cached yet.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
+          By crew member
+        </p>
+        <ul className="flex flex-col gap-3">
+          {genres.perCrew.map((entry) => (
             <li
-              key={season.year}
-              className="flex items-center gap-2 text-xs"
+              key={entry.crewMember.id}
+              className="flex flex-col gap-1.5"
             >
-              <span className="w-20 shrink-0 font-mono text-spotify-subtext">
-                {season.year}
-              </span>
-              <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-spotify-highlight">
-                <div
-                  className="absolute inset-y-0 left-0 rounded-full bg-spotify-green"
-                  style={{
-                    width: `${(season.count / maxSeasonCount) * 100}%`,
-                  }}
-                />
+              <div className="flex items-center gap-2">
+                <CrewAvatar crewMember={entry.crewMember} size="sm" />
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                  {entry.crewMember.name ??
+                    entry.crewMember.email ??
+                    "Unknown"}
+                </span>
+                <span className="font-mono text-[10px] text-spotify-subtext">
+                  {entry.totalGenreHits} tags
+                </span>
               </div>
-              <span className="w-8 shrink-0 text-right font-mono text-spotify-subtext">
-                {season.count}
-              </span>
+              {entry.topGenres.length > 0 ? (
+                <ol className="flex flex-col gap-1 pl-8 text-xs">
+                  {entry.topGenres.map((g, idx) => (
+                    <li
+                      key={g.genre}
+                      className="flex items-center gap-2"
+                    >
+                      <span className="w-4 text-center font-mono text-[10px] text-spotify-subtext">
+                        {idx + 1}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate capitalize">
+                        {g.genre}
+                      </span>
+                      <span className="font-mono text-spotify-subtext">
+                        {g.count}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="pl-8 text-[10px] text-spotify-subtext">
+                  No genres yet — this member's added artists aren't in our
+                  Artist cache.
+                </p>
+              )}
             </li>
           ))}
         </ul>
       </div>
+
+      <p className="text-[10px] text-spotify-subtext">
+        Cached genres for {genres.totalArtistsWithGenres} of{" "}
+        {genres.totalArtistsLookedUp} artists referenced by Bompton tracks.
+      </p>
     </StatCardShell>
   );
 }
 
-// ---------- Card 2: All-time leaderboard ----------
+// ---------- Card 2: Listening dedication ----------
 
-export function LeaderboardCard({
-  leaderboard,
+export function DedicationCard({
+  dedication,
 }: {
-  leaderboard: CrewLeaderboardEntry[];
+  dedication: DedicationEntry[];
 }) {
-  const totalAddsAll = leaderboard.reduce((acc, e) => acc + e.totalAdds, 0);
-  if (totalAddsAll === 0) {
+  const totalListens = dedication.reduce((acc, e) => acc + e.listenCount, 0);
+  if (totalListens === 0) {
     return (
-      <StatCardShell
-        title="All-time leaderboard"
-        subtitle="Card 2 · Crew"
-      >
+      <StatCardShell title="Listening dedication" subtitle="Card 2 · Crew">
         <EmptyHint>
-          No attributed adds yet. Once tracks have added_by data the crew
-          ranking shows up here.
+          No qualifying listens recorded yet. We capture plays from
+          /me/player/recently-played each time someone hits the dashboard
+          and append them to the ListeningPlay table. Hit /dashboard for
+          each crew member to seed history, then come back.
         </EmptyHint>
       </StatCardShell>
     );
   }
-  const max = Math.max(1, ...leaderboard.map((e) => e.totalAdds));
+  const max = Math.max(1, ...dedication.map((e) => e.listenCount));
   return (
-    <StatCardShell title="All-time leaderboard" subtitle="Card 2 · Crew">
+    <StatCardShell title="Listening dedication" subtitle="Card 2 · Crew">
       <p className="text-xs text-spotify-subtext">
-        Cumulative adds across every Bompton season.
+        How many times each member has played a Bompton track that someone
+        else added — counting only plays after the add date. Banked from
+        each dashboard recently-played fetch, so this fills as the crew
+        keeps using the app.
       </p>
-      <ol className="flex flex-col gap-3">
-        {leaderboard.map((entry, index) => (
+      <ul className="flex flex-col gap-3">
+        {dedication.map((entry) => (
           <li
             key={entry.crewMember.id}
             className="flex items-center gap-3 text-sm"
           >
-            <span className="w-5 text-center font-mono text-xs text-spotify-subtext">
-              {index + 1}
-            </span>
-            <CrewAvatar crewMember={entry.crewMember} />
+            <CrownAvatar
+              crewMember={entry.crewMember}
+              isCrown={entry.isCrown}
+            />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate font-semibold">
@@ -167,19 +210,23 @@ export function LeaderboardCard({
                     "Unknown"}
                 </span>
                 <span className="font-mono text-xs text-spotify-subtext">
-                  {entry.totalAdds}
+                  {entry.listenCount} plays
                 </span>
               </div>
               <div className="relative h-1.5 overflow-hidden rounded-full bg-spotify-highlight">
                 <div
                   className="absolute inset-y-0 left-0 rounded-full bg-spotify-green"
-                  style={{ width: `${(entry.totalAdds / max) * 100}%` }}
+                  style={{ width: `${(entry.listenCount / max) * 100}%` }}
                 />
               </div>
+              <p className="text-[10px] text-spotify-subtext">
+                {entry.uniqueTracks} unique tracks ·{" "}
+                {formatLongDuration(entry.listenedMs)} listened
+              </p>
             </div>
           </li>
         ))}
-      </ol>
+      </ul>
     </StatCardShell>
   );
 }
@@ -275,85 +322,192 @@ export function TopAlbumsCard({ albums }: { albums: AlbumCount[] }) {
   );
 }
 
-// ---------- Card 5: Friday discipline ----------
+// ---------- Card 5: On-time stats (line graph) ----------
 
-export function DisciplineCard({
-  discipline,
-}: {
-  discipline: DisciplineEntry[];
-}) {
-  const counted = discipline.filter((d) => d.totalWeeks > 0);
-  if (counted.length === 0) {
+export function OnTimeCard({ onTime }: { onTime: OnTimeStats }) {
+  if (!onTime.hasData || onTime.series.length === 0) {
     return (
-      <StatCardShell title="Friday discipline" subtitle="Card 5 · Habits">
+      <StatCardShell title="On-time stats" subtitle="Card 5 · Habits">
         <EmptyHint>
-          Discipline scores need synced track timestamps. Run the extension
-          for at least one season.
+          No timestamped adds yet for the current season ({onTime.year}). The
+          line graph fills in once tracks have added_at / added_by data
+          synced from the extension.
         </EmptyHint>
       </StatCardShell>
     );
   }
   return (
-    <StatCardShell title="Friday discipline" subtitle="Card 5 · Habits">
+    <StatCardShell title="On-time stats" subtitle="Card 5 · Habits">
       <p className="text-xs text-spotify-subtext">
-        Per crew member: how often you actually added on Friday vs. late vs.
-        skipped, across every Friday in every season.
+        Cumulative late days per member for the current season ({onTime.year}).
+        Each day past Friday without an add costs +1, and X weeks behind
+        means +X per day. Lowest line wins.
       </p>
-      <ul className="flex flex-col gap-3">
-        {discipline.map((entry) => {
-          const total = Math.max(1, entry.totalWeeks);
-          const onPct = (entry.onTime / total) * 100;
-          const latePct = (entry.late / total) * 100;
-          const missPct = (entry.missed / total) * 100;
-          return (
+      <OnTimeLineGraph onTime={onTime} />
+      <ul className="flex flex-col gap-2">
+        {[...onTime.totals]
+          .sort((a, b) => a.lateDays - b.lateDays)
+          .map((total) => (
             <li
-              key={entry.crewMember.id}
-              className="flex flex-col gap-1.5 text-xs"
+              key={total.crewMember.id}
+              className="flex items-center gap-3 text-sm"
             >
-              <div className="flex items-center gap-2">
-                <CrewAvatar crewMember={entry.crewMember} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {entry.crewMember.name ??
-                    entry.crewMember.email ??
+              <CrownAvatar
+                crewMember={total.crewMember}
+                isCrown={total.isCrown}
+                ringColor={total.color}
+              />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-semibold">
+                  {total.crewMember.name ??
+                    total.crewMember.email ??
                     "Unknown"}
                 </span>
-                <span className="font-mono text-spotify-subtext">
-                  {(entry.onTimeRate * 100).toFixed(0)}% on time
+                <span className="text-[10px] text-spotify-subtext">
+                  {total.weeksBehind} week
+                  {total.weeksBehind === 1 ? "" : "s"} behind right now
                 </span>
               </div>
-              <div className="flex h-2 w-full overflow-hidden rounded-full bg-spotify-highlight">
-                <div
-                  className="bg-spotify-green"
-                  style={{ width: `${onPct}%` }}
-                  title={`On time: ${entry.onTime}`}
-                />
-                <div
-                  className="bg-yellow-500"
-                  style={{ width: `${latePct}%` }}
-                  title={`Late: ${entry.late}`}
-                />
-                <div
-                  className="bg-red-500"
-                  style={{ width: `${missPct}%` }}
-                  title={`Missed: ${entry.missed}`}
-                />
-              </div>
-              <p className="text-[10px] text-spotify-subtext">
-                {entry.onTime} on time · {entry.late} late · {entry.missed}{" "}
-                missed · {entry.totalWeeks} weeks
-              </p>
+              <span
+                className="font-mono text-xs"
+                style={{ color: total.color }}
+              >
+                {total.lateDays} late {total.lateDays === 1 ? "day" : "days"}
+              </span>
             </li>
+          ))}
+      </ul>
+    </StatCardShell>
+  );
+}
+
+function OnTimeLineGraph({ onTime }: { onTime: OnTimeStats }) {
+  const width = 360;
+  const height = 180;
+  const paddingL = 32;
+  const paddingR = 12;
+  const paddingT = 12;
+  const paddingB = 28;
+  const innerW = width - paddingL - paddingR;
+  const innerH = height - paddingT - paddingB;
+
+  const series = onTime.series;
+  const lastIndex = series.length - 1;
+  const maxLate = Math.max(
+    1,
+    ...series.flatMap((p) => Object.values(p.perCrew)),
+  );
+
+  // Y-axis ticks: 0, 25%, 50%, 75%, 100% rounded to nice integers
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * maxLate));
+  // X-axis ticks: first, ~middle, last
+  const xTickIndices =
+    lastIndex < 1
+      ? [0]
+      : lastIndex < 3
+      ? [0, lastIndex]
+      : [0, Math.floor(lastIndex / 2), lastIndex];
+
+  const xCoord = (i: number) =>
+    lastIndex === 0
+      ? paddingL + innerW / 2
+      : paddingL + (i / lastIndex) * innerW;
+  const yCoord = (v: number) =>
+    paddingT + innerH - (v / maxLate) * innerH;
+
+  const formatXTick = (idx: number) => {
+    const iso = series[idx]?.date;
+    if (!iso) return "";
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  return (
+    <div className="rounded-lg bg-spotify-base/50 p-3">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label="Cumulative late days over time per crew member"
+        className="h-44 w-full"
+      >
+        {/* Y-axis grid + labels */}
+        {yTicks.map((tick) => (
+          <g key={`y-${tick}`}>
+            <line
+              x1={paddingL}
+              x2={width - paddingR}
+              y1={yCoord(tick)}
+              y2={yCoord(tick)}
+              stroke="#2a2a2a"
+              strokeDasharray="2 3"
+            />
+            <text
+              x={paddingL - 6}
+              y={yCoord(tick) + 3}
+              fontSize="9"
+              fontFamily="ui-monospace, SFMono-Regular, monospace"
+              fill="#b3b3b3"
+              textAnchor="end"
+            >
+              {tick}
+            </text>
+          </g>
+        ))}
+        {/* X-axis tick labels */}
+        {xTickIndices.map((idx) => (
+          <text
+            key={`x-${idx}`}
+            x={xCoord(idx)}
+            y={height - paddingB + 14}
+            fontSize="9"
+            fontFamily="ui-monospace, SFMono-Regular, monospace"
+            fill="#b3b3b3"
+            textAnchor="middle"
+          >
+            {formatXTick(idx)}
+          </text>
+        ))}
+        {/* Axis */}
+        <line
+          x1={paddingL}
+          x2={paddingL}
+          y1={paddingT}
+          y2={height - paddingB}
+          stroke="#2a2a2a"
+        />
+        <line
+          x1={paddingL}
+          x2={width - paddingR}
+          y1={height - paddingB}
+          y2={height - paddingB}
+          stroke="#2a2a2a"
+        />
+        {/* Lines per crew member */}
+        {onTime.totals.map((total) => {
+          const path = series
+            .map((point, i) => {
+              const v = point.perCrew[total.crewMember.id] ?? 0;
+              const x = xCoord(i);
+              const y = yCoord(v);
+              return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+            })
+            .join(" ");
+          return (
+            <path
+              key={total.crewMember.id}
+              d={path}
+              fill="none"
+              stroke={total.color}
+              strokeWidth="2"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
           );
         })}
-      </ul>
-      <Legend
-        items={[
-          { color: "bg-spotify-green", label: "On Friday" },
-          { color: "bg-yellow-500", label: "Late (same week)" },
-          { color: "bg-red-500", label: "Missed" },
-        ]}
-      />
-    </StatCardShell>
+      </svg>
+    </div>
   );
 }
 
@@ -722,14 +876,63 @@ function CrewAvatar({
   );
 }
 
+// Avatar variant used by Card 2 + Card 5: shows a 👑 emoji at the
+// top-right of the leader's avatar and supports an optional colored
+// ring (used by the on-time graph to tie each member to their line).
+function CrownAvatar({
+  crewMember,
+  isCrown,
+  ringColor,
+}: {
+  crewMember: CrewMember;
+  isCrown: boolean;
+  ringColor?: string;
+}) {
+  const initial = (crewMember.name ?? crewMember.email ?? "?")
+    .slice(0, 1)
+    .toUpperCase();
+  const ringStyle = ringColor
+    ? { boxShadow: `0 0 0 2px ${ringColor}` }
+    : undefined;
+  return (
+    <span className="relative inline-flex shrink-0">
+      {crewMember.image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={crewMember.image}
+          alt=""
+          className="h-10 w-10 rounded-full object-cover"
+          style={ringStyle}
+        />
+      ) : (
+        <span
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-spotify-highlight text-sm font-bold"
+          style={ringStyle}
+        >
+          {initial}
+        </span>
+      )}
+      {isCrown ? (
+        <span
+          className="absolute -right-1 -top-2 text-base"
+          aria-label="Leader"
+          title="Leader"
+        >
+          👑
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export function StatsCardGrid({ stats }: { stats: BomptonStatsBundle }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <VitalsCard vitals={stats.vitals} />
-      <LeaderboardCard leaderboard={stats.leaderboard} />
+      <GenreCard genres={stats.genres} />
+      <DedicationCard dedication={stats.dedication} />
       <TopArtistsCard artists={stats.topArtists} />
       <TopAlbumsCard albums={stats.topAlbums} />
-      <DisciplineCard discipline={stats.discipline} />
+      <OnTimeCard onTime={stats.onTime} />
       <TimeOfDayCard timeOfDay={stats.timeOfDay} />
       <DayOfWeekCard dayOfWeek={stats.dayOfWeek} />
       <TrackLengthCard trackLength={stats.trackLength} />
