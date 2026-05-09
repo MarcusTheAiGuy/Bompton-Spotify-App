@@ -7,7 +7,9 @@ import {
   type BomptonYear,
 } from "@/lib/bompton";
 import {
+  InitArtistButton,
   InitCachedResponseButton,
+  InitListeningPlayButton,
   InitPlaylistLinkButton,
   ResetSyncButton,
 } from "./troubleshooting-buttons";
@@ -114,6 +116,36 @@ export default async function TroubleshootingPage() {
             everything else). Click once after deploy. Idempotent.
           </p>
           <InitCachedResponseButton />
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
+          <h3 className="text-base font-bold tracking-tight">
+            One-shot · Initialize Artist table
+          </h3>
+          <p className="text-sm text-spotify-subtext">
+            Cache of <code className="font-mono">/v1/artists</code> responses
+            (genres + name) keyed by Spotify artist id. Backs the Genre
+            tracker stats card. If this table is missing, the genre lookup
+            short-circuits on its first read and the card stays empty.
+            Click once after deploy. Idempotent.
+          </p>
+          <InitArtistButton />
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
+          <h3 className="text-base font-bold tracking-tight">
+            One-shot · Initialize ListeningPlay table
+          </h3>
+          <p className="text-sm text-spotify-subtext">
+            Append-only mirror of{" "}
+            <code className="font-mono">/me/player/recently-played</code>{" "}
+            populated each time someone visits /dashboard. Backs the
+            Listening dedication stats card. If this table is missing,
+            every dashboard fetch silently skips the play insert and the
+            dedication card never gets data to read. Click once after
+            deploy. Idempotent.
+          </p>
+          <InitListeningPlayButton />
         </div>
       </section>
     </section>

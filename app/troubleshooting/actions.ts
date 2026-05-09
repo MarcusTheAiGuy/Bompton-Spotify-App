@@ -171,3 +171,109 @@ export async function initCachedSpotifyResponseTable(): Promise<InitCachedRespon
     };
   }
 }
+
+export type InitArtistTableResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// Backs the genre-tracker stats card. Cache of /v1/artists responses
+// keyed by Spotify artist id, populated on demand by the stats page.
+export async function initArtistTable(): Promise<InitArtistTableResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "Artist" (
+        "spotifyId" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "genres" JSONB NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "Artist_pkey" PRIMARY KEY ("spotifyId")
+      )
+    `);
+    revalidatePath("/troubleshooting");
+    return {
+      ok: true,
+      message:
+        "Artist table is present (created if missing). Reload /bompton-playlist/stats to backfill genres.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
+
+export type InitListeningPlayTableResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// Backs the listening-dedication stats card. Append-only mirror of
+// /me/player/recently-played per crew member; populated each time
+// someone visits /dashboard.
+export async function initListeningPlayTable(): Promise<InitListeningPlayTableResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ListeningPlay" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "trackSpotifyId" TEXT NOT NULL,
+        "trackName" TEXT NOT NULL,
+        "trackArtist" TEXT NOT NULL,
+        "trackDurationMs" INTEGER NOT NULL,
+        "playedAt" TIMESTAMP(3) NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ListeningPlay_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "ListeningPlay_userId_trackSpotifyId_playedAt_key" ON "ListeningPlay"("userId", "trackSpotifyId", "playedAt")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "ListeningPlay_userId_idx" ON "ListeningPlay"("userId")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "ListeningPlay_userId_playedAt_idx" ON "ListeningPlay"("userId", "playedAt")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "ListeningPlay_trackSpotifyId_idx" ON "ListeningPlay"("trackSpotifyId")`,
+    );
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ListeningPlay_userId_fkey') THEN
+          ALTER TABLE "ListeningPlay"
+            ADD CONSTRAINT "ListeningPlay_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES "User"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+      END
+      $$
+    `);
+    revalidatePath("/troubleshooting");
+    return {
+      ok: true,
+      message:
+        "ListeningPlay table + indexes + FK are present (created if missing). Visit /dashboard for each crew member to start banking plays.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
