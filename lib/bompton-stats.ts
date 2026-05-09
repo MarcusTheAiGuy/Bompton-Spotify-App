@@ -216,12 +216,17 @@ export type GenreBreakdown = {
   overall: GenreCount[];
   totalArtistsLookedUp: number;
   totalArtistsWithGenres: number;
+  // Bubbled up from getArtistGenresForIds so the genre card can show
+  // "click Initialize Artist table on /troubleshooting" when the
+  // backing table simply doesn't exist yet.
+  artistTableMissing: boolean;
 };
 
 export function getGenreBreakdown(
   flat: FlattenedTrack[],
   crew: CrewMember[],
   artistGenres: Map<string, ArtistGenres>,
+  artistTableMissing: boolean,
 ): GenreBreakdown {
   const perCrewCounts = new Map<string, Map<string, number>>();
   const perCrewTotals = new Map<string, number>();
@@ -288,6 +293,7 @@ export function getGenreBreakdown(
     overall,
     totalArtistsLookedUp: artistGenres.size,
     totalArtistsWithGenres: totalWithGenres,
+    artistTableMissing,
   };
 }
 
@@ -301,6 +307,22 @@ export type DedicationEntry = {
   isCrown: boolean;
 };
 
+// `tableMissing` flags the case where the ListeningPlay table doesn't
+// exist in the DB yet (a fresh deploy that hasn't clicked "Initialize
+// ListeningPlay table" on /troubleshooting). The dedication card uses
+// it to show an actionable empty state instead of telling users to
+// "visit the dashboard" when no amount of dashboard-visiting will help.
+export type DedicationResult = {
+  entries: DedicationEntry[];
+  tableMissing: boolean;
+  // How many ListeningPlay rows exist for crew members on tracks that
+  // are in *some* Bompton playlist (regardless of who added them or
+  // when). Used by the empty-state copy to disambiguate "no plays
+  // captured yet" from "plays captured but none qualify (own-adds
+  // only / pre-add plays)".
+  totalCandidatePlays: number;
+};
+
 // "How many times has user U played a track that someone else added to a
 // Bompton playlist after that track was added?" Reads from the
 // ListeningPlay table populated by the dashboard's recently-played
@@ -309,7 +331,7 @@ export type DedicationEntry = {
 export async function getListeningDedication(
   data: BomptonPlaylistByYear[],
   crew: CrewMember[],
-): Promise<DedicationEntry[]> {
+): Promise<DedicationResult> {
   // Map track id → list of (added_by spotify id, addedAt) entries
   // across every season so a play counts as soon as ANY non-self crew
   // member had added it before the play.
@@ -340,7 +362,9 @@ export async function getListeningDedication(
     uniqueTracks: 0,
     isCrown: false,
   }));
-  if (trackAdds.size === 0 || crew.length === 0) return entries;
+  if (trackAdds.size === 0 || crew.length === 0) {
+    return { entries, tableMissing: false, totalCandidatePlays: 0 };
+  }
 
   let plays: {
     userId: string;
@@ -365,9 +389,9 @@ export async function getListeningDedication(
     const message = error instanceof Error ? error.message : String(error);
     if (/does not exist/i.test(message)) {
       console.warn(
-        "[bompton-stats] ListeningPlay table missing — run `npm run db:push` to create it. Dedication card will show 0s until a dashboard recently-played fetch runs.",
+        "[bompton-stats] ListeningPlay table missing — click 'Initialize ListeningPlay table' on /troubleshooting (or run `npm run db:push`). Dedication card will stay empty until a dashboard recently-played fetch runs against an existing table.",
       );
-      return entries;
+      return { entries, tableMissing: true, totalCandidatePlays: 0 };
     }
     throw error;
   }
@@ -399,7 +423,7 @@ export async function getListeningDedication(
 
   entries.sort((a, b) => b.listenCount - a.listenCount);
   if (entries[0] && entries[0].listenCount > 0) entries[0].isCrown = true;
-  return entries;
+  return { entries, tableMissing: false, totalCandidatePlays: plays.length };
 }
 
 // ---------- Card 3: Top artists ----------
@@ -806,6 +830,15 @@ export type BomptonStatsBundle = {
   // Used by the deep-stats grid
   genres: GenreBreakdown;
   dedication: DedicationEntry[];
+  // Diagnostic flag for the dedication card's empty state. Mirrors the
+  // genre card's `genres.artistTableMissing` so callers can render a
+  // "click Initialize on /troubleshooting" hint when the backing table
+  // doesn't exist yet.
+  dedicationTableMissing: boolean;
+  // Total ListeningPlay rows the dedication query saw (before the
+  // own-add / pre-add filter). Lets the empty state distinguish "no
+  // plays captured" from "plays captured but none qualify".
+  dedicationCandidatePlays: number;
   topArtists: ArtistCount[];
   topAlbums: AlbumCount[];
   onTime: OnTimeStats;
@@ -836,8 +869,11 @@ export async function buildBomptonStats(
     }
   }
   let artistGenres = new Map<string, ArtistGenres>();
+  let artistTableMissing = false;
   try {
-    artistGenres = await getArtistGenresForIds(callerUserId, [...artistIds]);
+    const lookup = await getArtistGenresForIds(callerUserId, [...artistIds]);
+    artistGenres = lookup.artists;
+    artistTableMissing = lookup.tableMissing;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[bompton-stats.genres-failed]", {
@@ -846,13 +882,15 @@ export async function buildBomptonStats(
     });
   }
 
-  const dedication = await getListeningDedication(data, crew);
+  const dedicationResult = await getListeningDedication(data, crew);
 
   return {
     vitals: getPlaylistVitals(flat, data),
     leaderboard: getAllTimeLeaderboard(data, crew),
-    genres: getGenreBreakdown(flat, crew, artistGenres),
-    dedication,
+    genres: getGenreBreakdown(flat, crew, artistGenres, artistTableMissing),
+    dedication: dedicationResult.entries,
+    dedicationTableMissing: dedicationResult.tableMissing,
+    dedicationCandidatePlays: dedicationResult.totalCandidatePlays,
     topArtists: getTopArtists(flat),
     topAlbums: getTopAlbums(flat),
     onTime: getOnTimeStats(data, crew, CURRENT_BOMPTON_YEAR, now),

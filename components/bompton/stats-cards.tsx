@@ -58,10 +58,51 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
     return (
       <StatCardShell title="Genre tracker" subtitle="Card 1 · Catalog">
         <EmptyHint>
-          No genre data yet. Genres come from Spotify's /v1/artists endpoint
-          — we cache them in the Artist table on first lookup. If this stays
-          empty, the caller's Spotify token may be expired (sign out and
-          back in) or the Artist table needs `npm run db:push`.
+          {genres.artistTableMissing ? (
+            <>
+              The <code className="font-mono">Artist</code> cache table
+              doesn&apos;t exist in prod yet. Visit{" "}
+              <a
+                href="/troubleshooting"
+                className="font-semibold text-spotify-green hover:underline"
+              >
+                /troubleshooting
+              </a>{" "}
+              and click <em>Initialize Artist table</em>, then reload this
+              page — genres populate on the next render.
+            </>
+          ) : genres.totalArtistsLookedUp === 0 ? (
+            <>
+              No artist ids in the synced Bompton tracks. Hit{" "}
+              <em>Refresh all 4 Bompton playlists</em> on{" "}
+              <a
+                href="/bompton-playlist"
+                className="font-semibold text-spotify-green hover:underline"
+              >
+                /bompton-playlist
+              </a>{" "}
+              and reload — track-level data is needed before genres can be
+              looked up.
+            </>
+          ) : genres.totalArtistsWithGenres === 0 ? (
+            <>
+              We looked up {genres.totalArtistsLookedUp} artists from
+              Spotify&apos;s <code className="font-mono">/v1/artists</code>{" "}
+              endpoint and zero came back with{" "}
+              <code className="font-mono">genres</code> populated. Spotify
+              has been emptying that field for the vast majority of artists
+              since late 2024 — it&apos;s technically still in the response
+              but is effectively useless for new apps. To make this card
+              work we&apos;d need a different categorization source
+              (Last.fm, MusicBrainz) or a different stat.
+            </>
+          ) : (
+            <>
+              Genres are cached for {genres.totalArtistsWithGenres} of{" "}
+              {genres.totalArtistsLookedUp} artists, but no tag has hit the
+              top-3 threshold yet. More syncs should fix this.
+            </>
+          )}
         </EmptyHint>
       </StatCardShell>
     );
@@ -167,18 +208,62 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
 
 export function DedicationCard({
   dedication,
+  tableMissing,
+  candidatePlays,
 }: {
   dedication: DedicationEntry[];
+  tableMissing: boolean;
+  candidatePlays: number;
 }) {
   const totalListens = dedication.reduce((acc, e) => acc + e.listenCount, 0);
   if (totalListens === 0) {
     return (
       <StatCardShell title="Listening dedication" subtitle="Card 2 · Crew">
         <EmptyHint>
-          No qualifying listens recorded yet. We capture plays from
-          /me/player/recently-played each time someone hits the dashboard
-          and append them to the ListeningPlay table. Hit /dashboard for
-          each crew member to seed history, then come back.
+          {tableMissing ? (
+            <>
+              The <code className="font-mono">ListeningPlay</code> table
+              doesn&apos;t exist in prod yet. Visit{" "}
+              <a
+                href="/troubleshooting"
+                className="font-semibold text-spotify-green hover:underline"
+              >
+                /troubleshooting
+              </a>{" "}
+              and click <em>Initialize ListeningPlay table</em>. After that,
+              each crew member who opens /dashboard will append their last
+              50 plays to the table on every recently-played fetch (every
+              ~5 minutes). The card populates on the next stats render.
+            </>
+          ) : candidatePlays === 0 ? (
+            <>
+              No plays captured yet for any crew member on Bompton tracks.
+              The dashboard appends plays to the{" "}
+              <code className="font-mono">ListeningPlay</code> table from{" "}
+              <code className="font-mono">/me/player/recently-played</code>{" "}
+              on a 5-minute cache cycle, so visiting{" "}
+              <a
+                href="/dashboard"
+                className="font-semibold text-spotify-green hover:underline"
+              >
+                /dashboard
+              </a>{" "}
+              once is usually enough — but Spotify only returns the last 50
+              plays per fetch, so this fills as the crew keeps using the
+              app. (If everyone&apos;s definitely been on /dashboard, the
+              cache might be holding a stale empty response — wait 5
+              minutes and reload.)
+            </>
+          ) : (
+            <>
+              We have {candidatePlays} captured play
+              {candidatePlays === 1 ? "" : "s"} of Bompton tracks for crew
+              members, but none qualify yet — plays only count when{" "}
+              <em>someone else</em> added the track and the play happened{" "}
+              <em>after</em> the add. Listen to a track another crew member
+              added (or wait for them to listen to one of yours).
+            </>
+          )}
         </EmptyHint>
       </StatCardShell>
     );
@@ -929,7 +1014,11 @@ export function StatsCardGrid({ stats }: { stats: BomptonStatsBundle }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
       <GenreCard genres={stats.genres} />
-      <DedicationCard dedication={stats.dedication} />
+      <DedicationCard
+        dedication={stats.dedication}
+        tableMissing={stats.dedicationTableMissing}
+        candidatePlays={stats.dedicationCandidatePlays}
+      />
       <TopArtistsCard artists={stats.topArtists} />
       <TopAlbumsCard albums={stats.topAlbums} />
       <OnTimeCard onTime={stats.onTime} />

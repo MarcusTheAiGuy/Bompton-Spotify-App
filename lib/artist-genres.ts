@@ -21,6 +21,16 @@ const BATCH_SIZE = 50;
 
 export type ArtistGenres = { name: string; genres: string[] };
 
+// Result of a genre lookup. `tableMissing` flags the case where the
+// Artist table doesn't exist in the DB at all (a fresh deploy that
+// hasn't clicked "Initialize Artist table" on /troubleshooting yet),
+// so the genre card can show an actionable empty state instead of the
+// generic "no data yet" hint.
+export type ArtistGenresLookup = {
+  artists: Map<string, ArtistGenres>;
+  tableMissing: boolean;
+};
+
 function isMissingTableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /does not exist/i.test(message);
@@ -36,10 +46,10 @@ function parseGenres(raw: unknown): string[] {
 export async function getArtistGenresForIds(
   callerUserId: string,
   artistIds: string[],
-): Promise<Map<string, ArtistGenres>> {
+): Promise<ArtistGenresLookup> {
   const result = new Map<string, ArtistGenres>();
   const unique = [...new Set(artistIds.filter((id) => id))];
-  if (unique.length === 0) return result;
+  if (unique.length === 0) return { artists: result, tableMissing: false };
 
   let cached: Awaited<ReturnType<typeof prisma.artist.findMany>> = [];
   try {
@@ -49,9 +59,9 @@ export async function getArtistGenresForIds(
   } catch (error) {
     if (isMissingTableError(error)) {
       console.warn(
-        "[artist-genres] Artist table missing — run `npm run db:push` to create it. Returning no genre data for now.",
+        "[artist-genres] Artist table missing — click 'Initialize Artist table' on /troubleshooting (or run `npm run db:push`). Returning no genre data for now.",
       );
-      return result;
+      return { artists: result, tableMissing: true };
     }
     throw error;
   }
@@ -71,7 +81,7 @@ export async function getArtistGenresForIds(
     result.set(id, { name: row.name, genres: parseGenres(row.genres) });
   }
 
-  if (stale.length === 0) return result;
+  if (stale.length === 0) return { artists: result, tableMissing: false };
 
   for (let i = 0; i < stale.length; i += BATCH_SIZE) {
     const batch = stale.slice(i, i + BATCH_SIZE);
@@ -108,9 +118,9 @@ export async function getArtistGenresForIds(
       } catch (error) {
         if (isMissingTableError(error)) {
           console.warn(
-            "[artist-genres] Artist table missing on upsert — run `npm run db:push`.",
+            "[artist-genres] Artist table missing on upsert — click 'Initialize Artist table' on /troubleshooting.",
           );
-          return result;
+          return { artists: result, tableMissing: true };
         }
         // Don't crash the whole stats page on a single upsert hiccup —
         // we already have the genre data in memory for this render.
@@ -123,5 +133,5 @@ export async function getArtistGenresForIds(
     }
   }
 
-  return result;
+  return { artists: result, tableMissing: false };
 }
