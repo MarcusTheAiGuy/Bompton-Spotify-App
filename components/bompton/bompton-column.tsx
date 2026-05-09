@@ -36,17 +36,19 @@ export function BomptonColumn({
           Bompton {year}
         </h3>
         <p className="text-xs text-spotify-subtext">
-          The extension hasn't synced a playlist for {year} yet. Either
-          no Bompton {year} playlist exists in the syncing user's library, or
-          the extension hasn't run. Visit{" "}
-          <a href="/extension-setup" className="font-semibold text-spotify-green hover:underline">
-            /extension-setup
-          </a>
-          , click Sync now, and reload. The matcher accepts any of these name
-          suffixes: <code className="font-mono">{year}</code>,{" "}
+          No data for Bompton {year} yet. Sync only fires for playlists in
+          the caller&apos;s library, so either no Bompton {year} playlist
+          exists on Spotify or nobody with it in their library has visited
+          this page recently. Add it to your library and reload, then hit
+          &quot;Refresh all&quot; above (or check{" "}
+          <a href="/troubleshooting" className="font-semibold text-spotify-green hover:underline">
+            /troubleshooting
+          </a>{" "}
+          for sync state). The matcher accepts any of these name suffixes:{" "}
+          <code className="font-mono">{year}</code>,{" "}
           <code className="font-mono">{shortYear(year)}</code>, plus the same
           with a slash instead of a hyphen, as long as the name also
-          contains "Bompton".
+          contains &quot;Bompton&quot;.
         </p>
       </article>
     );
@@ -166,11 +168,12 @@ function ContributorPanel({
         </p>
       ) : (
         <p className="text-[10px] text-spotify-subtext">
-          Counts populate once the sync extension has pushed track data for
-          this season.{" "}
-          <a href="/extension-setup" className="font-semibold text-spotify-green hover:underline">
-            /extension-setup
+          Counts populate once track data for this season has been synced.
+          Hit Refresh above, or visit{" "}
+          <a href="/troubleshooting" className="font-semibold text-spotify-green hover:underline">
+            /troubleshooting
           </a>
+          .
         </p>
       )}
     </div>

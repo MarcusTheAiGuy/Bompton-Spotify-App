@@ -74,7 +74,7 @@ async function renderDashboard(userId: string) {
         const message = error instanceof Error ? error.message : String(error);
         if (/does not exist/i.test(message)) {
           console.warn(
-            "[dashboard] UserPlaylistLink table missing — visit /extension-setup and click 'Initialize UserPlaylistLink table'.",
+            "[dashboard] UserPlaylistLink table missing — visit /troubleshooting and click 'Initialize UserPlaylistLink table'.",
             { userId, message },
           );
           return [];

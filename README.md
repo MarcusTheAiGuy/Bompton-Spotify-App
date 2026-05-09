@@ -39,18 +39,26 @@ Add these redirect URIs in the Spotify dashboard:
 - `http://localhost:3000/api/auth/callback/spotify`
 - `https://<your-vercel-domain>/api/auth/callback/spotify`
 
-## Bompton sync extension
-Spotify's dev-API quota strips all track data out of invite-collaborator
-playlists (tracks.total=0, track:null, no added_by/added_at). Extended Quota
-Mode isn't attainable (250k MAU gate). We sync the Bompton playlists through
-a browser extension that reads from the logged-in open.spotify.com web player
-(which has full read scopes) and POSTs to `/api/extension/sync`.
+## Bompton playlist sync
+Spotify's Feb-2026 Dev-Mode rules let the playlist **owner** read full track
+data (including `added_at` / `added_by`) via the regular Web API, but
+non-owners get metadata only. Each Bompton season's playlist is owned by
+one of the crew, so syncs only succeed when that owner's session triggers
+them.
 
-- Source lives in `extension/`. Manifest V3, plain JS — no build step.
-- Package a release zip with `npm run extension:zip` → `extension/dist/bompton-extension-vX.Y.Z.zip`.
-- Crew members install it once per machine via `/extension-setup`: load
-  unpacked at `chrome://extensions`, paste an auth token, click Sync now.
-  Auto-syncs hourly after that.
+- Sync runs server-side via `POST /api/playlists/sync`
+  (`lib/playlist-sync.ts`), writing into the shared `Playlist` /
+  `PlaylistTrack` tables.
+- `BomptonAutoSync` on `/bompton-playlist` auto-fires on page load for
+  any Bompton playlist in the caller's library that hasn't been synced
+  in the last hour. The "Refresh all 4 Bompton playlists" button on
+  that page forces a fresh pull regardless of staleness.
+- `/troubleshooting` exposes per-playlist sync state, a reset button,
+  and one-shot DDL utilities for new Prisma tables.
+- Historical note: an earlier version used a Chrome extension that
+  scraped the open.spotify.com web player. That path is retired; the
+  legacy writer survives as `applyExtensionSync` in
+  `lib/extension-sync.ts`, now reused by the server-side sync.
 
 ## Deployment
 Push to `main` → Vercel auto-deploys. Preview deploys are created for each PR.

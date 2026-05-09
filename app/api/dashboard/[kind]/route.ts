@@ -117,7 +117,7 @@ async function readCache(
     const message = error instanceof Error ? error.message : String(error);
     if (/does not exist/i.test(message)) {
       console.warn(
-        "[dashboard.kind] CachedSpotifyResponse table missing — click 'Initialize CachedSpotifyResponse table' on /extension-setup. Falling back to in-memory cache only.",
+        "[dashboard.kind] CachedSpotifyResponse table missing — click 'Initialize CachedSpotifyResponse table' on /troubleshooting. Falling back to in-memory cache only.",
         { userId, kind },
       );
       return null;

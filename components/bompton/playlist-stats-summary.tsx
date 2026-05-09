@@ -116,9 +116,10 @@ export function PlaylistStatsSummary({
             No track data synced yet.
           </p>
           <p className="mt-1">
-            Once the extension pushes track-level data for at least one
-            Bompton season, the stats overview and the deep-dive page populate
-            automatically.
+            Hit the Refresh button at the top of this page to pull from
+            Spotify. Once track-level data for at least one Bompton season
+            has been synced, the stats overview and the deep-dive page
+            populate automatically.
           </p>
         </div>
       )}
