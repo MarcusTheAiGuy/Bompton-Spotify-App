@@ -143,7 +143,7 @@ export default async function BomptonPlaylistPage() {
         missingDataReason={
           hasRealDataForCurrent
             ? undefined
-            : "No tracks in the database for this season yet. Install the extension and click Sync now — the leaderboard will populate from the real added_at / added_by data the web player returns."
+            : "No tracks in the database for this season yet. Hit the Refresh button above to pull from Spotify — the leaderboard backfills from added_at / added_by once the sync runs."
         }
       />
 

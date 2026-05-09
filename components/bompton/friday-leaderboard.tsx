@@ -44,12 +44,12 @@ export function FridayLeaderboard({
       {!hasRealData ? (
         <div className="rounded-lg border border-spotify-border bg-spotify-highlight/40 px-4 py-3 text-sm text-spotify-subtext">
           <p className="font-semibold text-spotify-text">
-            Scores populate automatically once the extension syncs this
-            season's playlist.
+            Scores populate automatically once this season&apos;s playlist
+            has been synced.
           </p>
           <p className="mt-1">
             {missingDataReason ??
-              "No PlaylistTrack rows in the database for this season yet. Install the browser extension at /extension-setup and click Sync now — the leaderboard backfills from the added_at / added_by data the web player returns."}
+              "No PlaylistTrack rows in the database for this season yet. Hit the Refresh button at the top of /bompton-playlist to pull from Spotify — the leaderboard backfills from added_at / added_by once the sync runs."}
           </p>
         </div>
       ) : null}

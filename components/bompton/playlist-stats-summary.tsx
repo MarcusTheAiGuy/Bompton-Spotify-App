@@ -12,7 +12,8 @@ export function PlaylistStatsSummary({
   stats: BomptonStatsBundle;
 }) {
   const hasData = stats.totalTracks > 0;
-  const topContributor = stats.leaderboard[0] ?? null;
+  const mostDedicated = dedicationLeader(stats);
+  const onTimeWinner = onTimeLeader(stats);
   const topArtist = stats.topArtists[0] ?? null;
   const topAlbum = stats.topAlbums[0] ?? null;
 
@@ -59,28 +60,32 @@ export function PlaylistStatsSummary({
             <Vital
               label="Seasons synced"
               value={`${stats.vitals.seasonsWithData} / ${stats.vitals.totalSeasons}`}
-              hint={
-                stats.onTime.hasData
-                  ? `${onTimeLeader(stats)} leads on-time`
-                  : "no on-time data yet"
-              }
             />
           </dl>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Highlight
-              label="Top contributor"
-              primary={
-                topContributor
-                  ? topContributor.crewMember.name ??
-                    topContributor.crewMember.email ??
-                    "Unknown"
-                  : "—"
-              }
+              label="Most dedicated"
+              primary={mostDedicated?.name ?? "—"}
               secondary={
-                topContributor
-                  ? `${topContributor.totalAdds} adds`
-                  : "no adds yet"
+                mostDedicated
+                  ? `${mostDedicated.listenCount} play${
+                      mostDedicated.listenCount === 1 ? "" : "s"
+                    }`
+                  : "no plays yet"
+              }
+            />
+            <Highlight
+              label="Always on Time"
+              primary={onTimeWinner?.name ?? "—"}
+              secondary={
+                onTimeWinner
+                  ? onTimeWinner.lateDays === 0
+                    ? "0 late days"
+                    : `${onTimeWinner.lateDays} late day${
+                        onTimeWinner.lateDays === 1 ? "" : "s"
+                      }`
+                  : "no on-time data yet"
               }
             />
             <Highlight
@@ -111,9 +116,10 @@ export function PlaylistStatsSummary({
             No track data synced yet.
           </p>
           <p className="mt-1">
-            Once the extension pushes track-level data for at least one
-            Bompton season, the stats overview and the deep-dive page populate
-            automatically.
+            Hit the Refresh button at the top of this page to pull from
+            Spotify. Once track-level data for at least one Bompton season
+            has been synced, the stats overview and the deep-dive page
+            populate automatically.
           </p>
         </div>
       )}
@@ -173,13 +179,30 @@ function Highlight({
   );
 }
 
-function onTimeLeader(stats: BomptonStatsBundle): string {
+function onTimeLeader(
+  stats: BomptonStatsBundle,
+): { name: string; lateDays: number } | null {
+  if (!stats.onTime.hasData) return null;
   const sorted = [...stats.onTime.totals].sort(
     (a, b) => a.lateDays - b.lateDays,
   );
   const winner = sorted[0];
-  if (!winner) return "—";
-  return (
-    winner.crewMember.name ?? winner.crewMember.email ?? "Unknown"
-  );
+  if (!winner) return null;
+  return {
+    name: winner.crewMember.name ?? winner.crewMember.email ?? "Unknown",
+    lateDays: winner.lateDays,
+  };
+}
+
+// Top of the dedication leaderboard (by listen count of others' added tracks).
+// Returns null when no qualifying plays have been recorded yet.
+function dedicationLeader(
+  stats: BomptonStatsBundle,
+): { name: string; listenCount: number } | null {
+  const winner = stats.dedication[0];
+  if (!winner || winner.listenCount === 0) return null;
+  return {
+    name: winner.crewMember.name ?? winner.crewMember.email ?? "Unknown",
+    listenCount: winner.listenCount,
+  };
 }

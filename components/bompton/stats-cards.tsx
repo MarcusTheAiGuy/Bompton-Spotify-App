@@ -331,7 +331,7 @@ export function OnTimeCard({ onTime }: { onTime: OnTimeStats }) {
         <EmptyHint>
           No timestamped adds yet for the current season ({onTime.year}). The
           line graph fills in once tracks have added_at / added_by data
-          synced from the extension.
+          synced from Spotify (hit Refresh on /bompton-playlist).
         </EmptyHint>
       </StatCardShell>
     );

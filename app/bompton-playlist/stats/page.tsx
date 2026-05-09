@@ -60,14 +60,21 @@ export default async function BomptonStatsPage() {
         <p className="max-w-3xl text-sm text-spotify-subtext">
           Nine breakdowns covering the four Bompton seasons. Numbers come
           from the same synced track data the main playlist page uses, so if
-          a card says "no data yet," run the extension at{" "}
-          <a
-            href="/extension-setup"
+          a card says "no data yet," hit{" "}
+          <Link
+            href="/bompton-playlist"
             className="font-semibold text-spotify-green hover:underline"
           >
-            /extension-setup
-          </a>{" "}
-          to backfill it.
+            Refresh on /bompton-playlist
+          </Link>{" "}
+          to pull a fresh sync (or visit{" "}
+          <Link
+            href="/troubleshooting"
+            className="font-semibold text-spotify-green hover:underline"
+          >
+            /troubleshooting
+          </Link>{" "}
+          if a sync looks stuck).
         </p>
       </header>
 
