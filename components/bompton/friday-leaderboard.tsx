@@ -56,11 +56,10 @@ export function FridayLeaderboard({
       ) : null}
 
       <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {scores.map((score, index) => (
+        {scores.map((score) => (
           <ScoreCard
             key={score.crewMember.id}
             score={score}
-            rank={index + 1}
             hasRealData={hasRealData}
           />
         ))}
@@ -71,11 +70,9 @@ export function FridayLeaderboard({
 
 function ScoreCard({
   score,
-  rank,
   hasRealData,
 }: {
   score: SeasonScore;
-  rank: number;
   hasRealData: boolean;
 }) {
   const { crewMember } = score;
@@ -85,7 +82,6 @@ function ScoreCard({
       <div className="flex items-center gap-3">
         <AvatarBadge
           crewMember={crewMember}
-          rank={rank}
           highlight={hasRealData && score.behind === 0}
         />
         <div className="min-w-0 flex-1">
@@ -128,11 +124,9 @@ function ScoreCard({
 
 function AvatarBadge({
   crewMember,
-  rank,
   highlight,
 }: {
   crewMember: CrewMember;
-  rank: number;
   highlight: boolean;
 }) {
   const initial = displayCrewName(crewMember).slice(0, 1).toUpperCase();
@@ -155,9 +149,6 @@ function AvatarBadge({
           {initial}
         </div>
       )}
-      <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-spotify-green text-[10px] font-bold text-black">
-        {rank}
-      </span>
     </div>
   );
 }
