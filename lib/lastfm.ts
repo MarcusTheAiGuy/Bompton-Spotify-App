@@ -83,9 +83,16 @@ function getApiKey(): string {
 }
 
 // Discard tags Last.fm sometimes returns that aren't musical genre
-// signals at all. Keeping the list short — anything obviously useful
-// stays.
+// signals at all. Two buckets:
+//  - Listener meta tags ("seen live", "favorites").
+//  - Bare nationality / country tags ("american", "british",
+//    "japanese"). Last.fm crowdsources these aggressively and they
+//    tend to outrank actual genres on widely-known artists. We only
+//    block the standalone adjective — compound tags that happen to
+//    contain a nationality (e.g. "british invasion", "k-pop",
+//    "americana") survive because they don't match the exact string.
 const TAG_BLOCKLIST = new Set([
+  // Listener meta
   "seen live",
   "favorites",
   "favourite",
@@ -93,10 +100,85 @@ const TAG_BLOCKLIST = new Set([
   "favourites",
   "favorite artists",
   "favourite artists",
+  // Nationality / country / region (standalone form only)
+  "american",
+  "british",
+  "english",
+  "irish",
+  "scottish",
+  "welsh",
+  "canadian",
+  "australian",
+  "new zealand",
+  "kiwi",
+  "french",
+  "german",
+  "spanish",
+  "italian",
+  "portuguese",
+  "dutch",
+  "belgian",
+  "swiss",
+  "swedish",
+  "norwegian",
+  "danish",
+  "finnish",
+  "icelandic",
+  "japanese",
+  "korean",
+  "chinese",
+  "indian",
+  "russian",
+  "ukrainian",
+  "polish",
+  "czech",
+  "greek",
+  "turkish",
+  "brazilian",
+  "mexican",
+  "argentine",
+  "argentinian",
+  "colombian",
+  "chilean",
+  "south african",
+  "nigerian",
+  "israeli",
+  "usa",
+  "uk",
+  "us",
 ]);
 
+// Canonicalize a raw Last.fm tag so different stylings of the same
+// genre collapse to one bucket. Last.fm users tag freely, so the
+// same genre arrives as "Hip Hop", "Hip-Hop", "hip_hop", and
+// "  hip  hop  " — all become "hip hop". Applied at fetch time
+// (so the DB cache is clean going forward) and again at read time
+// in lib/artist-genres.ts (so already-cached rows benefit without
+// a re-fetch).
 function cleanTagName(raw: string): string {
-  return raw.trim().toLowerCase();
+  return raw
+    .toLowerCase()
+    .replace(/[-_/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Shared by getArtistTags and the DB-read path in artist-genres.ts:
+// run a list of raw tag names through cleanTagName, drop blocklisted
+// + empty entries, and dedupe (multiple raw tags can normalize to
+// the same canonical name — e.g. "Hip Hop" and "Hip-Hop").
+export function normalizeGenreTags(raw: readonly string[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const r of raw) {
+    if (typeof r !== "string") continue;
+    const name = cleanTagName(r);
+    if (!name || TAG_BLOCKLIST.has(name)) continue;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    out.push(name);
+  }
+  return out;
 }
 
 export async function getArtistTags(
@@ -158,13 +240,24 @@ export async function getArtistTags(
     );
   }
 
+  // Normalize first (so "Hip Hop" and "Hip-Hop" collapse), apply
+  // minCount on the raw count, then drop blocklisted + dedupe by
+  // canonical name. When two raw tags collapse to the same canonical
+  // name we keep the highest count.
   const minCount = options.minCount ?? 0;
-  const tags = (parsed.toptags?.tag ?? [])
-    .map((t) => ({ name: cleanTagName(t.name), count: t.count }))
-    .filter((t) => t.name && !TAG_BLOCKLIST.has(t.name) && t.count >= minCount);
+  const byName = new Map<string, { name: string; count: number }>();
+  for (const t of parsed.toptags?.tag ?? []) {
+    if (t.count < minCount) continue;
+    const name = cleanTagName(t.name);
+    if (!name || TAG_BLOCKLIST.has(name)) continue;
+    const existing = byName.get(name);
+    if (!existing || t.count > existing.count) {
+      byName.set(name, { name, count: t.count });
+    }
+  }
   return {
     artist: parsed.toptags?.["@attr"]?.artist ?? trimmed,
-    tags,
+    tags: [...byName.values()],
   };
 }
 

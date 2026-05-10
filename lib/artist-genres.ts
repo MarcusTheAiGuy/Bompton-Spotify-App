@@ -4,6 +4,7 @@ import {
   isLastfmConfigured,
   LastfmConfigError,
   LastfmError,
+  normalizeGenreTags,
 } from "@/lib/lastfm";
 import type { SpotifyArtistRef } from "@/lib/spotify";
 
@@ -68,11 +69,17 @@ function isMissingTableError(error: unknown): boolean {
   return /does not exist/i.test(message);
 }
 
+// Re-normalize cached genres at read time. The Artist row was written
+// when the artist was last fetched (up to STALE_AFTER_MS ago), so
+// rows from before the normalization rules expanded still hold raw
+// strings like "Hip-Hop" or "American". Running them through
+// normalizeGenreTags here means the genre tracker reflects the
+// current rules immediately, without waiting for a 60-day re-fetch
+// or a one-shot DB migration.
 function parseGenres(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((g) => (typeof g === "string" ? g.trim() : ""))
-    .filter((g): g is string => g.length > 0);
+  const strings = raw.filter((g): g is string => typeof g === "string");
+  return normalizeGenreTags(strings);
 }
 
 function delay(ms: number): Promise<void> {
