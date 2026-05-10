@@ -274,8 +274,52 @@ export async function getArtistGenresForIds(
         // Rate limit (29) — also stop, the rest of this render won't
         // succeed. Subsequent renders will retry.
         if (error.lastfmCode === 29) break;
-        // Otherwise keep going — a single artist not being on Last.fm
-        // (code 6) shouldn't kill the whole batch.
+        // Code 6 = "Invalid parameters / not found" (Last.fm doesn't
+        // know about this artist — common for local files, very
+        // obscure artists, or names with weird formatting). Without
+        // caching the result, the artist stays in the stale set and
+        // gets retried (and re-fails) on every render, eating the
+        // fetch budget and freezing the "N pending" counter on the
+        // genre card. Persist an empty-genres row so the artist is
+        // marked as "looked up, no tags available". STALE_AFTER_MS
+        // (60 days) lets us retry eventually in case they get added
+        // to Last.fm later.
+        if (error.lastfmCode === 6) {
+          result.set(id, { name, genres: [] });
+          try {
+            await prisma.artist.upsert({
+              where: { spotifyId: id },
+              create: { spotifyId: id, name, genres: [] },
+              update: { name, genres: [] },
+            });
+          } catch (upsertError) {
+            if (isMissingTableError(upsertError)) {
+              console.warn(
+                "[artist-genres] Artist table missing on not-found upsert — click 'Initialize Artist table' on /troubleshooting.",
+              );
+              return {
+                artists: result,
+                tableMissing: true,
+                fetchError,
+                batchesAttempted,
+                batchesFailed,
+                apiKeyConfigured: true,
+                fetchBudgetRemaining,
+              };
+            }
+            const upsertMessage =
+              upsertError instanceof Error
+                ? upsertError.message
+                : String(upsertError);
+            console.error("[artist-genres.upsert-not-found-failed]", {
+              spotifyId: id,
+              name,
+              message: upsertMessage,
+            });
+          }
+        }
+        // Otherwise keep going — a transient per-artist failure
+        // shouldn't kill the whole batch.
       } else {
         const message = error instanceof Error ? error.message : String(error);
         if (!fetchError) {
