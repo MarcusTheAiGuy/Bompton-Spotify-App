@@ -889,36 +889,45 @@ export const ON_TIME_COLORS = [
   "#14B8A6", // teal
 ];
 
-// Greedy assignment: walk Fridays in order, assign each the earliest
-// unconsumed add whose timestamp is >= that Friday's UTC midnight.
-// Adds before the season's first Friday (or before any unsatisfied
-// Friday at the time the add lands) are wasted; adds after every
-// Friday is satisfied are extras and don't reduce late days.
+// Greedy assignment: pair each Friday in chronological order with
+// the i-th earliest add (1st Friday ↔ earliest add, 2nd Friday ↔
+// second earliest, …). No date filter — an add timestamped before
+// its paired Friday still counts (lateness floor at 0 via the
+// max(0, sat - friday) clamp at the call sites). This matches the
+// "I have N adds for N elapsed Fridays, so I'm caught up" mental
+// model that drives the standings-card "behind = max(0, expected -
+// addedCount)" logic, and keeps the user's original example
+// working (adds-on-Saturday-after-two-Fridays → 8d for the
+// previous Friday + 1d for the current Friday = 9 late days
+// because both adds are >= both Fridays anyway).
 //
-// This matches the user's mental model: an add on Saturday after a
-// missed week's Friday "covers" that previous week (with the missed
-// days locked in as that Friday's lateness contribution), and a
-// second add on the same Saturday covers the current week (with
-// 1 day of lateness for the Friday→Saturday lag).
+// Why no date filter: Spotify's `added_at` field can predate the
+// season for songs that were copied from earlier playlists, and
+// users routinely add a song the day before a Friday "for that
+// Friday". A strict `>= friday` filter discards both cases — the
+// user reads "added 8 = expected 8 = caught up" on the standings
+// card while the on-time card claims they're behind, which is
+// exactly the bug we're fixing.
 //
-// Exported for the on-time detail page so the per-Friday timeline
-// table uses the same assignment as the line graph and the
-// cumulative-late totals.
+// Edge cases handled by the simple chronological pairing:
+//   - Fewer adds than Fridays → trailing Fridays are unsatisfied
+//     (matches `max(0, fridays - adds)` semantics).
+//   - More adds than Fridays → extras are dropped (no slot for
+//     them; lateness only counts paired adds).
+//   - Two adds on the same day → both consumed in pair order;
+//     each gets paired with a different Friday.
+//
+// Exported so the on-time detail page's per-Friday timeline table
+// uses the same pairing as the cumulative-late line graph and the
+// totals.
 export function greedyAssignAdds(
   addsMs: readonly number[],
   fridaysMs: readonly number[],
 ): (number | null)[] {
   const sorted = [...addsMs].sort((a, b) => a - b);
   const result: (number | null)[] = [];
-  let i = 0;
-  for (const fMs of fridaysMs) {
-    while (i < sorted.length && sorted[i] < fMs) i += 1;
-    if (i < sorted.length) {
-      result.push(sorted[i]);
-      i += 1;
-    } else {
-      result.push(null);
-    }
+  for (let i = 0; i < fridaysMs.length; i += 1) {
+    result.push(i < sorted.length ? sorted[i] : null);
   }
   return result;
 }
