@@ -111,17 +111,34 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
               /bompton-playlist (auto-sync re-pulls everything from
               scratch).
             </>
+          ) : !genres.artistLookupApiKeyConfigured &&
+            genres.totalArtistsLookedUp === 0 ? (
+            <>
+              <code className="font-mono">LASTFM_API_KEY</code> is not set,
+              so the genre tracker can&apos;t look anything up. Register
+              for a free key at{" "}
+              <a
+                href="https://www.last.fm/api/account/create"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-spotify-green hover:underline"
+              >
+                last.fm/api/account/create
+              </a>{" "}
+              and add{" "}
+              <code className="font-mono">LASTFM_API_KEY</code> to Vercel
+              env (and <code className="font-mono">.env.local</code> for
+              local dev). Card backfills automatically on the next render.
+            </>
           ) : genres.totalArtistsLookedUp === 0 ? (
             <>
               {genres.tracksWithAnyArtistId} of {genres.tracksTotal} tracks
-              have artist ids, but{" "}
-              <code className="font-mono">getArtistGenresForIds</code>{" "}
-              returned an empty map.
+              have artist ids, but the Last.fm lookup returned an empty
+              map.
               {genres.artistLookupFetchError ? (
                 <>
                   {" "}
-                  Spotify rejected the{" "}
-                  <code className="font-mono">/v1/artists</code> call:{" "}
+                  Last.fm rejected the call:{" "}
                   <strong>
                     HTTP{" "}
                     {genres.artistLookupFetchError.status > 0
@@ -136,7 +153,11 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
                     <>
                       {" "}
                       ({genres.artistLookupBatchesFailed}/
-                      {genres.artistLookupBatchesAttempted} batches failed)
+                      {genres.artistLookupBatchesAttempted} artist call
+                      {genres.artistLookupBatchesAttempted === 1
+                        ? ""
+                        : "s"}{" "}
+                      failed)
                     </>
                   ) : null}
                   {genres.artistLookupFetchError.bodyPreview ? (
@@ -149,44 +170,51 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
                   ) : (
                     <>: {genres.artistLookupFetchError.message}</>
                   )}
-                  . Common causes: Spotify&apos;s Feb-2026 Dev-Mode rules
-                  restrict <code className="font-mono">/v1/artists</code> for
-                  apps under quota mode (403), the access token has been
-                  revoked at the Spotify dashboard (401 — sign out + back
-                  in only fixes this if NEXTAUTH didn&apos;t cache the
-                  refresh token), or the request burst was throttled (429
-                  — try reloading in a minute).
+                  . Common Last.fm codes:{" "}
+                  <strong>10</strong> = invalid api key (check the value
+                  in env exactly matches the dashboard),{" "}
+                  <strong>26</strong> = suspended api key (regenerate at
+                  last.fm/api/accounts), <strong>29</strong> = rate limit
+                  hit (wait a minute and reload).
                 </>
               ) : (
                 <>
                   {" "}
-                  No <code className="font-mono">/v1/artists</code> error
-                  was logged either, which is unusual. Check the Vercel
+                  No fetch error was logged either. Check the Vercel
                   function logs for{" "}
                   <code className="font-mono">[bompton-stats.genres-failed]</code>{" "}
                   or{" "}
-                  <code className="font-mono">[artist-genres]</code> entries
-                  on the most recent /bompton-playlist/stats render.
+                  <code className="font-mono">[artist-genres]</code> on the
+                  most recent /bompton-playlist/stats render.
                 </>
               )}
             </>
           ) : genres.totalArtistsWithGenres === 0 ? (
             <>
-              We looked up {genres.totalArtistsLookedUp} artists from
-              Spotify&apos;s <code className="font-mono">/v1/artists</code>{" "}
-              endpoint and zero came back with{" "}
-              <code className="font-mono">genres</code> populated. Spotify
-              has been emptying that field for the vast majority of artists
-              since late 2024 — it&apos;s technically still in the response
-              but is effectively useless for new apps. To make this card
-              work we&apos;d need a different categorization source
-              (Last.fm, MusicBrainz) or a different stat.
+              We looked up {genres.totalArtistsLookedUp} artists on Last.fm
+              and zero came back with any tags. That&apos;s unusual — the
+              most likely causes are an expired API key (check the Last.fm
+              dashboard) or every artist on file has only blocklisted
+              tags (e.g. &quot;seen live&quot;). Reload in a few minutes
+              if a 429 might have hit silently.
             </>
           ) : (
             <>
-              Genres are cached for {genres.totalArtistsWithGenres} of{" "}
-              {genres.totalArtistsLookedUp} artists, but no tag has hit the
-              top-3 threshold yet. More syncs should fix this.
+              Tags are cached for {genres.totalArtistsWithGenres} of{" "}
+              {genres.totalArtistsLookedUp} artists, but none has hit the
+              top-3 threshold yet.
+              {genres.artistLookupFetchBudgetRemaining > 0 ? (
+                <>
+                  {" "}
+                  {genres.artistLookupFetchBudgetRemaining} more artist
+                  {genres.artistLookupFetchBudgetRemaining === 1
+                    ? ""
+                    : "s"}{" "}
+                  still need a Last.fm fetch — reload to fill in the rest.
+                </>
+              ) : (
+                <> More syncs should fix this.</>
+              )}
             </>
           )}
         </EmptyHint>
@@ -283,8 +311,17 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
       </div>
 
       <p className="text-[10px] text-spotify-subtext">
-        Cached genres for {genres.totalArtistsWithGenres} of{" "}
+        Cached tags from Last.fm for {genres.totalArtistsWithGenres} of{" "}
         {genres.totalArtistsLookedUp} artists referenced by Bompton tracks.
+        {genres.artistLookupFetchBudgetRemaining > 0 ? (
+          <>
+            {" "}
+            {genres.artistLookupFetchBudgetRemaining} more artist
+            {genres.artistLookupFetchBudgetRemaining === 1 ? "" : "s"}{" "}
+            still need a Last.fm fetch — reload to fill in the rest (each
+            render fetches up to 30 to stay under the 5-req/s rate limit).
+          </>
+        ) : null}
       </p>
     </StatCardShell>
   );

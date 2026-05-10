@@ -6,11 +6,13 @@ import {
   initCachedSpotifyResponseTable,
   initListeningPlayTable,
   initUserPlaylistLinkTable,
+  resetArtistCache,
   resetPlaylistSyncState,
   type InitArtistTableResult,
   type InitCachedResponseTableResult,
   type InitListeningPlayTableResult,
   type InitPlaylistLinkTableResult,
+  type ResetArtistCacheResult,
   type ResetSyncStateResult,
 } from "./actions";
 
@@ -185,6 +187,46 @@ export function InitListeningPlayButton() {
       ) : null}
       {result && !result.ok ? (
         <p className="whitespace-pre-wrap text-xs text-red-300">{result.error}</p>
+      ) : null}
+    </div>
+  );
+}
+
+export function ResetArtistCacheButton() {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<ResetArtistCacheResult | null>(null);
+
+  function onClick() {
+    setResult(null);
+    startTransition(async () => {
+      const r = await resetArtistCache();
+      setResult(r);
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className="btn-ghost self-start disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Wiping…" : "Reset Artist genre cache"}
+      </button>
+      {result && result.ok ? (
+        <p className="text-xs text-spotify-green">
+          Deleted {result.rowsDeleted} cached artist row
+          {result.rowsDeleted === 1 ? "" : "s"}. Reload
+          /bompton-playlist/stats — the next render starts re-fetching
+          tags from Last.fm (capped at 30 artists per render to stay
+          under the rate limit).
+        </p>
+      ) : null}
+      {result && !result.ok ? (
+        <p className="whitespace-pre-wrap text-xs text-red-300">
+          {result.error}
+        </p>
       ) : null}
     </div>
   );

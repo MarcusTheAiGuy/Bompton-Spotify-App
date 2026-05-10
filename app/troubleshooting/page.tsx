@@ -11,6 +11,7 @@ import {
   InitCachedResponseButton,
   InitListeningPlayButton,
   InitPlaylistLinkButton,
+  ResetArtistCacheButton,
   ResetSyncButton,
 } from "./troubleshooting-buttons";
 
@@ -123,13 +124,31 @@ export default async function TroubleshootingPage() {
             One-shot · Initialize Artist table
           </h3>
           <p className="text-sm text-spotify-subtext">
-            Cache of <code className="font-mono">/v1/artists</code> responses
-            (genres + name) keyed by Spotify artist id. Backs the Genre
+            Cache of artist tags (Last.fm{" "}
+            <code className="font-mono">artist.getTopTags</code> results +
+            artist name) keyed by Spotify artist id. Backs the Genre
             tracker stats card. If this table is missing, the genre lookup
             short-circuits on its first read and the card stays empty.
             Click once after deploy. Idempotent.
           </p>
           <InitArtistButton />
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
+          <h3 className="text-base font-bold tracking-tight">
+            Reset Artist genre cache
+          </h3>
+          <p className="text-sm text-spotify-subtext">
+            Deletes every row in the{" "}
+            <code className="font-mono">Artist</code> table so the genre
+            tracker re-fetches fresh tags from Last.fm on the next stats
+            render. Use this after switching the genre source, or when
+            you suspect cached rows are wrong/stale. Each render fetches
+            up to 30 artists (rate-limited to ~4 req/s), so a full backfill
+            takes a couple of stats-page reloads if you have hundreds of
+            unique artists.
+          </p>
+          <ResetArtistCacheButton />
         </div>
 
         <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
