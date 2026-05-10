@@ -116,8 +116,59 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
               {genres.tracksWithAnyArtistId} of {genres.tracksTotal} tracks
               have artist ids, but{" "}
               <code className="font-mono">getArtistGenresForIds</code>{" "}
-              returned an empty map. Most likely the Spotify token is
-              expired — sign out and back in, then reload.
+              returned an empty map.
+              {genres.artistLookupFetchError ? (
+                <>
+                  {" "}
+                  Spotify rejected the{" "}
+                  <code className="font-mono">/v1/artists</code> call:{" "}
+                  <strong>
+                    HTTP{" "}
+                    {genres.artistLookupFetchError.status > 0
+                      ? genres.artistLookupFetchError.status
+                      : "—"}
+                  </strong>{" "}
+                  on{" "}
+                  <code className="font-mono">
+                    {genres.artistLookupFetchError.path}
+                  </code>
+                  {genres.artistLookupBatchesAttempted > 0 ? (
+                    <>
+                      {" "}
+                      ({genres.artistLookupBatchesFailed}/
+                      {genres.artistLookupBatchesAttempted} batches failed)
+                    </>
+                  ) : null}
+                  {genres.artistLookupFetchError.bodyPreview ? (
+                    <>
+                      :{" "}
+                      <code className="font-mono">
+                        {genres.artistLookupFetchError.bodyPreview}
+                      </code>
+                    </>
+                  ) : (
+                    <>: {genres.artistLookupFetchError.message}</>
+                  )}
+                  . Common causes: Spotify&apos;s Feb-2026 Dev-Mode rules
+                  restrict <code className="font-mono">/v1/artists</code> for
+                  apps under quota mode (403), the access token has been
+                  revoked at the Spotify dashboard (401 — sign out + back
+                  in only fixes this if NEXTAUTH didn&apos;t cache the
+                  refresh token), or the request burst was throttled (429
+                  — try reloading in a minute).
+                </>
+              ) : (
+                <>
+                  {" "}
+                  No <code className="font-mono">/v1/artists</code> error
+                  was logged either, which is unusual. Check the Vercel
+                  function logs for{" "}
+                  <code className="font-mono">[bompton-stats.genres-failed]</code>{" "}
+                  or{" "}
+                  <code className="font-mono">[artist-genres]</code> entries
+                  on the most recent /bompton-playlist/stats render.
+                </>
+              )}
             </>
           ) : genres.totalArtistsWithGenres === 0 ? (
             <>

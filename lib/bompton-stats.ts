@@ -11,6 +11,7 @@ import {
 import {
   getArtistGenresForIds,
   type ArtistGenres,
+  type ArtistGenresFetchError,
 } from "@/lib/artist-genres";
 import { prisma } from "@/lib/prisma";
 
@@ -290,6 +291,14 @@ export type GenreBreakdown = {
   // snapshot match and won't repull stale rows).
   tracksTotal: number;
   tracksWithAnyArtistId: number;
+  // The most recent /v1/artists fetch failure (status, body preview)
+  // and how many batches we attempted vs failed. The empty state
+  // surfaces these so users see the actual cause when the lookup
+  // returns nothing — most often a 401/403/429 from Spotify, not
+  // "token expired."
+  artistLookupFetchError: ArtistGenresFetchError | null;
+  artistLookupBatchesAttempted: number;
+  artistLookupBatchesFailed: number;
 };
 
 export function getGenreBreakdown(
@@ -297,6 +306,9 @@ export function getGenreBreakdown(
   crew: CrewMember[],
   artistGenres: Map<string, ArtistGenres>,
   artistTableMissing: boolean,
+  artistLookupFetchError: ArtistGenresFetchError | null = null,
+  artistLookupBatchesAttempted = 0,
+  artistLookupBatchesFailed = 0,
 ): GenreBreakdown {
   const perCrewCounts = new Map<string, Map<string, number>>();
   const perCrewTotals = new Map<string, number>();
@@ -375,6 +387,9 @@ export function getGenreBreakdown(
     artistTableMissing,
     tracksTotal,
     tracksWithAnyArtistId,
+    artistLookupFetchError,
+    artistLookupBatchesAttempted,
+    artistLookupBatchesFailed,
   };
 }
 
@@ -1080,16 +1095,30 @@ export async function buildBomptonStats(
   }
   let artistGenres = new Map<string, ArtistGenres>();
   let artistTableMissing = false;
+  let artistLookupFetchError: ArtistGenresFetchError | null = null;
+  let artistLookupBatchesAttempted = 0;
+  let artistLookupBatchesFailed = 0;
   try {
     const lookup = await getArtistGenresForIds(callerUserId, [...artistIds]);
     artistGenres = lookup.artists;
     artistTableMissing = lookup.tableMissing;
+    artistLookupFetchError = lookup.fetchError;
+    artistLookupBatchesAttempted = lookup.batchesAttempted;
+    artistLookupBatchesFailed = lookup.batchesFailed;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[bompton-stats.genres-failed]", {
       callerUserId,
       message,
     });
+    // Surface the unexpected throw too so the empty state can show it
+    // instead of looking like a normal "no data" case.
+    artistLookupFetchError = {
+      status: 0,
+      path: "/v1/artists?ids=…",
+      bodyPreview: "",
+      message,
+    };
   }
 
   const dedicationResult = await getListeningDedication(data, crew);
@@ -1097,7 +1126,15 @@ export async function buildBomptonStats(
   return {
     vitals: getPlaylistVitals(flat, data),
     leaderboard: getAllTimeLeaderboard(data, crew),
-    genres: getGenreBreakdown(flat, crew, artistGenres, artistTableMissing),
+    genres: getGenreBreakdown(
+      flat,
+      crew,
+      artistGenres,
+      artistTableMissing,
+      artistLookupFetchError,
+      artistLookupBatchesAttempted,
+      artistLookupBatchesFailed,
+    ),
     dedication: dedicationResult.entries,
     dedicationTableMissing: dedicationResult.tableMissing,
     dedicationCandidatePlays: dedicationResult.totalCandidatePlays,
