@@ -32,7 +32,26 @@ export const metadata: Metadata = {
       { url: "/favicon-192x192.png", sizes: "192x192", type: "image/png" },
     ],
     shortcut: "/favicon.ico",
-    // apple-touch-icon link is auto-emitted from app/apple-icon.png
+    // Explicit apple-touch-icon entries pointing at the static
+    // /public/apple-touch-icon.png URL. Next.js' app/apple-icon.png
+    // convention auto-emits the same kind of link, but it serves
+    // the file at a hashed path like `/apple-icon?<hash>` which
+    // Safari ignores when it falls back to looking up
+    // `/apple-touch-icon.png` (and the precomposed variant) at the
+    // site root for bookmark/favorites tiles. Listing them here
+    // keeps the URL stable, which is what Safari wants — Safari
+    // caches favicons very aggressively, so a stable URL is the
+    // difference between "icon eventually appears" and "icon
+    // never appears even after rebuild".
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
+      {
+        rel: "apple-touch-icon-precomposed",
+        url: "/apple-touch-icon-precomposed.png",
+      },
+    ],
   },
   openGraph: {
     type: "website",
