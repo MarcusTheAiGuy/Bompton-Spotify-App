@@ -313,38 +313,48 @@ export type GenreBreakdown = {
   artistLookupFetchBudgetRemaining: number;
 };
 
-// Reduce a member's per-tag counts to (top umbrella, top sub-genre
-// inside that umbrella). Sub-genre selection only considers tags
-// that map to the chosen umbrella AND are different from the
-// umbrella name itself — so a member tagged with "rap" + "conscious
-// rap" + "trap" gets umbrella=rap, subGenre=whichever of "conscious
-// rap"/"trap" has the higher count. If every tag for the top
-// umbrella IS just the umbrella name, subGenre is null.
+// Minimum absolute count for a sub-genre tag to be eligible for
+// "most distinctive" share-based selection. Below this floor, share
+// numbers get noisy — a tag with member count 1 / overall 1 has 100%
+// share but tells you nothing. Tags below the floor still compete
+// in the absolute-count fallback so a member with sparse tagging
+// isn't left with an empty sub slot.
+const SUBGENRE_MIN_COUNT = 2;
+
+// Reduce a member's data to (top umbrella, top sub-genre).
 //
-// Fallback: when no tag in the member's set maps to any known
-// umbrella, surface the highest-count tag as the umbrella line so
-// the slot isn't empty (with subGenre still null).
+// Umbrella selection uses TRACK counts per umbrella (each track
+// votes once per umbrella it touches, capped at one vote per
+// umbrella per track). Summing tag counts would bias toward
+// genres whose artists carry more sub-tags on Last.fm — rap
+// artists routinely have 5+ canonical sub-tags after our merge,
+// so summing gives rap a 3-5x edge over rock per track even
+// when the member's listening is balanced.
+//
+// Sub-genre selection picks the tag with the highest "personal
+// share" inside the chosen umbrella — share = (member's count
+// for the tag) / (playlist's overall count for the tag). This
+// surfaces what's DISTINCTIVE about the member rather than
+// re-surfacing whatever Last.fm tag is most universally applied
+// (without this, "underground rap" wins for everyone, since
+// Last.fm tags it on nearly every rap artist). The bare umbrella
+// name is excluded — its sub slot would be redundant with the
+// umbrella line. Tags below SUBGENRE_MIN_COUNT are excluded from
+// share ranking to avoid noise; if the share-ranked set is empty
+// we fall back to highest absolute count among any sub-tag.
+//
+// When no tag in the member's set maps to any known umbrella,
+// surface the highest-count tag as the umbrella line so the slot
+// isn't empty (subGenre stays null).
 function pickUmbrellaAndSubGenre(
-  counts: Map<string, number>,
+  tagCounts: Map<string, number>,
+  umbrellaTrackCounts: Map<string, number>,
+  overallTagCounts: Map<string, number>,
 ): { umbrella: GenreCount | null; subGenre: GenreCount | null } {
-  if (counts.size === 0) return { umbrella: null, subGenre: null };
+  if (tagCounts.size === 0) return { umbrella: null, subGenre: null };
 
-  const umbrellaSums = new Map<string, number>();
-  const tagsByUmbrella = new Map<string, Map<string, number>>();
-  for (const [tag, count] of counts) {
-    const umb = umbrellaOf(tag);
-    if (!umb) continue;
-    umbrellaSums.set(umb, (umbrellaSums.get(umb) ?? 0) + count);
-    let bucket = tagsByUmbrella.get(umb);
-    if (!bucket) {
-      bucket = new Map();
-      tagsByUmbrella.set(umb, bucket);
-    }
-    bucket.set(tag, (bucket.get(tag) ?? 0) + count);
-  }
-
-  if (umbrellaSums.size === 0) {
-    const top = [...counts.entries()].sort(
+  if (umbrellaTrackCounts.size === 0) {
+    const top = [...tagCounts.entries()].sort(
       (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
     )[0];
     return {
@@ -353,18 +363,36 @@ function pickUmbrellaAndSubGenre(
     };
   }
 
-  const [topUmbName, topUmbCount] = [...umbrellaSums.entries()].sort(
+  const [topUmbName, topUmbCount] = [...umbrellaTrackCounts.entries()].sort(
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   )[0];
 
-  const bucket = tagsByUmbrella.get(topUmbName) ?? new Map<string, number>();
-  const subEntries = [...bucket.entries()].filter(([tag]) => tag !== topUmbName);
+  const subInUmbrella: { tag: string; count: number; share: number }[] = [];
+  for (const [tag, count] of tagCounts) {
+    if (tag === topUmbName) continue;
+    if (umbrellaOf(tag) !== topUmbName) continue;
+    const overall = overallTagCounts.get(tag) ?? count;
+    const share = overall > 0 ? count / overall : 0;
+    subInUmbrella.push({ tag, count, share });
+  }
+
   let subGenre: GenreCount | null = null;
-  if (subEntries.length > 0) {
-    const [subTag, subCount] = subEntries.sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    )[0];
-    subGenre = { genre: subTag, count: subCount };
+  if (subInUmbrella.length > 0) {
+    const eligible = subInUmbrella.filter((s) => s.count >= SUBGENRE_MIN_COUNT);
+    const pool = eligible.length > 0 ? eligible : subInUmbrella;
+    const ranked = pool.slice().sort((a, b) => {
+      // Share-distinctive tags first; ties broken by raw count then
+      // alpha so output is deterministic.
+      if (eligible.length > 0) {
+        if (b.share !== a.share) return b.share - a.share;
+        if (b.count !== a.count) return b.count - a.count;
+      } else {
+        if (b.count !== a.count) return b.count - a.count;
+      }
+      return a.tag.localeCompare(b.tag);
+    });
+    const top = ranked[0];
+    subGenre = { genre: top.tag, count: top.count };
   }
 
   return {
@@ -385,9 +413,11 @@ export function getGenreBreakdown(
   artistLookupFetchBudgetRemaining = 0,
 ): GenreBreakdown {
   const perCrewCounts = new Map<string, Map<string, number>>();
+  const perCrewUmbrellaTrackCounts = new Map<string, Map<string, number>>();
   const perCrewTotals = new Map<string, number>();
   for (const c of crew) {
     perCrewCounts.set(c.id, new Map());
+    perCrewUmbrellaTrackCounts.set(c.id, new Map());
     perCrewTotals.set(c.id, 0);
   }
   const overallCounts = new Map<string, number>();
@@ -417,8 +447,25 @@ export function getGenreBreakdown(
       for (const g of data.genres) trackGenres.add(g);
     }
     if (trackGenres.size === 0) continue;
+
+    // Set of umbrellas this track touches. We accumulate per-umbrella
+    // TRACK counts (1 vote per umbrella per track, regardless of how
+    // many sub-tags the artist carries) so the umbrella picker isn't
+    // biased toward genres whose artists tend to have more sub-tags
+    // on Last.fm — rap artists are tagged with {rap, underground rap,
+    // conscious rap, trap, …} so summing tag counts gives rap a 3-5x
+    // advantage over rock per track. Track-count fixes that.
+    const trackUmbrellas = new Set<string>();
+    for (const g of trackGenres) {
+      const u = umbrellaOf(g);
+      if (u) trackUmbrellas.add(u);
+    }
+
     const member = findCrewBySpotifyId(crew, track.added_by?.id);
     const memberCounts = member ? perCrewCounts.get(member.id) : null;
+    const memberUmbrellaCounts = member
+      ? perCrewUmbrellaTrackCounts.get(member.id)
+      : null;
     for (const g of trackGenres) {
       overallCounts.set(g, (overallCounts.get(g) ?? 0) + 1);
       if (memberCounts && member) {
@@ -429,13 +476,20 @@ export function getGenreBreakdown(
         );
       }
     }
+    if (memberUmbrellaCounts) {
+      for (const u of trackUmbrellas) {
+        memberUmbrellaCounts.set(u, (memberUmbrellaCounts.get(u) ?? 0) + 1);
+      }
+    }
   }
 
   const perCrew: GenreBreakdownPerCrew[] = crew.map((c) => {
     const counts = perCrewCounts.get(c.id) ?? new Map<string, number>();
+    const umbrellaTracks =
+      perCrewUmbrellaTrackCounts.get(c.id) ?? new Map<string, number>();
     return {
       crewMember: c,
-      ...pickUmbrellaAndSubGenre(counts),
+      ...pickUmbrellaAndSubGenre(counts, umbrellaTracks, overallCounts),
       totalGenreHits: perCrewTotals.get(c.id) ?? 0,
     };
   });
@@ -730,7 +784,7 @@ export type ArtistCount = { name: string; count: number };
 
 export function getTopArtists(
   flat: FlattenedTrack[],
-  limit = 6,
+  limit = 10,
 ): ArtistCount[] {
   const counts = new Map<string, number>();
   for (const { track } of flat) {
