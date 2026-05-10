@@ -6,6 +6,7 @@ import type {
   CrewMember,
 } from "@/lib/bompton";
 import { tallyContributors } from "@/lib/bompton";
+import { displayCrewName } from "@/lib/spotify-user-names";
 import { BomptonTrackList } from "@/components/bompton/bompton-track-list";
 
 function shortYear(year: BomptonYear): string {
@@ -132,7 +133,7 @@ function ContributorPanel({
       </p>
       <ul className="flex flex-col gap-2">
         {perCrew.map(({ crewMember, count }) => {
-          const label = crewMember.name ?? crewMember.email ?? "Unknown";
+          const label = displayCrewName(crewMember);
           return (
             <li
               key={crewMember.id}

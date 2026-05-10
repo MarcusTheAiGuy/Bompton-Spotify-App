@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import type { SpotifyProfile } from "@/lib/spotify";
+import { displayCrewName } from "@/lib/spotify-user-names";
 import {
   captureErrorDetail,
   isNextControlFlowError,
@@ -175,6 +176,10 @@ function ProfileHeader({
 }) {
   const imageSrc = profile?.images?.[0]?.url ?? viewedUser.image ?? null;
   const isSelf = viewedUser.id === session.user.id;
+  const friendlyName = displayCrewName({
+    name: profile?.display_name ?? viewedUser.name,
+    email: viewedUser.email,
+  });
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center">
       {imageSrc ? (
@@ -189,10 +194,10 @@ function ProfileHeader({
       )}
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-xs uppercase tracking-widest text-spotify-subtext">
-          {isSelf ? "Your dashboard" : `${viewedUser.name ?? viewedUser.email}'s dashboard`}
+          {isSelf ? "Your dashboard" : `${friendlyName}'s dashboard`}
         </p>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-          {profile?.display_name ?? viewedUser.name ?? viewedUser.email ?? "Unknown"}
+          {friendlyName}
         </h1>
         <p className="truncate text-sm text-spotify-subtext">
           {profile?.email ?? viewedUser.email ?? ""}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { displayCrewName } from "@/lib/spotify-user-names";
 
 export type TabUser = {
   id: string;
@@ -21,7 +22,7 @@ export function UserTabs({
     >
       {users.map((user) => {
         const active = user.id === activeUserId;
-        const label = user.name ?? user.email ?? user.id;
+        const label = displayCrewName(user);
         return (
           <Link
             key={user.id}
