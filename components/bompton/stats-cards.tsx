@@ -55,7 +55,7 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 
 export function GenreCard({ genres }: { genres: GenreBreakdown }) {
   const hasOverall = genres.overall.length > 0;
-  const hasAnyPerCrew = genres.perCrew.some((c) => c.topGenres.length > 0);
+  const hasAnyPerCrew = genres.perCrew.some((c) => c.umbrella !== null);
   if (!hasOverall && !hasAnyPerCrew) {
     return (
       <StatCardShell title="Genre tracker" subtitle="Card 1 · Catalog">
@@ -223,12 +223,6 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
   }
   return (
     <StatCardShell title="Genre tracker" subtitle="Card 1 · Catalog">
-      <p className="text-xs text-spotify-subtext">
-        Top three genres for each crew member, plus the top three across the
-        playlist as a whole. Each genre tag on an artist counts once per
-        track.
-      </p>
-
       <div className="flex flex-col gap-2">
         <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
           Bompton overall
@@ -263,47 +257,31 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
         <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
           By crew member
         </p>
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-2.5">
           {genres.perCrew.map((entry) => (
             <li
               key={entry.crewMember.id}
-              className="flex flex-col gap-1.5"
+              className="flex items-center gap-2"
             >
-              <div className="flex items-center gap-2">
-                <CrewAvatar crewMember={entry.crewMember} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {entry.crewMember.name ??
-                    entry.crewMember.email ??
-                    "Unknown"}
-                </span>
-                <span className="font-mono text-[10px] text-spotify-subtext">
-                  {entry.totalGenreHits} tags
-                </span>
-              </div>
-              {entry.topGenres.length > 0 ? (
-                <ol className="flex flex-col gap-1 pl-8 text-xs">
-                  {entry.topGenres.map((g, idx) => (
-                    <li
-                      key={g.genre}
-                      className="flex items-center gap-2"
-                    >
-                      <span className="w-4 text-center font-mono text-[10px] text-spotify-subtext">
-                        {idx + 1}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate capitalize">
-                        {g.genre}
-                      </span>
-                      <span className="font-mono text-spotify-subtext">
-                        {g.count}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
+              <CrewAvatar crewMember={entry.crewMember} size="sm" />
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {entry.crewMember.name ??
+                  entry.crewMember.email ??
+                  "Unknown"}
+              </span>
+              {entry.umbrella ? (
+                <div className="flex min-w-0 flex-col items-end gap-0 text-right">
+                  <span className="truncate text-sm font-semibold capitalize">
+                    {entry.umbrella.genre}
+                  </span>
+                  <span className="truncate text-[11px] text-spotify-subtext capitalize">
+                    {entry.subGenre?.genre ?? "—"}
+                  </span>
+                </div>
               ) : (
-                <p className="pl-8 text-[10px] text-spotify-subtext">
-                  No genres yet — this member's added artists aren't in our
-                  Artist cache.
-                </p>
+                <span className="text-[10px] text-spotify-subtext">
+                  no tags cached
+                </span>
               )}
             </li>
           ))}
@@ -311,16 +289,10 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
       </div>
 
       <p className="text-[10px] text-spotify-subtext">
-        Cached tags from Last.fm for {genres.totalArtistsWithGenres} of{" "}
-        {genres.totalArtistsLookedUp} artists referenced by Bompton tracks.
+        Last.fm: {genres.totalArtistsWithGenres}/{genres.totalArtistsLookedUp}{" "}
+        artists tagged
         {genres.artistLookupFetchBudgetRemaining > 0 ? (
-          <>
-            {" "}
-            {genres.artistLookupFetchBudgetRemaining} more artist
-            {genres.artistLookupFetchBudgetRemaining === 1 ? "" : "s"}{" "}
-            still need a Last.fm fetch — reload to fill in the rest (each
-            render fetches up to 30 to stay under the 5-req/s rate limit).
-          </>
+          <> · {genres.artistLookupFetchBudgetRemaining} pending (reload)</>
         ) : null}
       </p>
     </StatCardShell>

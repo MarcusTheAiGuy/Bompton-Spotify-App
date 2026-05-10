@@ -16,6 +16,8 @@
 // parallelize calls anywhere in this codebase, but if you ever do,
 // keep at least 250ms between requests to stay well under.
 
+import { canonicalizeTag } from "@/lib/genre-taxonomy";
+
 const LASTFM_API_BASE = "https://ws.audioscrobbler.com/2.0/";
 
 export class LastfmConfigError extends Error {
@@ -165,18 +167,22 @@ function cleanTagName(raw: string): string {
 
 // Shared by getArtistTags and the DB-read path in artist-genres.ts:
 // run a list of raw tag names through cleanTagName, drop blocklisted
-// + empty entries, and dedupe (multiple raw tags can normalize to
-// the same canonical name — e.g. "Hip Hop" and "Hip-Hop").
+// + empty entries, apply synonym canonicalization (so "hip hop" and
+// "rap" merge into one bucket), and dedupe (multiple raw tags
+// can normalize to the same canonical name — e.g. "Hip Hop",
+// "Hip-Hop", "rap", "hiphop" all collapse to "rap").
 export function normalizeGenreTags(raw: readonly string[]): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
   for (const r of raw) {
     if (typeof r !== "string") continue;
-    const name = cleanTagName(r);
-    if (!name || TAG_BLOCKLIST.has(name)) continue;
-    if (seen.has(name)) continue;
-    seen.add(name);
-    out.push(name);
+    const cleaned = cleanTagName(r);
+    if (!cleaned || TAG_BLOCKLIST.has(cleaned)) continue;
+    const canonical = canonicalizeTag(cleaned);
+    if (!canonical || TAG_BLOCKLIST.has(canonical)) continue;
+    if (seen.has(canonical)) continue;
+    seen.add(canonical);
+    out.push(canonical);
   }
   return out;
 }
@@ -240,15 +246,18 @@ export async function getArtistTags(
     );
   }
 
-  // Normalize first (so "Hip Hop" and "Hip-Hop" collapse), apply
-  // minCount on the raw count, then drop blocklisted + dedupe by
-  // canonical name. When two raw tags collapse to the same canonical
-  // name we keep the highest count.
+  // Two-pass normalization (separator collapse → synonym rewrite),
+  // then minCount filter, then drop blocklisted + dedupe by canonical
+  // name. When several raw tags collapse to the same canonical name
+  // (e.g. "Hip Hop" and "rap" both → "rap") we keep the highest
+  // count to give a fair signal of the merged tag's strength.
   const minCount = options.minCount ?? 0;
   const byName = new Map<string, { name: string; count: number }>();
   for (const t of parsed.toptags?.tag ?? []) {
     if (t.count < minCount) continue;
-    const name = cleanTagName(t.name);
+    const cleaned = cleanTagName(t.name);
+    if (!cleaned || TAG_BLOCKLIST.has(cleaned)) continue;
+    const name = canonicalizeTag(cleaned);
     if (!name || TAG_BLOCKLIST.has(name)) continue;
     const existing = byName.get(name);
     if (!existing || t.count > existing.count) {
