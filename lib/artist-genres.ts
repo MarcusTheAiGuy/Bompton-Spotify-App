@@ -1,41 +1,59 @@
 import { prisma } from "@/lib/prisma";
-import { spotifyFetch, SpotifyError, type SpotifyArtist } from "@/lib/spotify";
+import {
+  getArtistTags,
+  isLastfmConfigured,
+  LastfmConfigError,
+  LastfmError,
+} from "@/lib/lastfm";
+import type { SpotifyArtistRef } from "@/lib/spotify";
 
-// Cache of /v1/artists data, keyed by spotify artist id. Used by the
-// genre-tracker stats card. We don't get genres back from playlist or
-// recently-played responses — they live on the artist object.
+// Per-(spotifyId) cache of artist tag data. Used by the genre-tracker
+// stats card. The "genres" we store are now Last.fm tags (Spotify's
+// /v1/artists endpoint is 403'd for our dev-quota app under the
+// Feb-2026 rules), but the schema name stays "genres" so we don't
+// need a Prisma migration.
 //
 // Strategy:
 //  - Bulk-load every artist id we need from the Artist table.
-//  - For ids we don't have OR rows older than 60 days, batch-fetch
-//    from Spotify using a caller-authenticated token (the /artists
-//    endpoint accepts up to 50 ids per call).
-//  - Upsert results so subsequent renders are free.
-//
-// If the Artist table doesn't exist yet (fresh DB before db push),
-// every code path returns the cached map we already have without
-// throwing — the genre card just shows "no data yet".
+//  - For ids we don't have OR rows older than 60 days, fetch from
+//    Last.fm by artist NAME (Last.fm doesn't know Spotify ids and
+//    has no batch endpoint, so we serial-fetch with a small gap to
+//    stay under their 5-req/s rate limit).
+//  - To avoid a 60-second server render when 300 artists are
+//    uncached on a fresh deploy, cap each render at FETCH_BUDGET
+//    fetches. Subsequent renders fill in the rest.
+//  - Upsert results so future renders skip the network entirely.
 
 const STALE_AFTER_MS = 60 * 24 * 60 * 60 * 1000;
-const BATCH_SIZE = 50;
+const FETCH_GAP_MS = 250;
+const DEFAULT_FETCH_BUDGET = 30;
 
 export type ArtistGenres = { name: string; genres: string[] };
 
 // Result of a genre lookup. `tableMissing` flags the case where the
 // Artist table doesn't exist in the DB at all (a fresh deploy that
 // hasn't clicked "Initialize Artist table" on /troubleshooting yet),
-// so the genre card can show an actionable empty state instead of the
-// generic "no data yet" hint. `fetchError` carries the most recent
-// /v1/artists failure (HTTP status + endpoint + truncated body) so the
-// empty state can show the actual cause when nothing came back —
-// previously we logged + swallowed the error, leaving the UI to guess
-// "token expired" with no real evidence.
+// so the genre card can show an actionable empty state instead of
+// the generic "no data yet" hint. `fetchError` carries the most
+// recent Last.fm failure so the empty state can show the actual
+// cause when nothing came back.
 export type ArtistGenresLookup = {
   artists: Map<string, ArtistGenres>;
   tableMissing: boolean;
   fetchError: ArtistGenresFetchError | null;
+  // How many Last.fm artist calls we attempted on this render and
+  // how many failed. Renamed from "batches" to keep the existing UI
+  // copy ("X/Y batches failed") accurate without a type rename.
   batchesAttempted: number;
   batchesFailed: number;
+  // Was the LASTFM_API_KEY env var configured at all? When false we
+  // never even try to fetch — the card tells the user to register
+  // for a free key.
+  apiKeyConfigured: boolean;
+  // How many uncached artists remained when we hit the per-render
+  // fetch budget. Surfaced so the empty state can say "we filled in
+  // X of Y artists this render — reload to fill in the rest."
+  fetchBudgetRemaining: number;
 };
 
 export type ArtistGenresFetchError = {
@@ -57,29 +75,59 @@ function parseGenres(raw: unknown): string[] {
     .filter((g): g is string => g.length > 0);
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Inputs accepted: either a list of bare Spotify artist ids (the old
+// shape — we'd need to look up names separately, which we don't have a
+// path for) or a list of {id, name} pairs from playlist data. The
+// stats page calls us with the second shape; we fall back to "id only"
+// if just strings are passed.
+export type ArtistInput =
+  | string
+  | Pick<SpotifyArtistRef, "id" | "name">;
+
 export async function getArtistGenresForIds(
-  callerUserId: string,
-  artistIds: string[],
+  _callerUserId: string,
+  artistInputs: ArtistInput[],
+  options: { fetchBudget?: number } = {},
 ): Promise<ArtistGenresLookup> {
+  const fetchBudget = options.fetchBudget ?? DEFAULT_FETCH_BUDGET;
   const result = new Map<string, ArtistGenres>();
   let fetchError: ArtistGenresFetchError | null = null;
   let batchesAttempted = 0;
   let batchesFailed = 0;
-  const unique = [...new Set(artistIds.filter((id) => id))];
-  if (unique.length === 0) {
+
+  // Normalize inputs to {id, name} and dedupe by id.
+  const normalized = new Map<string, string>();
+  for (const input of artistInputs) {
+    if (typeof input === "string") {
+      if (input) normalized.set(input, "");
+      continue;
+    }
+    if (!input?.id) continue;
+    if (!normalized.has(input.id) || (input.name && !normalized.get(input.id))) {
+      normalized.set(input.id, input.name ?? "");
+    }
+  }
+  if (normalized.size === 0) {
     return {
       artists: result,
       tableMissing: false,
       fetchError: null,
       batchesAttempted: 0,
       batchesFailed: 0,
+      apiKeyConfigured: isLastfmConfigured(),
+      fetchBudgetRemaining: fetchBudget,
     };
   }
 
+  const ids = [...normalized.keys()];
   let cached: Awaited<ReturnType<typeof prisma.artist.findMany>> = [];
   try {
     cached = await prisma.artist.findMany({
-      where: { spotifyId: { in: unique } },
+      where: { spotifyId: { in: ids } },
     });
   } catch (error) {
     if (isMissingTableError(error)) {
@@ -92,6 +140,8 @@ export async function getArtistGenresForIds(
         fetchError: null,
         batchesAttempted: 0,
         batchesFailed: 0,
+        apiKeyConfigured: isLastfmConfigured(),
+        fetchBudgetRemaining: fetchBudget,
       };
     }
     throw error;
@@ -99,15 +149,16 @@ export async function getArtistGenresForIds(
 
   const cachedById = new Map(cached.map((a) => [a.spotifyId, a]));
   const now = Date.now();
-  const stale: string[] = [];
-  for (const id of unique) {
+  const stale: { id: string; name: string }[] = [];
+  for (const id of ids) {
     const row = cachedById.get(id);
+    const name = normalized.get(id) || row?.name || "";
     if (!row) {
-      stale.push(id);
+      if (name) stale.push({ id, name });
       continue;
     }
-    if (now - row.updatedAt.getTime() > STALE_AFTER_MS) {
-      stale.push(id);
+    if (now - row.updatedAt.getTime() > STALE_AFTER_MS && name) {
+      stale.push({ id, name });
     }
     result.set(id, { name: row.name, genres: parseGenres(row.genres) });
   }
@@ -119,65 +170,45 @@ export async function getArtistGenresForIds(
       fetchError: null,
       batchesAttempted: 0,
       batchesFailed: 0,
+      apiKeyConfigured: isLastfmConfigured(),
+      fetchBudgetRemaining: fetchBudget,
     };
   }
 
-  for (let i = 0; i < stale.length; i += BATCH_SIZE) {
-    const batch = stale.slice(i, i + BATCH_SIZE);
+  // Hit Last.fm for the stale set, capped by the per-render budget.
+  if (!isLastfmConfigured()) {
+    return {
+      artists: result,
+      tableMissing: false,
+      fetchError: {
+        status: 0,
+        path: "lib/lastfm.ts:getArtistTags",
+        bodyPreview: "",
+        message:
+          "LASTFM_API_KEY is not set — register at https://www.last.fm/api/account/create and add LASTFM_API_KEY to env.",
+      },
+      batchesAttempted: 0,
+      batchesFailed: 0,
+      apiKeyConfigured: false,
+      fetchBudgetRemaining: fetchBudget,
+    };
+  }
+
+  const toFetch = stale.slice(0, fetchBudget);
+  const fetchBudgetRemaining = Math.max(0, stale.length - toFetch.length);
+
+  for (let i = 0; i < toFetch.length; i += 1) {
+    const { id, name } = toFetch[i];
     batchesAttempted += 1;
-    let response: { artists: (SpotifyArtist | null)[] } | null = null;
     try {
-      response = await spotifyFetch<{ artists: (SpotifyArtist | null)[] }>(
-        callerUserId,
-        `/artists?ids=${batch.join(",")}`,
-      );
-    } catch (error) {
-      batchesFailed += 1;
-      if (error instanceof SpotifyError) {
-        console.warn(
-          `[artist-genres] /artists?ids=... batch failed (HTTP ${error.status}): ${error.body.slice(
-            0,
-            200,
-          )}. Falling back to cached genres only for this batch.`,
-        );
-        // Capture the first failure so the UI can surface a real cause.
-        // If later batches succeed, this still gets shown — that's the
-        // honest signal that genre data is partial.
-        if (!fetchError) {
-          fetchError = {
-            status: error.status,
-            path: error.path,
-            bodyPreview: error.body.slice(0, 300),
-            message: error.message,
-          };
-        }
-        continue;
-      }
-      // Non-SpotifyError (e.g. SpotifyAccountMissingError, network
-      // throw). Capture the message and bail out of the loop — none of
-      // the subsequent batches will succeed either.
-      const message = error instanceof Error ? error.message : String(error);
-      if (!fetchError) {
-        fetchError = {
-          status: 0,
-          path: `/artists?ids=${batch[0]}…`,
-          bodyPreview: "",
-          message,
-        };
-      }
-      break;
-    }
-    if (!response?.artists) continue;
-    for (const artist of response.artists) {
-      if (!artist || !artist.id) continue;
-      const genres = parseGenres(artist.genres);
-      const name = artist.name ?? "";
-      result.set(artist.id, { name, genres });
+      const lookup = await getArtistTags(name);
+      const tagNames = lookup.tags.map((t) => t.name);
+      result.set(id, { name, genres: tagNames });
       try {
         await prisma.artist.upsert({
-          where: { spotifyId: artist.id },
-          create: { spotifyId: artist.id, name, genres },
-          update: { name, genres },
+          where: { spotifyId: id },
+          create: { spotifyId: id, name, genres: tagNames },
+          update: { name, genres: tagNames },
         });
       } catch (error) {
         if (isMissingTableError(error)) {
@@ -190,17 +221,69 @@ export async function getArtistGenresForIds(
             fetchError,
             batchesAttempted,
             batchesFailed,
+            apiKeyConfigured: true,
+            fetchBudgetRemaining,
           };
         }
-        // Don't crash the whole stats page on a single upsert hiccup —
-        // we already have the genre data in memory for this render.
         const message = error instanceof Error ? error.message : String(error);
-        console.error("[artist-genres.upsert-failed]", {
-          artistId: artist.id,
-          message,
-        });
+        console.error("[artist-genres.upsert-failed]", { spotifyId: id, message });
+      }
+    } catch (error) {
+      batchesFailed += 1;
+      if (error instanceof LastfmConfigError) {
+        // Shouldn't happen after the isLastfmConfigured check but
+        // handle defensively.
+        if (!fetchError) {
+          fetchError = {
+            status: 0,
+            path: "lib/lastfm.ts",
+            bodyPreview: "",
+            message: error.message,
+          };
+        }
+        break;
+      }
+      if (error instanceof LastfmError) {
+        console.warn(
+          `[artist-genres] Last.fm artist.gettoptags("${name}") failed (HTTP ${error.status}, lastfm-code ${error.lastfmCode}): ${error.body.slice(
+            0,
+            200,
+          )}.`,
+        );
+        if (!fetchError) {
+          fetchError = {
+            status: error.status,
+            path: error.path,
+            bodyPreview: error.body.slice(0, 300),
+            message:
+              error.lastfmCode > 0
+                ? `Last.fm code ${error.lastfmCode}: ${error.message}`
+                : error.message,
+          };
+        }
+        // 401-style invalid key + suspended key are fatal — every
+        // subsequent call will fail too. Bail out of the loop.
+        if (error.lastfmCode === 10 || error.lastfmCode === 26) break;
+        // Rate limit (29) — also stop, the rest of this render won't
+        // succeed. Subsequent renders will retry.
+        if (error.lastfmCode === 29) break;
+        // Otherwise keep going — a single artist not being on Last.fm
+        // (code 6) shouldn't kill the whole batch.
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!fetchError) {
+          fetchError = {
+            status: 0,
+            path: `getArtistTags(${name})`,
+            bodyPreview: "",
+            message,
+          };
+        }
+        break;
       }
     }
+    // Throttle.
+    if (i < toFetch.length - 1) await delay(FETCH_GAP_MS);
   }
 
   return {
@@ -209,5 +292,7 @@ export async function getArtistGenresForIds(
     fetchError,
     batchesAttempted,
     batchesFailed,
+    apiKeyConfigured: true,
+    fetchBudgetRemaining,
   };
 }

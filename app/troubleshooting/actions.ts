@@ -46,6 +46,44 @@ export async function resetPlaylistSyncState(): Promise<ResetSyncStateResult> {
   }
 }
 
+export type ResetArtistCacheResult =
+  | { ok: true; rowsDeleted: number }
+  | { ok: false; error: string };
+
+// Wipes every Artist cache row. Use when the table has a bunch of
+// stale rows from when /v1/artists was returning data (or, more
+// recently, from when Spotify started 403'ing the call and we wrote
+// rows with empty `genres`). After this, the next stats render
+// re-fetches every artist from Last.fm.
+export async function resetArtistCache(): Promise<ResetArtistCacheResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    const deleted = await prisma.artist.deleteMany({});
+    revalidatePath("/troubleshooting");
+    return { ok: true, rowsDeleted: deleted.count };
+  } catch (error) {
+    const message =
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    if (/does not exist/i.test(message)) {
+      return {
+        ok: false,
+        error:
+          "Artist table doesn't exist yet — click 'Initialize Artist table' below first, then come back.",
+      };
+    }
+    return {
+      ok: false,
+      error: `Database write failed while resetting artist cache: ${message}. Check DATABASE_URL.`,
+    };
+  }
+}
+
 export type InitPlaylistLinkTableResult =
   | { ok: true; message: string }
   | { ok: false; error: string };

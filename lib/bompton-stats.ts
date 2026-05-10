@@ -291,14 +291,17 @@ export type GenreBreakdown = {
   // snapshot match and won't repull stale rows).
   tracksTotal: number;
   tracksWithAnyArtistId: number;
-  // The most recent /v1/artists fetch failure (status, body preview)
-  // and how many batches we attempted vs failed. The empty state
-  // surfaces these so users see the actual cause when the lookup
-  // returns nothing — most often a 401/403/429 from Spotify, not
-  // "token expired."
+  // The most recent Last.fm fetch failure (HTTP + Last.fm code +
+  // body preview) and how many artist calls we attempted vs failed
+  // on this render. The empty state surfaces these so users see the
+  // real cause when the lookup returns nothing.
   artistLookupFetchError: ArtistGenresFetchError | null;
   artistLookupBatchesAttempted: number;
   artistLookupBatchesFailed: number;
+  // Diagnostic surface: did we even try Last.fm, and how many
+  // artists are still uncached after the per-render fetch budget?
+  artistLookupApiKeyConfigured: boolean;
+  artistLookupFetchBudgetRemaining: number;
 };
 
 export function getGenreBreakdown(
@@ -309,6 +312,8 @@ export function getGenreBreakdown(
   artistLookupFetchError: ArtistGenresFetchError | null = null,
   artistLookupBatchesAttempted = 0,
   artistLookupBatchesFailed = 0,
+  artistLookupApiKeyConfigured = false,
+  artistLookupFetchBudgetRemaining = 0,
 ): GenreBreakdown {
   const perCrewCounts = new Map<string, Map<string, number>>();
   const perCrewTotals = new Map<string, number>();
@@ -390,6 +395,8 @@ export function getGenreBreakdown(
     artistLookupFetchError,
     artistLookupBatchesAttempted,
     artistLookupBatchesFailed,
+    artistLookupApiKeyConfigured,
+    artistLookupFetchBudgetRemaining,
   };
 }
 
@@ -1087,10 +1094,17 @@ export async function buildBomptonStats(
 ): Promise<BomptonStatsBundle> {
   const flat = flattenAllSeasons(data);
 
-  const artistIds = new Set<string>();
+  // Collect {id, name} pairs for the genre lookup. Last.fm's API
+  // doesn't know Spotify ids, so we look up by name and key the cache
+  // by Spotify id (which is stable). Dedup by id; first non-empty
+  // name wins.
+  const artistInputs = new Map<string, string>();
   for (const { track } of flat) {
     for (const a of track.track?.artists ?? []) {
-      if (a?.id) artistIds.add(a.id);
+      if (!a?.id) continue;
+      const existing = artistInputs.get(a.id);
+      if (!existing && a.name) artistInputs.set(a.id, a.name);
+      else if (!existing) artistInputs.set(a.id, "");
     }
   }
   let artistGenres = new Map<string, ArtistGenres>();
@@ -1098,13 +1112,20 @@ export async function buildBomptonStats(
   let artistLookupFetchError: ArtistGenresFetchError | null = null;
   let artistLookupBatchesAttempted = 0;
   let artistLookupBatchesFailed = 0;
+  let artistLookupApiKeyConfigured = false;
+  let artistLookupFetchBudgetRemaining = 0;
   try {
-    const lookup = await getArtistGenresForIds(callerUserId, [...artistIds]);
+    const lookup = await getArtistGenresForIds(
+      callerUserId,
+      [...artistInputs.entries()].map(([id, name]) => ({ id, name })),
+    );
     artistGenres = lookup.artists;
     artistTableMissing = lookup.tableMissing;
     artistLookupFetchError = lookup.fetchError;
     artistLookupBatchesAttempted = lookup.batchesAttempted;
     artistLookupBatchesFailed = lookup.batchesFailed;
+    artistLookupApiKeyConfigured = lookup.apiKeyConfigured;
+    artistLookupFetchBudgetRemaining = lookup.fetchBudgetRemaining;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[bompton-stats.genres-failed]", {
@@ -1115,7 +1136,7 @@ export async function buildBomptonStats(
     // instead of looking like a normal "no data" case.
     artistLookupFetchError = {
       status: 0,
-      path: "/v1/artists?ids=…",
+      path: "lib/artist-genres.ts:getArtistGenresForIds",
       bodyPreview: "",
       message,
     };
@@ -1134,6 +1155,8 @@ export async function buildBomptonStats(
       artistLookupFetchError,
       artistLookupBatchesAttempted,
       artistLookupBatchesFailed,
+      artistLookupApiKeyConfigured,
+      artistLookupFetchBudgetRemaining,
     ),
     dedication: dedicationResult.entries,
     dedicationTableMissing: dedicationResult.tableMissing,

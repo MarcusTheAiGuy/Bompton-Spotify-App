@@ -33,11 +33,28 @@ See `.env.example`. In production, set these in the Vercel dashboard.
 | `NEXTAUTH_URL` | `http://localhost:3000` locally; Vercel URL in prod |
 | `DATABASE_URL` | Neon connection string |
 | `ALLOWED_EMAILS` | Comma-separated list of Spotify account emails allowed to sign in |
+| `LASTFM_API_KEY` | Optional. Powers the genre tracker stats card — register a free key at <https://www.last.fm/api/account/create>. Without it, the genre card shows an empty state pointing back here. |
 
 ### Spotify app setup
 Add these redirect URIs in the Spotify dashboard:
 - `http://localhost:3000/api/auth/callback/spotify`
 - `https://<your-vercel-domain>/api/auth/callback/spotify`
+
+## Genre tracker / Last.fm
+Spotify's Feb-2026 Dev-Mode rules return HTTP 403 on `/v1/artists` for
+apps under default quota (the Extended Quota Mode gate is 250k MAU and
+unreachable for a private crew app), so the genre tracker stats card
+now sources tags from Last.fm instead.
+
+- Set `LASTFM_API_KEY` from <https://www.last.fm/api/account/create>.
+- `lib/lastfm.ts` calls `artist.getTopTags` per artist (no batch
+  endpoint exists). Throttled to ~4 req/s to stay under the 5/s limit.
+- Tags are cached in the `Artist` table keyed by Spotify artist id with
+  a 60-day staleness window. To avoid 60-second renders for hundreds of
+  uncached artists, each stats render fetches at most 30 — subsequent
+  reloads fill in the rest.
+- `/troubleshooting` has a `Reset Artist genre cache` button that
+  truncates the table so the next render starts fresh from Last.fm.
 
 ## Bompton playlist sync
 Spotify's Feb-2026 Dev-Mode rules let the playlist **owner** read full track
