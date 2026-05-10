@@ -25,13 +25,14 @@ import {
 } from "@/lib/bompton-stats";
 import type { ArtistGenres } from "@/lib/artist-genres";
 import { formatDuration, formatLongDuration } from "@/lib/spotify";
+import { displayCrewName } from "@/lib/spotify-user-names";
 
 // ---------- Shared bits ----------
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function CrewBadge({ member }: { member: CrewMember | null }) {
-  const label = member?.name ?? member?.email ?? "Unknown";
+  const label = member ? displayCrewName(member) : "Unknown";
   const initial = label.slice(0, 1).toUpperCase();
   return (
     <span className="inline-flex items-center gap-2">
@@ -319,9 +320,7 @@ export function GenreDetail({
                 {addedByMembers.length > 0 ? (
                   <span className="basis-full pl-11 text-[11px] text-spotify-subtext">
                     Added by:{" "}
-                    {addedByMembers
-                      .map((m) => m.name ?? m.email ?? "Unknown")
-                      .join(", ")}
+                    {addedByMembers.map((m) => displayCrewName(m)).join(", ")}
                   </span>
                 ) : null}
               </li>
@@ -653,9 +652,7 @@ export function OnTimeDetail({
                   style={{ backgroundColor: row.color }}
                 />
                 <span className="min-w-0 flex-1 truncate font-semibold">
-                  {row.crewMember.name ??
-                    row.crewMember.email ??
-                    "Unknown"}
+                  {displayCrewName(row.crewMember)}
                 </span>
                 <span className="font-mono text-xs text-spotify-subtext">
                   {row.lateDays} late day{row.lateDays === 1 ? "" : "s"} ·{" "}
@@ -684,7 +681,7 @@ export function OnTimeDetail({
                       color: ON_TIME_COLORS[i % ON_TIME_COLORS.length],
                     }}
                   >
-                    {c.name ?? c.email ?? "Unknown"}
+                    {displayCrewName(c)}
                   </th>
                 ))}
               </tr>
@@ -1133,7 +1130,7 @@ export function ExplicitDetail({
         r.explicit.length === 0 ? null : (
           <DetailSection
             key={r.member.id}
-            title={r.member.name ?? r.member.email ?? "Unknown"}
+            title={displayCrewName(r.member)}
             subtitle={`${r.explicit.length} explicit add${r.explicit.length === 1 ? "" : "s"}`}
           >
             <ul className="flex flex-col gap-1.5">

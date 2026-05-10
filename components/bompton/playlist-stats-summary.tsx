@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatLongDuration } from "@/lib/spotify";
 import type { BomptonStatsBundle } from "@/lib/bompton-stats";
+import { displayCrewName } from "@/lib/spotify-user-names";
 
 // Compact stats overview that appears on the main /bompton-playlist
 // page above the season columns. The "See more" button at the bottom
@@ -189,7 +190,7 @@ function onTimeLeader(
   const winner = sorted[0];
   if (!winner) return null;
   return {
-    name: winner.crewMember.name ?? winner.crewMember.email ?? "Unknown",
+    name: displayCrewName(winner.crewMember),
     lateDays: winner.lateDays,
   };
 }
@@ -202,7 +203,7 @@ function dedicationLeader(
   const winner = stats.dedication[0];
   if (!winner || winner.listenCount === 0) return null;
   return {
-    name: winner.crewMember.name ?? winner.crewMember.email ?? "Unknown",
+    name: displayCrewName(winner.crewMember),
     listenCount: winner.listenCount,
   };
 }

@@ -14,9 +14,54 @@ const SPOTIFY_USER_DISPLAY_NAMES: Record<string, string> = {
   n8mrhp1paen9qp80qhdwv4oc2: "Evan",
 };
 
+// Display names for the DB `name` field. Crew members signed up with
+// their full names ("Sachin Mohandas") or with handles ("SamuelSmooth",
+// "evanperry") that don't follow a single rule, so a hardcoded map
+// is more reliable than a generic "first word, capitalize" heuristic
+// (which would mangle "SamuelSmooth" → "Samuelsmooth"). Add a row
+// here whenever a new crew member is onboarded.
+const CREW_DISPLAY_NAMES: Record<string, string> = {
+  "Ben Silver": "Ben",
+  SamuelSmooth: "Sam",
+  evanperry: "Evan",
+  "Sachin Mohandas": "Sachin",
+};
+
 export function displaySpotifyUserName(
   spotifyUserId: string | null | undefined,
 ): string {
   if (!spotifyUserId) return "—";
   return SPOTIFY_USER_DISPLAY_NAMES[spotifyUserId] ?? spotifyUserId;
+}
+
+// Resolve a friendly display name for a crew member. Resolution order:
+//   1. Hardcoded crew-name map keyed on the stored `name`
+//   2. Hardcoded Spotify-id map (covers members whose stored name is
+//      missing or whose handle changes upstream)
+//   3. First word of the stored name, with leading char uppercased —
+//      good enough for "John Smith"-style inputs we don't know about
+//   4. Email local-part, capitalized
+//   5. "Unknown"
+export function displayCrewName(member: {
+  name?: string | null;
+  email?: string | null;
+  spotifyUserId?: string | null;
+}): string {
+  const trimmedName = member.name?.trim();
+  if (trimmedName && CREW_DISPLAY_NAMES[trimmedName]) {
+    return CREW_DISPLAY_NAMES[trimmedName];
+  }
+  if (member.spotifyUserId && SPOTIFY_USER_DISPLAY_NAMES[member.spotifyUserId]) {
+    return SPOTIFY_USER_DISPLAY_NAMES[member.spotifyUserId];
+  }
+  if (trimmedName) {
+    const first = trimmedName.split(/\s+/)[0];
+    if (first) return first.charAt(0).toUpperCase() + first.slice(1);
+  }
+  const email = member.email?.trim();
+  if (email) {
+    const local = email.split("@")[0] ?? "";
+    if (local) return local.charAt(0).toUpperCase() + local.slice(1);
+  }
+  return "Unknown";
 }

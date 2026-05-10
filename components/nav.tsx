@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { SignOutButton } from "@/components/sign-out-button";
 import { MobileMenu } from "@/components/mobile-menu";
+import { displayCrewName } from "@/lib/spotify-user-names";
 
 const links = [
   { href: "/dashboard", label: "Dashboard" },
@@ -34,7 +35,10 @@ export async function Nav() {
           {session?.user ? (
             <div className="flex items-center gap-3">
               <span className="hidden text-sm text-spotify-subtext sm:inline">
-                {session.user.name ?? session.user.email}
+                {displayCrewName({
+                  name: session.user.name,
+                  email: session.user.email,
+                })}
               </span>
               <SignOutButton />
             </div>

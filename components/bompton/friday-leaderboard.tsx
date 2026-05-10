@@ -1,5 +1,6 @@
 import type { CrewMember, SeasonScore } from "@/lib/bompton";
 import { CURRENT_BOMPTON_YEAR } from "@/lib/bompton";
+import { displayCrewName } from "@/lib/spotify-user-names";
 
 export function FridayLeaderboard({
   scores,
@@ -78,7 +79,7 @@ function ScoreCard({
   hasRealData: boolean;
 }) {
   const { crewMember } = score;
-  const label = crewMember.name ?? crewMember.email ?? "Unknown";
+  const label = displayCrewName(crewMember);
   return (
     <li className="flex flex-col gap-2 rounded-lg bg-spotify-base/50 p-4">
       <div className="flex items-center gap-3">
@@ -134,9 +135,7 @@ function AvatarBadge({
   rank: number;
   highlight: boolean;
 }) {
-  const initial = (crewMember.name ?? crewMember.email ?? "?")
-    .slice(0, 1)
-    .toUpperCase();
+  const initial = displayCrewName(crewMember).slice(0, 1).toUpperCase();
   const ringCls = highlight
     ? "ring-2 ring-spotify-green"
     : "ring-1 ring-spotify-border";

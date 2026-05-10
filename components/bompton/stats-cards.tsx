@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CrewMember } from "@/lib/bompton";
 import { formatDuration, formatLongDuration } from "@/lib/spotify";
+import { displayCrewName } from "@/lib/spotify-user-names";
 import type {
   AlbumCount,
   ArtistCount,
@@ -265,9 +266,7 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
             >
               <CrewAvatar crewMember={entry.crewMember} size="sm" />
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                {entry.crewMember.name ??
-                  entry.crewMember.email ??
-                  "Unknown"}
+                {displayCrewName(entry.crewMember)}
               </span>
               {entry.umbrella ? (
                 <div className="flex min-w-0 flex-col items-end gap-0 text-right">
@@ -385,9 +384,7 @@ export function DedicationCard({
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate font-semibold">
-                  {entry.crewMember.name ??
-                    entry.crewMember.email ??
-                    "Unknown"}
+                  {displayCrewName(entry.crewMember)}
                 </span>
                 <span className="font-mono text-xs text-spotify-subtext">
                   {entry.listenCount} plays
@@ -427,25 +424,25 @@ export function TopArtistsCard({ artists }: { artists: ArtistCount[] }) {
       <p className="text-xs text-spotify-subtext">
         Counted across every track in every Bompton season.
       </p>
-      <ol className="flex flex-col gap-2">
+      <ol className="flex flex-col gap-2.5">
         {artists.map((artist, index) => (
           <li
             key={artist.name}
-            className="flex items-center gap-3 text-sm"
+            className="flex items-center gap-3 text-base"
           >
-            <span className="w-5 text-center font-mono text-xs text-spotify-subtext">
+            <span className="w-5 text-center font-mono text-sm text-spotify-subtext">
               {index + 1}
             </span>
             <span className="min-w-0 flex-1 truncate font-semibold">
               {artist.name}
             </span>
-            <div className="relative h-1.5 w-24 overflow-hidden rounded-full bg-spotify-highlight">
+            <div className="relative h-2 w-24 overflow-hidden rounded-full bg-spotify-highlight">
               <div
                 className="absolute inset-y-0 left-0 rounded-full bg-spotify-green"
                 style={{ width: `${(artist.count / max) * 100}%` }}
               />
             </div>
-            <span className="w-8 shrink-0 text-right font-mono text-xs text-spotify-subtext">
+            <span className="w-8 shrink-0 text-right font-mono text-sm text-spotify-subtext">
               {artist.count}
             </span>
           </li>
@@ -519,9 +516,7 @@ export function OnTimeCard({ onTime }: { onTime: OnTimeStats }) {
   return (
     <StatCardShell title="On-time stats" subtitle="Card 5 · Habits">
       <p className="text-xs text-spotify-subtext">
-        Cumulative late days per member for the current season ({onTime.year}).
-        Each day past Friday without an add costs +1, and X weeks behind
-        means +X per day. Lowest line wins.
+        Cumulative late days per member, season {onTime.year}. Lowest wins.
       </p>
       <OnTimeLineGraph onTime={onTime} />
       <ul className="flex flex-col gap-2">
@@ -539,9 +534,7 @@ export function OnTimeCard({ onTime }: { onTime: OnTimeStats }) {
               />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-semibold">
-                  {total.crewMember.name ??
-                    total.crewMember.email ??
-                    "Unknown"}
+                  {displayCrewName(total.crewMember)}
                 </span>
                 <span className="text-[10px] text-spotify-subtext">
                   {total.weeksBehind} week
@@ -691,7 +684,7 @@ function OnTimeLineGraph({ onTime }: { onTime: OnTimeStats }) {
   );
 }
 
-// ---------- Card 6: Time-of-day per crew ----------
+// ---------- Card 9: Time-of-day per crew ----------
 
 export function TimeOfDayCard({
   timeOfDay,
@@ -701,7 +694,7 @@ export function TimeOfDayCard({
   const counted = timeOfDay.filter((e) => e.total > 0);
   if (counted.length === 0) {
     return (
-      <StatCardShell title="Adds by time of day" subtitle="Card 6 · Habits">
+      <StatCardShell title="Adds by time of day" subtitle="Card 9 · Habits">
         <EmptyHint>
           Time-of-day patterns appear once tracks have added_at timestamps in
           the database.
@@ -710,12 +703,12 @@ export function TimeOfDayCard({
     );
   }
   return (
-    <StatCardShell title="Adds by time of day" subtitle="Card 6 · Habits">
+    <StatCardShell title="Adds by time of day" subtitle="Card 9 · Habits">
       <p className="text-xs text-spotify-subtext">
         UTC hour buckets — morning (5a–12p), afternoon (12–5p), evening
         (5–10p), night (10p–5a).
       </p>
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-4">
         {timeOfDay.map((entry) => {
           const total = Math.max(1, entry.total);
           const m = (entry.morning / total) * 100;
@@ -725,20 +718,18 @@ export function TimeOfDayCard({
           return (
             <li
               key={entry.crewMember.id}
-              className="flex flex-col gap-1.5 text-xs"
+              className="flex flex-col gap-2 text-xs"
             >
               <div className="flex items-center gap-2">
                 <CrewAvatar crewMember={entry.crewMember} size="sm" />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {entry.crewMember.name ??
-                    entry.crewMember.email ??
-                    "Unknown"}
+                  {displayCrewName(entry.crewMember)}
                 </span>
                 <span className="font-mono text-spotify-subtext">
                   {entry.total} adds
                 </span>
               </div>
-              <div className="flex h-2 w-full overflow-hidden rounded-full bg-spotify-highlight">
+              <div className="flex h-3 w-full overflow-hidden rounded-full bg-spotify-highlight">
                 <div
                   className="bg-amber-400"
                   style={{ width: `${m}%` }}
@@ -814,7 +805,7 @@ export function DayOfWeekCard({
               <span className="font-mono text-[10px] text-spotify-subtext">
                 {value}
               </span>
-              <div className="flex h-24 w-full items-end">
+              <div className="flex h-28 w-full items-end">
                 <div
                   className={`w-full rounded-t ${
                     isFriday
@@ -876,12 +867,12 @@ export function TrackLengthCard({
         />
         <Stat label="Median" value={formatDuration(trackLength.medianMs)} />
       </dl>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
           Shortest
         </p>
         <TrackLine track={trackLength.shortest} />
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
+        <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
           Longest
         </p>
         <TrackLine track={trackLength.longest} />
@@ -915,7 +906,7 @@ function TrackLine({
   );
 }
 
-// ---------- Card 9: Explicit content ----------
+// ---------- Card 6: Explicit content ----------
 
 export function ExplicitCard({
   explicit,
@@ -925,7 +916,7 @@ export function ExplicitCard({
   const counted = explicit.filter((e) => e.total > 0);
   if (counted.length === 0) {
     return (
-      <StatCardShell title="Explicit ratio" subtitle="Card 9 · Vibes">
+      <StatCardShell title="Explicit ratio" subtitle="Card 6 · Vibes">
         <EmptyHint>
           Explicit ratios show up once we have attributed track adds with the
           explicit flag.
@@ -937,7 +928,7 @@ export function ExplicitCard({
   const totalAll = explicit.reduce((acc, e) => acc + e.total, 0);
   const overallRate = totalAll > 0 ? (totalExplicit / totalAll) * 100 : 0;
   return (
-    <StatCardShell title="Explicit ratio" subtitle="Card 9 · Vibes">
+    <StatCardShell title="Explicit ratio" subtitle="Card 6 · Vibes">
       <p className="text-xs text-spotify-subtext">
         Explicit-tagged tracks per crew member. Overall:{" "}
         <span className="font-mono text-spotify-text">
@@ -945,7 +936,7 @@ export function ExplicitCard({
         </span>{" "}
         of attributed adds.
       </p>
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-4">
         {explicit.map((entry) => {
           const total = Math.max(1, entry.total);
           const ePct = (entry.explicit / total) * 100;
@@ -953,20 +944,18 @@ export function ExplicitCard({
           return (
             <li
               key={entry.crewMember.id}
-              className="flex flex-col gap-1.5 text-xs"
+              className="flex flex-col gap-2 text-xs"
             >
               <div className="flex items-center gap-2">
                 <CrewAvatar crewMember={entry.crewMember} size="sm" />
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {entry.crewMember.name ??
-                    entry.crewMember.email ??
-                    "Unknown"}
+                  {displayCrewName(entry.crewMember)}
                 </span>
                 <span className="font-mono text-spotify-subtext">
                   {(entry.explicitRate * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="flex h-2 w-full overflow-hidden rounded-full bg-spotify-highlight">
+              <div className="flex h-3 w-full overflow-hidden rounded-full bg-spotify-highlight">
                 <div
                   className="bg-rose-500"
                   style={{ width: `${ePct}%` }}
@@ -1034,9 +1023,7 @@ function CrewAvatar({
   size?: "sm" | "md";
 }) {
   const dim = size === "sm" ? "h-6 w-6 text-[10px]" : "h-8 w-8 text-xs";
-  const initial = (crewMember.name ?? crewMember.email ?? "?")
-    .slice(0, 1)
-    .toUpperCase();
+  const initial = displayCrewName(crewMember).slice(0, 1).toUpperCase();
   if (crewMember.image) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -1068,9 +1055,7 @@ function CrownAvatar({
   isCrown: boolean;
   ringColor?: string;
 }) {
-  const initial = (crewMember.name ?? crewMember.email ?? "?")
-    .slice(0, 1)
-    .toUpperCase();
+  const initial = displayCrewName(crewMember).slice(0, 1).toUpperCase();
   const ringStyle = ringColor
     ? { boxShadow: `0 0 0 2px ${ringColor}` }
     : undefined;
@@ -1127,8 +1112,8 @@ export function StatsCardGrid({ stats }: { stats: BomptonStatsBundle }) {
       <CardLink slug="on-time">
         <OnTimeCard onTime={stats.onTime} />
       </CardLink>
-      <CardLink slug="time-of-day">
-        <TimeOfDayCard timeOfDay={stats.timeOfDay} />
+      <CardLink slug="explicit">
+        <ExplicitCard explicit={stats.explicit} />
       </CardLink>
       <CardLink slug="day-of-week">
         <DayOfWeekCard dayOfWeek={stats.dayOfWeek} />
@@ -1136,8 +1121,8 @@ export function StatsCardGrid({ stats }: { stats: BomptonStatsBundle }) {
       <CardLink slug="track-length">
         <TrackLengthCard trackLength={stats.trackLength} />
       </CardLink>
-      <CardLink slug="explicit">
-        <ExplicitCard explicit={stats.explicit} />
+      <CardLink slug="time-of-day">
+        <TimeOfDayCard timeOfDay={stats.timeOfDay} />
       </CardLink>
     </div>
   );

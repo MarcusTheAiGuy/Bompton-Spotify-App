@@ -15,6 +15,10 @@ import {
 } from "@/lib/artist-genres";
 import { umbrellaOf } from "@/lib/genre-taxonomy";
 import { prisma } from "@/lib/prisma";
+import {
+  displayCrewName,
+  displaySpotifyUserName,
+} from "@/lib/spotify-user-names";
 
 // Aggregations over the four-season Bompton dataset for the deep-stats
 // page. Every function is a pure transform of what loadBomptonDataFromDb
@@ -81,8 +85,9 @@ export function enrichTracks(
             ? addedAt!.toISOString()
             : "",
         addedBy: member,
-        addedByLabel:
-          member?.name ?? member?.email ?? track.added_by?.id ?? "Unknown",
+        addedByLabel: member
+          ? displayCrewName(member)
+          : displaySpotifyUserName(track.added_by?.id),
         addedByImage: member?.image ?? null,
       },
     ];
@@ -163,8 +168,9 @@ export function findRepeatedTracks(
         addedAt: t.added_at,
         addedBySpotifyId: t.added_by?.id ?? null,
         addedByCrew: member,
-        addedByLabel:
-          member?.name ?? member?.email ?? t.added_by?.id ?? "Unknown",
+        addedByLabel: member
+          ? displayCrewName(member)
+          : displaySpotifyUserName(t.added_by?.id),
         addedByImage: member?.image ?? null,
       };
       const existing = map.get(key);
@@ -812,7 +818,7 @@ export type AlbumCount = {
 
 export function getTopAlbums(
   flat: FlattenedTrack[],
-  limit = 5,
+  limit = 8,
 ): AlbumCount[] {
   const counts = new Map<string, AlbumCount>();
   for (const { track } of flat) {
@@ -1344,7 +1350,7 @@ export const STATS_CARD_META: Record<
   },
   "time-of-day": {
     title: "Time-of-day distribution",
-    subtitle: "Card 6 · Habits",
+    subtitle: "Card 9 · Habits",
     blurb:
       "Every add bucketed into morning / afternoon / evening / night (UTC), per crew member, with the underlying tracks.",
   },
@@ -1362,7 +1368,7 @@ export const STATS_CARD_META: Record<
   },
   explicit: {
     title: "Explicit vs clean",
-    subtitle: "Card 9 · Crew",
+    subtitle: "Card 6 · Crew",
     blurb:
       "Per-crew-member explicit-rate, plus the actual explicit tracks each member added.",
   },
