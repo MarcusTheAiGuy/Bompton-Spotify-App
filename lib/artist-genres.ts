@@ -53,7 +53,11 @@ export type ArtistGenresLookup = {
   apiKeyConfigured: boolean;
   // How many uncached artists remained when we hit the per-render
   // fetch budget. Surfaced so the empty state can say "we filled in
-  // X of Y artists this render — reload to fill in the rest."
+  // X of Y artists this render — reload to fill in the rest." Must
+  // be 0 on early-returns that don't run the fetch loop (everything
+  // already cached, missing table, no API key, etc.) — reporting
+  // the budget capacity here is what made the "N pending (reload)"
+  // counter stick at the same number forever.
   fetchBudgetRemaining: number;
 };
 
@@ -126,7 +130,7 @@ export async function getArtistGenresForIds(
       batchesAttempted: 0,
       batchesFailed: 0,
       apiKeyConfigured: isLastfmConfigured(),
-      fetchBudgetRemaining: fetchBudget,
+      fetchBudgetRemaining: 0,
     };
   }
 
@@ -148,7 +152,7 @@ export async function getArtistGenresForIds(
         batchesAttempted: 0,
         batchesFailed: 0,
         apiKeyConfigured: isLastfmConfigured(),
-        fetchBudgetRemaining: fetchBudget,
+        fetchBudgetRemaining: 0,
       };
     }
     throw error;
@@ -178,7 +182,7 @@ export async function getArtistGenresForIds(
       batchesAttempted: 0,
       batchesFailed: 0,
       apiKeyConfigured: isLastfmConfigured(),
-      fetchBudgetRemaining: fetchBudget,
+      fetchBudgetRemaining: 0,
     };
   }
 
@@ -197,7 +201,7 @@ export async function getArtistGenresForIds(
       batchesAttempted: 0,
       batchesFailed: 0,
       apiKeyConfigured: false,
-      fetchBudgetRemaining: fetchBudget,
+      fetchBudgetRemaining: 0,
     };
   }
 
