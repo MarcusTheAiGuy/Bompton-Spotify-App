@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { CrewMember } from "@/lib/bompton";
 import { formatDuration, formatLongDuration } from "@/lib/spotify";
 import type {
@@ -9,6 +10,7 @@ import type {
   ExplicitEntry,
   GenreBreakdown,
   OnTimeStats,
+  StatsCardSlug,
   TimeOfDayEntry,
   TrackLengthStats,
 } from "@/lib/bompton-stats";
@@ -71,9 +73,9 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
               and click <em>Initialize Artist table</em>, then reload this
               page — genres populate on the next render.
             </>
-          ) : genres.totalArtistsLookedUp === 0 ? (
+          ) : genres.tracksTotal === 0 ? (
             <>
-              No artist ids in the synced Bompton tracks. Hit{" "}
+              No Bompton tracks synced yet. Hit{" "}
               <em>Refresh all 4 Bompton playlists</em> on{" "}
               <a
                 href="/bompton-playlist"
@@ -81,8 +83,41 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
               >
                 /bompton-playlist
               </a>{" "}
-              and reload — track-level data is needed before genres can be
-              looked up.
+              first.
+            </>
+          ) : genres.tracksWithAnyArtistId === 0 ? (
+            <>
+              {genres.tracksTotal} tracks are synced but{" "}
+              <strong>none have artist ids on file</strong>. Stored rows
+              are stale-shape — likely written by an older sync path that
+              didn&apos;t persist <code className="font-mono">id</code>{" "}
+              fields on artists. The <em>Refresh all</em> button on{" "}
+              <a
+                href="/bompton-playlist"
+                className="font-semibold text-spotify-green hover:underline"
+              >
+                /bompton-playlist
+              </a>{" "}
+              short-circuits when Spotify&apos;s{" "}
+              <code className="font-mono">snapshot_id</code> matches, so it
+              won&apos;t fix this on its own. Visit{" "}
+              <a
+                href="/troubleshooting"
+                className="font-semibold text-spotify-green hover:underline"
+              >
+                /troubleshooting
+              </a>
+              , click <em>Reset stored playlist sync state</em>, then reload{" "}
+              /bompton-playlist (auto-sync re-pulls everything from
+              scratch).
+            </>
+          ) : genres.totalArtistsLookedUp === 0 ? (
+            <>
+              {genres.tracksWithAnyArtistId} of {genres.tracksTotal} tracks
+              have artist ids, but{" "}
+              <code className="font-mono">getArtistGenresForIds</code>{" "}
+              returned an empty map. Most likely the Spotify token is
+              expired — sign out and back in, then reload.
             </>
           ) : genres.totalArtistsWithGenres === 0 ? (
             <>
@@ -1013,19 +1048,58 @@ function CrownAvatar({
 export function StatsCardGrid({ stats }: { stats: BomptonStatsBundle }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      <GenreCard genres={stats.genres} />
-      <DedicationCard
-        dedication={stats.dedication}
-        tableMissing={stats.dedicationTableMissing}
-        candidatePlays={stats.dedicationCandidatePlays}
-      />
-      <TopArtistsCard artists={stats.topArtists} />
-      <TopAlbumsCard albums={stats.topAlbums} />
-      <OnTimeCard onTime={stats.onTime} />
-      <TimeOfDayCard timeOfDay={stats.timeOfDay} />
-      <DayOfWeekCard dayOfWeek={stats.dayOfWeek} />
-      <TrackLengthCard trackLength={stats.trackLength} />
-      <ExplicitCard explicit={stats.explicit} />
+      <CardLink slug="genres">
+        <GenreCard genres={stats.genres} />
+      </CardLink>
+      <CardLink slug="dedication">
+        <DedicationCard
+          dedication={stats.dedication}
+          tableMissing={stats.dedicationTableMissing}
+          candidatePlays={stats.dedicationCandidatePlays}
+        />
+      </CardLink>
+      <CardLink slug="top-artists">
+        <TopArtistsCard artists={stats.topArtists} />
+      </CardLink>
+      <CardLink slug="top-albums">
+        <TopAlbumsCard albums={stats.topAlbums} />
+      </CardLink>
+      <CardLink slug="on-time">
+        <OnTimeCard onTime={stats.onTime} />
+      </CardLink>
+      <CardLink slug="time-of-day">
+        <TimeOfDayCard timeOfDay={stats.timeOfDay} />
+      </CardLink>
+      <CardLink slug="day-of-week">
+        <DayOfWeekCard dayOfWeek={stats.dayOfWeek} />
+      </CardLink>
+      <CardLink slug="track-length">
+        <TrackLengthCard trackLength={stats.trackLength} />
+      </CardLink>
+      <CardLink slug="explicit">
+        <ExplicitCard explicit={stats.explicit} />
+      </CardLink>
     </div>
+  );
+}
+
+// Wraps each card in a <Link> to its detail page. The card body itself
+// is unchanged; this layer adds the clickable affordance + a hover ring
+// so the user knows the card is interactive.
+function CardLink({
+  slug,
+  children,
+}: {
+  slug: StatsCardSlug;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={`/bompton-playlist/stats/${slug}`}
+      className="group block rounded-lg outline-none transition focus-visible:ring-2 focus-visible:ring-spotify-green hover:[&>article]:border-spotify-green/60 hover:[&>article]:bg-spotify-elevated/80"
+      prefetch={false}
+    >
+      {children}
+    </Link>
   );
 }
