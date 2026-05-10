@@ -299,7 +299,35 @@ export function GenreCard({ genres }: { genres: GenreBreakdown }) {
         {genres.artistLookupFetchBudgetRemaining > 0 ? (
           <> · {genres.artistLookupFetchBudgetRemaining} pending (reload)</>
         ) : null}
+        {genres.artistLookupBatchesAttempted > 0 ? (
+          <>
+            {" "}· this render: {genres.artistLookupBatchesFailed}/
+            {genres.artistLookupBatchesAttempted} fetches failed
+          </>
+        ) : null}
       </p>
+      {/* Surface the most recent Last.fm error even when the card has
+          data — the success-state footer used to hide this, which made
+          the "N pending (reload)" loop opaque when the failures didn't
+          fall under a code we explicitly cache. */}
+      {genres.artistLookupFetchError ? (
+        <p className="break-all text-[10px] text-red-300/80">
+          last err · HTTP{" "}
+          {genres.artistLookupFetchError.status > 0
+            ? genres.artistLookupFetchError.status
+            : "—"}
+          {" · "}
+          {genres.artistLookupFetchError.message}
+          {genres.artistLookupFetchError.bodyPreview ? (
+            <>
+              {" · body: "}
+              <code className="font-mono text-spotify-subtext">
+                {genres.artistLookupFetchError.bodyPreview.slice(0, 120)}
+              </code>
+            </>
+          ) : null}
+        </p>
+      ) : null}
     </StatCardShell>
   );
 }
