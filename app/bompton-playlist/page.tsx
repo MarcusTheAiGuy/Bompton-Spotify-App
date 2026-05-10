@@ -19,6 +19,7 @@ import { BomptonAutoSync } from "@/components/bompton/bompton-auto-sync";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
 import { PlaylistStatsSummary } from "@/components/bompton/playlist-stats-summary";
 import { RepeatedSongsWarning } from "@/components/bompton/repeated-songs-warning";
+import { SongCountWarning } from "@/components/bompton/song-count-warning";
 import { buildBomptonStats, findRepeatedTracks } from "@/lib/bompton-stats";
 
 export const dynamic = "force-dynamic";
@@ -129,6 +130,16 @@ export default async function BomptonPlaylistPage() {
       ) : null}
 
       <RepeatedSongsWarning repeats={repeats} />
+
+      <SongCountWarning
+        violations={stats.pastSeasonCountViolations}
+        variant="past"
+      />
+
+      <SongCountWarning
+        violations={stats.currentSeasonCountViolations}
+        variant="current"
+      />
 
       <PlaylistStatsSummary stats={stats} />
 

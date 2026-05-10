@@ -889,6 +889,40 @@ export const ON_TIME_COLORS = [
   "#14B8A6", // teal
 ];
 
+// Greedy assignment: walk Fridays in order, assign each the earliest
+// unconsumed add whose timestamp is >= that Friday's UTC midnight.
+// Adds before the season's first Friday (or before any unsatisfied
+// Friday at the time the add lands) are wasted; adds after every
+// Friday is satisfied are extras and don't reduce late days.
+//
+// This matches the user's mental model: an add on Saturday after a
+// missed week's Friday "covers" that previous week (with the missed
+// days locked in as that Friday's lateness contribution), and a
+// second add on the same Saturday covers the current week (with
+// 1 day of lateness for the Friday→Saturday lag).
+//
+// Exported for the on-time detail page so the per-Friday timeline
+// table uses the same assignment as the line graph and the
+// cumulative-late totals.
+export function greedyAssignAdds(
+  addsMs: readonly number[],
+  fridaysMs: readonly number[],
+): (number | null)[] {
+  const sorted = [...addsMs].sort((a, b) => a - b);
+  const result: (number | null)[] = [];
+  let i = 0;
+  for (const fMs of fridaysMs) {
+    while (i < sorted.length && sorted[i] < fMs) i += 1;
+    if (i < sorted.length) {
+      result.push(sorted[i]);
+      i += 1;
+    } else {
+      result.push(null);
+    }
+  }
+  return result;
+}
+
 export function getOnTimeStats(
   data: BomptonPlaylistByYear[],
   crew: CrewMember[],
@@ -918,7 +952,7 @@ export function getOnTimeStats(
   const season = data.find((d) => d.year === year);
   const tracks = season?.tracks ?? [];
 
-  // member id → sorted list of add timestamps for the chosen season
+  // member id → list of add timestamps for the chosen season
   const addsByMember = new Map<string, number[]>();
   for (const c of crew) addsByMember.set(c.id, []);
   for (const t of tracks) {
@@ -929,11 +963,9 @@ export function getOnTimeStats(
     const ts = new Date(t.added_at).getTime();
     if (!Number.isNaN(ts)) addsByMember.get(member.id)?.push(ts);
   }
-  for (const [, arr] of addsByMember) arr.sort((a, b) => a - b);
 
-  // Pre-compute, for each Friday in the season so far, when each
-  // member satisfied that Friday (the first add inside [F, F+7d)).
-  // null = never satisfied.
+  // Fridays in the season up to (and including) the most-recent past
+  // Friday. Future Fridays don't get counted as deadlines yet.
   const fridays = fridaysBetween(
     seasonStartAt,
     mostRecentFriday(today).getTime() < seasonStartAt.getTime()
@@ -941,54 +973,65 @@ export function getOnTimeStats(
       : mostRecentFriday(today),
   );
   const dayMs = 24 * 60 * 60 * 1000;
-  const weekMs = 7 * dayMs;
-  const fridaySatisfaction = fridays.map((friday) => {
-    const fMs = friday.getTime();
-    const sat = new Map<string, number | null>();
-    for (const c of crew) {
-      const adds = addsByMember.get(c.id) ?? [];
-      const found = adds.find((a) => a >= fMs && a < fMs + weekMs);
-      sat.set(c.id, found ?? null);
-    }
-    return { fridayMs: fMs, satisfied: sat };
-  });
+  const fridaysMs = fridays.map((f) => f.getTime());
 
-  const cumulative = new Map<string, number>();
-  for (const c of crew) cumulative.set(c.id, 0);
+  // Greedy-assign each member's adds to Fridays in chronological
+  // order. memberStates[memberId][fridayIdx] = satisfaction
+  // timestamp or null (unsatisfied — even retroactively, no later
+  // add ever covered this Friday).
+  const memberStates = new Map<string, (number | null)[]>();
+  for (const c of crew) {
+    const adds = addsByMember.get(c.id) ?? [];
+    memberStates.set(c.id, greedyAssignAdds(adds, fridaysMs));
+  }
+
+  // Per-day cumulative late-days. For each Friday F whose deadline
+  // (F+1 day) has been reached at day D:
+  //   - If F has a greedy-assigned add A and A <= D: contribute
+  //     floor((A - F) / day) late days. LOCKED at this value.
+  //   - Else (no add yet at D, or A is in the future relative to D):
+  //     contribute floor((D - F) / day) — growing at +1/day until A.
+  // Sum across all past Fridays = cumulative-late at D.
   const series: OnTimeSeriesPoint[] = [];
-
   for (
     let dt = seasonStartAt.getTime();
     dt <= today.getTime();
     dt += dayMs
   ) {
-    for (const fd of fridaySatisfaction) {
-      const deadline = fd.fridayMs + dayMs; // first late day = day after Friday (UTC)
-      if (dt < deadline) continue;
-      for (const c of crew) {
-        const sat = fd.satisfied.get(c.id);
-        const stillUnsatisfiedAtDayStart =
-          sat === null || sat === undefined || sat > dt;
-        if (stillUnsatisfiedAtDayStart) {
-          cumulative.set(c.id, (cumulative.get(c.id) ?? 0) + 1);
-        }
+    const perCrew: Record<string, number> = {};
+    for (const c of crew) {
+      const states = memberStates.get(c.id) ?? [];
+      let total = 0;
+      for (let fi = 0; fi < fridaysMs.length; fi += 1) {
+        const fMs = fridaysMs[fi];
+        if (fMs > dt) break; // Friday in the future relative to dt
+        const sat = states[fi];
+        const lateMs =
+          sat !== null && sat <= dt
+            ? Math.max(0, sat - fMs)
+            : Math.max(0, dt - fMs);
+        total += Math.floor(lateMs / dayMs);
       }
+      perCrew[c.id] = total;
     }
     series.push({
       date: new Date(dt).toISOString(),
-      perCrew: Object.fromEntries(cumulative),
+      perCrew,
     });
   }
 
-  // Compute weeks-behind right now (count of un-satisfied past Fridays).
+  // weeks-behind right now = past Fridays (deadline reached) that
+  // greedy assignment couldn't satisfy with any later add.
   const todayDt = today.getTime();
-  for (const fd of fridaySatisfaction) {
-    if (todayDt < fd.fridayMs + dayMs) continue;
-    for (const total of totals) {
-      const sat = fd.satisfied.get(total.crewMember.id);
-      const open = sat === null || sat === undefined || sat > todayDt;
-      if (open) total.weeksBehind += 1;
+  for (const total of totals) {
+    const states = memberStates.get(total.crewMember.id) ?? [];
+    let behind = 0;
+    for (let fi = 0; fi < fridaysMs.length; fi += 1) {
+      const fMs = fridaysMs[fi];
+      if (todayDt < fMs + dayMs) continue; // deadline (Saturday) hasn't passed
+      if (states[fi] === null) behind += 1;
     }
+    total.weeksBehind = behind;
   }
 
   const last = series[series.length - 1]?.perCrew ?? {};
@@ -1179,6 +1222,118 @@ export function getExplicitContent(
   return entries.sort((a, b) => b.explicitRate - a.explicitRate);
 }
 
+// ---------- Song count violations (warning banners on the playlist page) ----------
+
+// Each Bompton season has 52 Fridays exactly (third Friday of March
+// through one Friday before next year's third-of-March). The rule is
+// "one song per Friday per crew member". For a finished season every
+// member should have exactly 52; for the in-flight season every
+// member should be at exactly the count of Fridays that have already
+// passed (including today's most-recent past Friday).
+//
+// A "violation" is any member-season pair where actual count != target.
+// Both over-adds (extras) and under-adds (missing) are flagged so the
+// crew can self-police either direction.
+
+export type SongCountViolation = {
+  member: CrewMember;
+  year: BomptonYear;
+  expected: number;
+  actual: number;
+  // actual - expected; negative = behind, positive = over.
+  delta: number;
+  // The member's actual adds for this season, sorted oldest first.
+  // Empty if the season has no tracks attributed to them at all.
+  adds: { trackName: string; artist: string; addedAt: Date }[];
+};
+
+function collectSeasonAdds(
+  season: BomptonPlaylistByYear,
+  member: CrewMember,
+): SongCountViolation["adds"] {
+  const adds: SongCountViolation["adds"] = [];
+  for (const t of season.tracks) {
+    if (t.added_by?.id !== member.spotifyUserId) continue;
+    if (!t.added_at) continue;
+    const addedAt = new Date(t.added_at);
+    if (Number.isNaN(addedAt.getTime())) continue;
+    adds.push({
+      trackName: t.track?.name ?? "(unknown)",
+      artist: t.track?.artists?.[0]?.name ?? "",
+      addedAt,
+    });
+  }
+  adds.sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime());
+  return adds;
+}
+
+// Past-season violations: for every season except the current one,
+// every member should have exactly 52 adds. This runs the rule across
+// the full archive in one pass.
+export function getPastSeasonCountViolations(
+  data: BomptonPlaylistByYear[],
+  crew: CrewMember[],
+  currentYear: BomptonYear = CURRENT_BOMPTON_YEAR,
+): SongCountViolation[] {
+  const violations: SongCountViolation[] = [];
+  for (const season of data) {
+    if (season.year === currentYear) continue;
+    for (const member of crew) {
+      const adds = collectSeasonAdds(season, member);
+      if (adds.length === 52) continue;
+      violations.push({
+        member,
+        year: season.year,
+        expected: 52,
+        actual: adds.length,
+        delta: adds.length - 52,
+        adds,
+      });
+    }
+  }
+  return violations;
+}
+
+// Current-season violations: expected count = number of Fridays
+// elapsed (including today's most-recent past Friday). Triggers as
+// soon as a member is off by any amount in either direction. Returns
+// [] if the season hasn't started yet.
+export function getCurrentSeasonCountViolations(
+  data: BomptonPlaylistByYear[],
+  crew: CrewMember[],
+  currentYear: BomptonYear = CURRENT_BOMPTON_YEAR,
+  now: Date = new Date(),
+): SongCountViolation[] {
+  const seasonStartAt = seasonStart(currentYear);
+  const seasonEndAt = seasonEnd(currentYear);
+  const todayMs = Math.min(now.getTime(), seasonEndAt.getTime());
+  const today = new Date(todayMs);
+  today.setUTCHours(0, 0, 0, 0);
+  if (today.getTime() < seasonStartAt.getTime()) return [];
+  const recentFriday = mostRecentFriday(today);
+  if (recentFriday.getTime() < seasonStartAt.getTime()) return [];
+  const fridays = fridaysBetween(seasonStartAt, recentFriday);
+  const expected = fridays.length;
+
+  const season = data.find((d) => d.year === currentYear);
+  if (!season) return [];
+
+  const violations: SongCountViolation[] = [];
+  for (const member of crew) {
+    const adds = collectSeasonAdds(season, member);
+    if (adds.length === expected) continue;
+    violations.push({
+      member,
+      year: currentYear,
+      expected,
+      actual: adds.length,
+      delta: adds.length - expected,
+      adds,
+    });
+  }
+  return violations;
+}
+
 // ---------- Bundle for the page ----------
 
 export type BomptonStatsBundle = {
@@ -1205,6 +1360,9 @@ export type BomptonStatsBundle = {
   trackLength: TrackLengthStats;
   explicit: ExplicitEntry[];
   totalTracks: number;
+  // Surfaced as red warning banners on the playlist page.
+  pastSeasonCountViolations: SongCountViolation[];
+  currentSeasonCountViolations: SongCountViolation[];
 };
 
 // Builds every bundle field. Genres require a Spotify lookup against
@@ -1295,6 +1453,17 @@ export async function buildBomptonStats(
     trackLength: getTrackLengthStats(flat),
     explicit: getExplicitContent(flat, crew),
     totalTracks: flat.length,
+    pastSeasonCountViolations: getPastSeasonCountViolations(
+      data,
+      crew,
+      CURRENT_BOMPTON_YEAR,
+    ),
+    currentSeasonCountViolations: getCurrentSeasonCountViolations(
+      data,
+      crew,
+      CURRENT_BOMPTON_YEAR,
+      now,
+    ),
   };
 }
 
