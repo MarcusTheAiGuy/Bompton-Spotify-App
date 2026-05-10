@@ -17,6 +17,7 @@ import {
   type CrewMember,
 } from "@/lib/bompton";
 import {
+  greedyAssignAdds,
   ON_TIME_COLORS,
   type DedicationPlayDetail,
   type EnrichedTrack,
@@ -630,6 +631,19 @@ export function OnTimeDetail({
     arr.sort((a, b) => a.addedAt.getTime() - b.addedAt.getTime());
   }
 
+  // Greedy-assign each member's adds to the season's Fridays, same
+  // algorithm getOnTimeStats uses, so the table cells, the
+  // cumulative-late ledger, and the line graph all agree.
+  const fridaysMs = fridays.map((f) => f.getTime());
+  const greedyByCrew = new Map<string, (number | null)[]>();
+  for (const c of crew) {
+    const memberAdds = (addsByCrew.get(c.id) ?? []).map((a) =>
+      a.addedAt.getTime(),
+    );
+    greedyByCrew.set(c.id, greedyAssignAdds(memberAdds, fridaysMs));
+  }
+  const dayMs = 24 * 60 * 60 * 1000;
+
   return (
     <div className="flex flex-col gap-6">
       <DetailSection
@@ -695,35 +709,24 @@ export function OnTimeDetail({
                       Wk {fIdx + 1} · {friday.toLocaleDateString()}
                     </td>
                     {crew.map((c, i) => {
-                      const adds = addsByCrew.get(c.id) ?? [];
-                      // The earliest unconsumed add that lands on or
-                      // before this Friday week (Mon→Sun centred on the
-                      // Friday). We want a simple "did they add for this
-                      // week?" answer — match any add between this
-                      // Friday and the next.
-                      const weekEnd =
-                        fIdx + 1 < fridays.length
-                          ? fridays[fIdx + 1].getTime()
-                          : Number.POSITIVE_INFINITY;
-                      const hit = adds.find(
-                        (a) =>
-                          a.addedAt.getTime() >= fridayMs &&
-                          a.addedAt.getTime() < weekEnd,
-                      );
-                      const isLate = !hit;
+                      const sat = greedyByCrew.get(c.id)?.[fIdx] ?? null;
+                      const isUnsatisfied = sat === null;
+                      const lateDays = isUnsatisfied
+                        ? null
+                        : Math.floor(Math.max(0, sat - fridayMs) / dayMs);
                       return (
                         <td
                           key={c.id}
                           className="bg-spotify-base/40 px-2 py-1 font-mono"
                           style={{
-                            color: isLate
+                            color: isUnsatisfied
                               ? "#fca5a5"
                               : ON_TIME_COLORS[i % ON_TIME_COLORS.length],
                           }}
                         >
-                          {hit
-                            ? hit.addedAt.toLocaleDateString()
-                            : "missed"}
+                          {isUnsatisfied
+                            ? "missed"
+                            : `${new Date(sat).toLocaleDateString()} (+${lateDays}d)`}
                         </td>
                       );
                     })}
