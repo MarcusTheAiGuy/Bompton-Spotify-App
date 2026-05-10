@@ -13,6 +13,7 @@ import {
   type ArtistGenres,
   type ArtistGenresFetchError,
 } from "@/lib/artist-genres";
+import { umbrellaOf } from "@/lib/genre-taxonomy";
 import { prisma } from "@/lib/prisma";
 
 // Aggregations over the four-season Bompton dataset for the deep-stats
@@ -269,9 +270,17 @@ export function getAllTimeLeaderboard(
 
 export type GenreCount = { genre: string; count: number };
 
+// Per-crew genre summary. We surface two slots instead of a free
+// top-3 list: an umbrella (Rap / Rock / Pop / …, resolved via
+// lib/genre-taxonomy) and the strongest sub-genre tag inside that
+// umbrella. `subGenre` is null when the member's only tags inside
+// the top umbrella ARE the umbrella itself (e.g. only "rap" with
+// no further qualifier). `umbrella` is null when the member has no
+// genre tags at all in our cache.
 export type GenreBreakdownPerCrew = {
   crewMember: CrewMember;
-  topGenres: GenreCount[];
+  umbrella: GenreCount | null;
+  subGenre: GenreCount | null;
   totalGenreHits: number;
 };
 
@@ -303,6 +312,66 @@ export type GenreBreakdown = {
   artistLookupApiKeyConfigured: boolean;
   artistLookupFetchBudgetRemaining: number;
 };
+
+// Reduce a member's per-tag counts to (top umbrella, top sub-genre
+// inside that umbrella). Sub-genre selection only considers tags
+// that map to the chosen umbrella AND are different from the
+// umbrella name itself — so a member tagged with "rap" + "conscious
+// rap" + "trap" gets umbrella=rap, subGenre=whichever of "conscious
+// rap"/"trap" has the higher count. If every tag for the top
+// umbrella IS just the umbrella name, subGenre is null.
+//
+// Fallback: when no tag in the member's set maps to any known
+// umbrella, surface the highest-count tag as the umbrella line so
+// the slot isn't empty (with subGenre still null).
+function pickUmbrellaAndSubGenre(
+  counts: Map<string, number>,
+): { umbrella: GenreCount | null; subGenre: GenreCount | null } {
+  if (counts.size === 0) return { umbrella: null, subGenre: null };
+
+  const umbrellaSums = new Map<string, number>();
+  const tagsByUmbrella = new Map<string, Map<string, number>>();
+  for (const [tag, count] of counts) {
+    const umb = umbrellaOf(tag);
+    if (!umb) continue;
+    umbrellaSums.set(umb, (umbrellaSums.get(umb) ?? 0) + count);
+    let bucket = tagsByUmbrella.get(umb);
+    if (!bucket) {
+      bucket = new Map();
+      tagsByUmbrella.set(umb, bucket);
+    }
+    bucket.set(tag, (bucket.get(tag) ?? 0) + count);
+  }
+
+  if (umbrellaSums.size === 0) {
+    const top = [...counts.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    )[0];
+    return {
+      umbrella: { genre: top[0], count: top[1] },
+      subGenre: null,
+    };
+  }
+
+  const [topUmbName, topUmbCount] = [...umbrellaSums.entries()].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  )[0];
+
+  const bucket = tagsByUmbrella.get(topUmbName) ?? new Map<string, number>();
+  const subEntries = [...bucket.entries()].filter(([tag]) => tag !== topUmbName);
+  let subGenre: GenreCount | null = null;
+  if (subEntries.length > 0) {
+    const [subTag, subCount] = subEntries.sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    )[0];
+    subGenre = { genre: subTag, count: subCount };
+  }
+
+  return {
+    umbrella: { genre: topUmbName, count: topUmbCount },
+    subGenre,
+  };
+}
 
 export function getGenreBreakdown(
   flat: FlattenedTrack[],
@@ -366,10 +435,7 @@ export function getGenreBreakdown(
     const counts = perCrewCounts.get(c.id) ?? new Map<string, number>();
     return {
       crewMember: c,
-      topGenres: [...counts.entries()]
-        .map(([genre, count]) => ({ genre, count }))
-        .sort((a, b) => b.count - a.count || a.genre.localeCompare(b.genre))
-        .slice(0, 3),
+      ...pickUmbrellaAndSubGenre(counts),
       totalGenreHits: perCrewTotals.get(c.id) ?? 0,
     };
   });
