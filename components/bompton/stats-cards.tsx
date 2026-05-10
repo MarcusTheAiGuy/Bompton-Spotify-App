@@ -525,13 +525,13 @@ export function OnTimeCard({ onTime }: { onTime: OnTimeStats }) {
         Cumulative late days per member, season {onTime.year}. Lowest wins.
       </p>
       <OnTimeLineGraph onTime={onTime} />
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col gap-3">
         {[...onTime.totals]
           .sort((a, b) => a.lateDays - b.lateDays)
           .map((total) => (
             <li
               key={total.crewMember.id}
-              className="flex items-center gap-3 text-sm"
+              className="flex items-center gap-3 text-base"
             >
               <CrownAvatar
                 crewMember={total.crewMember}
@@ -562,7 +562,7 @@ export function OnTimeCard({ onTime }: { onTime: OnTimeStats }) {
 
 function OnTimeLineGraph({ onTime }: { onTime: OnTimeStats }) {
   const width = 360;
-  const height = 180;
+  const height = 220;
   const paddingL = 32;
   const paddingR = 12;
   const paddingT = 12;
@@ -942,7 +942,7 @@ export function ExplicitCard({
         </span>{" "}
         of attributed adds.
       </p>
-      <ul className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-5">
         {explicit.map((entry) => {
           const total = Math.max(1, entry.total);
           const ePct = (entry.explicit / total) * 100;
@@ -961,7 +961,7 @@ export function ExplicitCard({
                   {(entry.explicitRate * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="flex h-3 w-full overflow-hidden rounded-full bg-spotify-highlight">
+              <div className="flex h-4 w-full overflow-hidden rounded-full bg-spotify-highlight">
                 <div
                   className="bg-rose-500"
                   style={{ width: `${ePct}%` }}

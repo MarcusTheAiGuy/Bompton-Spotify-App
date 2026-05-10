@@ -818,7 +818,7 @@ export type AlbumCount = {
 
 export function getTopAlbums(
   flat: FlattenedTrack[],
-  limit = 8,
+  limit = 7,
 ): AlbumCount[] {
   const counts = new Map<string, AlbumCount>();
   for (const { track } of flat) {
