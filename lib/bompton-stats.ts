@@ -24,6 +24,69 @@ export type FlattenedTrack = {
   year: BomptonYear;
 };
 
+// Track shape the stats-card detail pages render — every field a row
+// might need (track metadata, who-added crew member, when-added) is
+// pre-resolved so each detail component can stay a thin presentation
+// layer. Built from FlattenedTrack[] + crew[].
+export type EnrichedTrack = {
+  year: BomptonYear;
+  trackId: string | null;
+  trackName: string;
+  trackUri: string;
+  trackOpenUrl: string | null;
+  artistsLabel: string;
+  albumName: string;
+  albumImageUrl: string | null;
+  durationMs: number;
+  explicit: boolean;
+  isLocal: boolean;
+  addedAt: Date | null;
+  addedAtLabel: string;
+  addedBy: CrewMember | null;
+  addedByLabel: string;
+  addedByImage: string | null;
+};
+
+export function enrichTracks(
+  flat: FlattenedTrack[],
+  crew: CrewMember[],
+): EnrichedTrack[] {
+  return flat.flatMap(({ track, year }): EnrichedTrack[] => {
+    if (!track.track) return [];
+    const t = track.track;
+    const member = findCrewBySpotifyId(crew, track.added_by?.id);
+    const addedAt = track.added_at ? new Date(track.added_at) : null;
+    const addedAtMs = addedAt?.getTime();
+    return [
+      {
+        year,
+        trackId: t.id || null,
+        trackName: t.name,
+        trackUri: t.uri,
+        trackOpenUrl: t.id ? `https://open.spotify.com/track/${t.id}` : null,
+        artistsLabel: (t.artists ?? [])
+          .map((a) => a.name)
+          .filter(Boolean)
+          .join(", "),
+        albumName: t.album?.name ?? "",
+        albumImageUrl: t.album?.images?.[0]?.url ?? null,
+        durationMs: t.duration_ms ?? 0,
+        explicit: Boolean(t.explicit),
+        isLocal: Boolean(track.is_local),
+        addedAt,
+        addedAtLabel:
+          addedAtMs !== undefined && !Number.isNaN(addedAtMs)
+            ? addedAt!.toISOString()
+            : "",
+        addedBy: member,
+        addedByLabel:
+          member?.name ?? member?.email ?? track.added_by?.id ?? "Unknown",
+        addedByImage: member?.image ?? null,
+      },
+    ];
+  });
+}
+
 export function flattenAllSeasons(
   data: BomptonPlaylistByYear[],
 ): FlattenedTrack[] {
@@ -220,6 +283,13 @@ export type GenreBreakdown = {
   // "click Initialize Artist table on /troubleshooting" when the
   // backing table simply doesn't exist yet.
   artistTableMissing: boolean;
+  // Diagnostic: how many of the playlist's tracks have at least one
+  // artist with a Spotify id on file. When this is 0 with tracksTotal
+  // > 0, the stored PlaylistTrack rows lack artist ids — the user
+  // needs to Reset + re-sync (the Refresh button short-circuits on
+  // snapshot match and won't repull stale rows).
+  tracksTotal: number;
+  tracksWithAnyArtistId: number;
 };
 
 export function getGenreBreakdown(
@@ -236,8 +306,17 @@ export function getGenreBreakdown(
   }
   const overallCounts = new Map<string, number>();
 
+  let tracksTotal = 0;
+  let tracksWithAnyArtistId = 0;
+
   for (const { track } of flat) {
     if (!track.track) continue;
+    tracksTotal += 1;
+    const hasAnyArtistId = (track.track.artists ?? []).some(
+      (a) => typeof a?.id === "string" && a.id.length > 0,
+    );
+    if (hasAnyArtistId) tracksWithAnyArtistId += 1;
+
     // Union of every genre across every artist on this track. A genre
     // shared by multiple credited artists still only contributes +1
     // for the track — e.g. a feature where artist A is tagged
@@ -294,6 +373,8 @@ export function getGenreBreakdown(
     totalArtistsLookedUp: artistGenres.size,
     totalArtistsWithGenres: totalWithGenres,
     artistTableMissing,
+    tracksTotal,
+    tracksWithAnyArtistId,
   };
 }
 
@@ -424,6 +505,135 @@ export async function getListeningDedication(
   entries.sort((a, b) => b.listenCount - a.listenCount);
   if (entries[0] && entries[0].listenCount > 0) entries[0].isCrown = true;
   return { entries, tableMissing: false, totalCandidatePlays: plays.length };
+}
+
+// Detail-page builder for the dedication card. Returns every qualifying
+// play with the track, who played it, when, who added the track, and
+// when the add happened — i.e. everything you'd need to drill into the
+// counts the dedication card surfaces.
+export type DedicationPlayDetail = {
+  member: CrewMember;
+  trackSpotifyId: string;
+  trackName: string;
+  trackArtist: string;
+  trackDurationMs: number;
+  playedAt: Date;
+  addedBy: CrewMember | null;
+  addedBySpotifyId: string;
+  addedAt: Date;
+  // Which Bompton season the matching add lives in. If the same track
+  // was added in multiple seasons, this is the earliest one that
+  // qualified (other-added + before the play).
+  season: BomptonYear | null;
+};
+
+export type DedicationDetails = {
+  plays: DedicationPlayDetail[];
+  tableMissing: boolean;
+};
+
+export async function getDedicationDetails(
+  data: BomptonPlaylistByYear[],
+  crew: CrewMember[],
+): Promise<DedicationDetails> {
+  // Mirror getListeningDedication's prep but keep the per-season
+  // metadata so we can attribute each qualifying play.
+  type AddRecord = {
+    addedBySpotifyId: string;
+    addedAtMs: number;
+    addedAt: Date;
+    season: BomptonYear;
+  };
+  const trackAdds = new Map<string, AddRecord[]>();
+  for (const season of data) {
+    for (const t of season.tracks) {
+      const tid = t.track?.id;
+      const addedBy = t.added_by?.id;
+      if (!tid || !addedBy || !t.added_at) continue;
+      const addedAt = new Date(t.added_at);
+      const addedAtMs = addedAt.getTime();
+      if (Number.isNaN(addedAtMs)) continue;
+      let arr = trackAdds.get(tid);
+      if (!arr) {
+        arr = [];
+        trackAdds.set(tid, arr);
+      }
+      arr.push({
+        addedBySpotifyId: addedBy,
+        addedAtMs,
+        addedAt,
+        season: season.year,
+      });
+    }
+  }
+
+  if (trackAdds.size === 0 || crew.length === 0) {
+    return { plays: [], tableMissing: false };
+  }
+
+  let plays: {
+    userId: string;
+    trackSpotifyId: string;
+    trackName: string;
+    trackArtist: string;
+    trackDurationMs: number;
+    playedAt: Date;
+  }[] = [];
+  try {
+    plays = await prisma.listeningPlay.findMany({
+      where: {
+        userId: { in: crew.map((c) => c.id) },
+        trackSpotifyId: { in: [...trackAdds.keys()] },
+      },
+      select: {
+        userId: true,
+        trackSpotifyId: true,
+        trackName: true,
+        trackArtist: true,
+        trackDurationMs: true,
+        playedAt: true,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/does not exist/i.test(message)) {
+      return { plays: [], tableMissing: true };
+    }
+    throw error;
+  }
+
+  const out: DedicationPlayDetail[] = [];
+  for (const play of plays) {
+    const adds = trackAdds.get(play.trackSpotifyId);
+    if (!adds || adds.length === 0) continue;
+    const member = crew.find((c) => c.id === play.userId);
+    if (!member) continue;
+    const playMs = play.playedAt.getTime();
+    // Pick the earliest qualifying add (other-added + before the play).
+    const qualifying = adds
+      .filter(
+        (a) =>
+          a.addedBySpotifyId !== member.spotifyUserId &&
+          a.addedAtMs <= playMs,
+      )
+      .sort((a, b) => a.addedAtMs - b.addedAtMs);
+    const validAdd = qualifying[0];
+    if (!validAdd) continue;
+    out.push({
+      member,
+      trackSpotifyId: play.trackSpotifyId,
+      trackName: play.trackName,
+      trackArtist: play.trackArtist,
+      trackDurationMs: play.trackDurationMs,
+      playedAt: play.playedAt,
+      addedBy: findCrewBySpotifyId(crew, validAdd.addedBySpotifyId),
+      addedBySpotifyId: validAdd.addedBySpotifyId,
+      addedAt: validAdd.addedAt,
+      season: validAdd.season,
+    });
+  }
+  out.sort((a, b) => b.playedAt.getTime() - a.playedAt.getTime());
+  return { plays: out, tableMissing: false };
 }
 
 // ---------- Card 3: Top artists ----------
@@ -901,3 +1111,79 @@ export async function buildBomptonStats(
     totalTracks: flat.length,
   };
 }
+
+// ---------- Card metadata (used by /bompton-playlist/stats/[card]) ----------
+
+export const STATS_CARD_SLUGS = [
+  "genres",
+  "dedication",
+  "top-artists",
+  "top-albums",
+  "on-time",
+  "time-of-day",
+  "day-of-week",
+  "track-length",
+  "explicit",
+] as const;
+
+export type StatsCardSlug = (typeof STATS_CARD_SLUGS)[number];
+
+export const STATS_CARD_META: Record<
+  StatsCardSlug,
+  { title: string; subtitle: string; blurb: string }
+> = {
+  genres: {
+    title: "Genre tracker",
+    subtitle: "Card 1 · Catalog",
+    blurb:
+      "Every genre tag from Spotify's /v1/artists endpoint, with the artists carrying that tag and the tracks they appear on.",
+  },
+  dedication: {
+    title: "Listening dedication",
+    subtitle: "Card 2 · Crew",
+    blurb:
+      "Every play that counted toward the dedication leaderboard — track, who played it, when, who added it to a Bompton playlist, and when.",
+  },
+  "top-artists": {
+    title: "Most-added artists",
+    subtitle: "Card 3 · Catalog",
+    blurb:
+      "All artists ranked by track count across the four Bompton seasons, with every track they appear on and who added each.",
+  },
+  "top-albums": {
+    title: "Most-added albums",
+    subtitle: "Card 4 · Catalog",
+    blurb:
+      "Albums ranked by track count, with every Bompton track from each album and who added it.",
+  },
+  "on-time": {
+    title: "On-time stats",
+    subtitle: "Card 5 · Habits",
+    blurb:
+      "The current season's Friday-by-Friday timeline per crew member, with cumulative late days and the late-week ledger that drives the line graph.",
+  },
+  "time-of-day": {
+    title: "Time-of-day distribution",
+    subtitle: "Card 6 · Habits",
+    blurb:
+      "Every add bucketed into morning / afternoon / evening / night (UTC), per crew member, with the underlying tracks.",
+  },
+  "day-of-week": {
+    title: "Day-of-week distribution",
+    subtitle: "Card 7 · Habits",
+    blurb:
+      "Every add bucketed by weekday (UTC), with the underlying tracks per day.",
+  },
+  "track-length": {
+    title: "Track length",
+    subtitle: "Card 8 · Catalog",
+    blurb:
+      "Track durations across all four seasons, the median + average + total, plus a histogram by 30-second bucket with the actual tracks per bucket.",
+  },
+  explicit: {
+    title: "Explicit vs clean",
+    subtitle: "Card 9 · Crew",
+    blurb:
+      "Per-crew-member explicit-rate, plus the actual explicit tracks each member added.",
+  },
+};
