@@ -32,7 +32,13 @@ export function StatCardShell({
   children: React.ReactNode;
 }) {
   return (
-    <article className="flex flex-col gap-4 rounded-lg border border-spotify-border bg-spotify-elevated/50 p-5">
+    // h-full + the parent CardLink's h-full block let the grid's natural
+    // row equalization propagate down: every card in a 3-col row
+    // stretches to match the tallest one. Without h-full the article
+    // sizes to its content, the link sizes to the article, and cards
+    // end up uneven heights even though the grid container would
+    // happily make them equal.
+    <article className="flex h-full flex-col gap-4 rounded-lg border border-spotify-border bg-spotify-elevated/50 p-5">
       <header className="flex flex-col gap-0.5">
         <p className="text-[10px] font-bold uppercase tracking-widest text-spotify-subtext">
           {subtitle}
@@ -1141,7 +1147,10 @@ function CardLink({
   return (
     <Link
       href={`/bompton-playlist/stats/${slug}`}
-      className="group block rounded-lg outline-none transition focus-visible:ring-2 focus-visible:ring-spotify-green hover:[&>article]:border-spotify-green/60 hover:[&>article]:bg-spotify-elevated/80"
+      // h-full so the link fills the grid cell — combined with
+      // h-full on the article inside StatCardShell, this lets the
+      // grid auto-equalize every card in a row to match the tallest.
+      className="group block h-full rounded-lg outline-none transition focus-visible:ring-2 focus-visible:ring-spotify-green hover:[&>article]:border-spotify-green/60 hover:[&>article]:bg-spotify-elevated/80"
       prefetch={false}
     >
       {children}
