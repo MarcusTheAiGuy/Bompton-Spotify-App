@@ -249,6 +249,70 @@ export async function initArtistTable(): Promise<InitArtistTableResult> {
   }
 }
 
+export type InitLateAddNotificationTableResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// Backs the late-add email nudge (POST /api/late-add-notifications).
+// One row per Resend send attempt, successful or not. The 24h cooldown
+// lookup reads from this table, so the table missing = no cooldown =
+// risk of duplicate sends, so we hard-error rather than silently skip.
+export async function initLateAddNotificationTable(): Promise<InitLateAddNotificationTableResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "LateAddNotification" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "bomptonYear" TEXT NOT NULL,
+        "weeksBehind" INTEGER NOT NULL,
+        "missedFridays" JSONB NOT NULL,
+        "ccEmails" JSONB NOT NULL,
+        "emailSubject" TEXT NOT NULL,
+        "resendId" TEXT,
+        "errorMessage" TEXT,
+        CONSTRAINT "LateAddNotification_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "LateAddNotification_userId_idx" ON "LateAddNotification"("userId")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "LateAddNotification_userId_sentAt_idx" ON "LateAddNotification"("userId", "sentAt")`,
+    );
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'LateAddNotification_userId_fkey') THEN
+          ALTER TABLE "LateAddNotification"
+            ADD CONSTRAINT "LateAddNotification_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES "User"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+      END
+      $$
+    `);
+    revalidatePath("/troubleshooting");
+    return {
+      ok: true,
+      message:
+        "LateAddNotification table + indexes + FK are present (created if missing). Set RESEND_API_KEY and RESEND_FROM_EMAIL env vars, then visit /dashboard to fire the first round of nudges.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
+
 export type InitListeningPlayTableResult =
   | { ok: true; message: string }
   | { ok: false; error: string };

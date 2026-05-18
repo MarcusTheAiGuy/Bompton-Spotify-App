@@ -9,6 +9,7 @@ import {
 import {
   InitArtistButton,
   InitCachedResponseButton,
+  InitLateAddNotificationButton,
   InitListeningPlayButton,
   InitPlaylistLinkButton,
   ResetArtistCacheButton,
@@ -165,6 +166,25 @@ export default async function TroubleshootingPage() {
             deploy. Idempotent.
           </p>
           <InitListeningPlayButton />
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
+          <h3 className="text-base font-bold tracking-tight">
+            One-shot · Initialize LateAddNotification table
+          </h3>
+          <p className="text-sm text-spotify-subtext">
+            Log of every late-add roast email we&apos;ve dispatched via
+            Resend. POST{" "}
+            <code className="font-mono">/api/late-add-notifications</code>{" "}
+            reads from this table for the 24h-per-offender cooldown, so
+            if the table&apos;s missing every dashboard open will hard-
+            error the email send. Also requires{" "}
+            <code className="font-mono">RESEND_API_KEY</code> and{" "}
+            <code className="font-mono">RESEND_FROM_EMAIL</code> env vars
+            (the latter must be a verified sender on your Resend domain).
+            Click once after deploy. Idempotent.
+          </p>
+          <InitLateAddNotificationButton />
         </div>
       </section>
     </section>
