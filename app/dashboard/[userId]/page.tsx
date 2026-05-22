@@ -10,6 +10,7 @@ import {
 import { CrashCard } from "@/components/crash-card";
 import { UserTabs, type TabUser } from "@/components/user-tabs";
 import { LazyDashboardSections } from "@/components/dashboard/lazy-sections";
+import { DashboardAutoSyncAll } from "@/components/dashboard/dashboard-auto-sync-all";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +99,8 @@ async function renderDashboard(userId: string) {
         profile={null}
         viewedUser={viewedUser}
       />
+
+      <DashboardAutoSyncAll />
 
       <LazyDashboardSections
         forUserId={userId}
