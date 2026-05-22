@@ -1029,15 +1029,18 @@ export function getOnTimeStats(
     });
   }
 
-  // weeks-behind right now = past Fridays (deadline reached) that
-  // greedy assignment couldn't satisfy with any later add.
-  const todayDt = today.getTime();
+  // weeks-behind right now = Fridays in the season-to-date that greedy
+  // assignment couldn't satisfy with any later add. Includes today's
+  // Friday (deadline-not-yet-passed) so this matches scoreSeason()'s
+  // expectedCount semantics and the leaderboard card's "behind" number
+  // — both count today's Friday as expected. lateDays for that Friday
+  // is still 0 until tomorrow (the dt - fMs term clamps at 0), so the
+  // card's late-day total doesn't get a phantom +1 from including it
+  // here.
   for (const total of totals) {
     const states = memberStates.get(total.crewMember.id) ?? [];
     let behind = 0;
     for (let fi = 0; fi < fridaysMs.length; fi += 1) {
-      const fMs = fridaysMs[fi];
-      if (todayDt < fMs + dayMs) continue; // deadline (Saturday) hasn't passed
       if (states[fi] === null) behind += 1;
     }
     total.weeksBehind = behind;
