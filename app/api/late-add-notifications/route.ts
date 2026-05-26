@@ -5,6 +5,7 @@ import { CURRENT_BOMPTON_YEAR, type CrewMember } from "@/lib/bompton";
 import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
 import { findLateAdders } from "@/lib/late-add-detection";
 import {
+  LATE_ADD_PERSONA_COUNT,
   LateAddEmailConfigError,
   LateAddEmailSendError,
   sendLateAddEmail,
@@ -134,9 +135,44 @@ export async function POST(request: NextRequest) {
     resendId?: string | null;
     subject?: string;
     ccEmails?: string[];
+    personaKey?: string;
   };
 
   const outcomes: Outcome[] = [];
+
+  // Round-robin roast rotation. The persona index for the next send is
+  // the count of successful sends so far modulo the persona list length.
+  // Counting successful (resendId IS NOT NULL) rows means failed sends
+  // do NOT burn a slot — the next try gets the same persona. We then
+  // increment locally per successful send so a batch hitting 2+ offenders
+  // walks the rotation forward correctly without a fresh DB read each time.
+  let rotationCursor: number;
+  try {
+    rotationCursor = await prisma.lateAddNotification.count({
+      where: { resendId: { not: null } },
+    });
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "PrismaError";
+    const message = error instanceof Error ? error.message : String(error);
+    if (/does not exist/i.test(message)) {
+      // Table not initialized — let the per-offender cooldown lookup raise
+      // the user-actionable config-error with the troubleshooting link.
+      rotationCursor = 0;
+    } else {
+      console.error("[late-add-notifications.rotation-count.failed]", {
+        callerId,
+        name,
+        message,
+      });
+      return NextResponse.json(
+        {
+          error: name,
+          message: `Failed to read LateAddNotification count for persona rotation: ${message}. Check DATABASE_URL.`,
+        },
+        { status: 500 },
+      );
+    }
+  }
 
   for (const offender of detection.offenders) {
     const userLabel = offender.member.name ?? offender.member.email ?? offender.member.id;
@@ -210,6 +246,7 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    const personaIndex = rotationCursor % LATE_ADD_PERSONA_COUNT;
     try {
       const result = await sendLateAddEmail({
         offender: offender.member,
@@ -220,7 +257,9 @@ export async function POST(request: NextRequest) {
         standings,
         bomptonYear: CURRENT_BOMPTON_YEAR,
         playlistUrl,
+        personaIndex,
       });
+      rotationCursor += 1;
       try {
         await prisma.lateAddNotification.create({
           data: {
@@ -250,6 +289,7 @@ export async function POST(request: NextRequest) {
         resendId: result.resendId,
         subject: result.subject,
         ccEmails: result.ccEmails,
+        personaKey: result.personaKey,
       });
     } catch (error) {
       if (error instanceof LateAddEmailConfigError) {
