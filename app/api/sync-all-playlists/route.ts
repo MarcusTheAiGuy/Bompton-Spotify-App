@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
 import {
   PlaylistSyncError,
@@ -24,17 +25,18 @@ export const dynamic = "force-dynamic";
 // this should expect a multi-second response.
 export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
+  const cron = isAuthorizedCron(request);
+  if (!session?.user?.id && !cron) {
     return NextResponse.json(
       {
         error: "Unauthorized",
         message:
-          "Not signed in. Sign in with Spotify and retry. /api/sync-all-playlists requires an authenticated session.",
+          "Not signed in. /api/sync-all-playlists requires either a Spotify session or a Vercel cron invocation (x-vercel-cron header) or Authorization: Bearer $CRON_SECRET.",
       },
       { status: 401 },
     );
   }
-  const callerId = session.user.id;
+  const callerId = session?.user?.id ?? "vercel-cron";
 
   // Body is optional — if it's missing or malformed, fall back to defaults
   // rather than 400-ing the auto-sync trigger.

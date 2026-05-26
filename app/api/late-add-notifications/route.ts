@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CURRENT_BOMPTON_YEAR, type CrewMember } from "@/lib/bompton";
 import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
+import { isAuthorizedCron } from "@/lib/cron-auth";
 import { findLateAdders } from "@/lib/late-add-detection";
 import {
   LATE_ADD_PERSONA_COUNT,
@@ -29,17 +30,18 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 // per-user playlist sync has run, so we're working off fresh data.
 export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session?.user?.id) {
+  const cron = isAuthorizedCron(request);
+  if (!session?.user?.id && !cron) {
     return NextResponse.json(
       {
         error: "Unauthorized",
         message:
-          "Not signed in. /api/late-add-notifications requires an authenticated session.",
+          "Not signed in. /api/late-add-notifications requires either a Spotify session or a Vercel cron invocation (x-vercel-cron header) or Authorization: Bearer $CRON_SECRET.",
       },
       { status: 401 },
     );
   }
-  const callerId = session.user.id;
+  const callerId = session?.user?.id ?? "vercel-cron";
 
   let body: { thresholdDays?: unknown; dryRun?: unknown } = {};
   try {
