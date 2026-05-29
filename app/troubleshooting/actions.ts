@@ -313,6 +313,57 @@ export async function initLateAddNotificationTable(): Promise<InitLateAddNotific
   }
 }
 
+export type InitFridayReminderTableResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// Backs the crew-wide Friday reminder (GET|POST /api/friday-reminder).
+// One row per weekly send attempt, successful or not. The per-week dedupe
+// lookup reads from this table keyed on `weekOf`, so if it's missing the
+// route hard-errors rather than risk a duplicate crew-wide blast. No FK —
+// this is a broadcast email, not per-user. Idempotent — safe to click twice.
+export async function initFridayReminderTable(): Promise<InitFridayReminderTableResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "FridayReminderNotification" (
+        "id" TEXT NOT NULL,
+        "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "bomptonYear" TEXT NOT NULL,
+        "weekOf" TIMESTAMP(3) NOT NULL,
+        "personaKey" TEXT NOT NULL,
+        "recipients" JSONB NOT NULL,
+        "resendId" TEXT,
+        "errorMessage" TEXT,
+        CONSTRAINT "FridayReminderNotification_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "FridayReminderNotification_weekOf_idx" ON "FridayReminderNotification"("weekOf")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "FridayReminderNotification_sentAt_idx" ON "FridayReminderNotification"("sentAt")`,
+    );
+    revalidatePath("/troubleshooting");
+    return {
+      ok: true,
+      message:
+        "FridayReminderNotification table + indexes are present (created if missing). Set RESEND_API_KEY and RESEND_FROM_EMAIL env vars; the Friday-noon Vercel cron (or POST /api/friday-reminder) will fire the first hype email.",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
+
 export type InitListeningPlayTableResult =
   | { ok: true; message: string }
   | { ok: false; error: string };

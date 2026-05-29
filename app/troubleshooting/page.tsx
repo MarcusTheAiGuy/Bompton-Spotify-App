@@ -9,6 +9,7 @@ import {
 import {
   InitArtistButton,
   InitCachedResponseButton,
+  InitFridayReminderButton,
   InitLateAddNotificationButton,
   InitListeningPlayButton,
   InitPlaylistLinkButton,
@@ -185,6 +186,25 @@ export default async function TroubleshootingPage() {
             Click once after deploy. Idempotent.
           </p>
           <InitLateAddNotificationButton />
+        </div>
+
+        <div className="mt-6 flex flex-col gap-2 border-t border-spotify-border pt-6">
+          <h3 className="text-base font-bold tracking-tight">
+            One-shot · Initialize FridayReminderNotification table
+          </h3>
+          <p className="text-sm text-spotify-subtext">
+            Log of every crew-wide &quot;it&apos;s Friday, add a song&quot;
+            hype email. GET|POST{" "}
+            <code className="font-mono">/api/friday-reminder</code> reads
+            from this table to dedupe per week (one successful send per
+            Friday), so if the table&apos;s missing the route hard-errors
+            rather than risk a duplicate blast. The Friday-noon Vercel cron
+            hits that route. Also requires{" "}
+            <code className="font-mono">RESEND_API_KEY</code> and{" "}
+            <code className="font-mono">RESEND_FROM_EMAIL</code> env vars.
+            Click once after deploy. Idempotent.
+          </p>
+          <InitFridayReminderButton />
         </div>
       </section>
     </section>

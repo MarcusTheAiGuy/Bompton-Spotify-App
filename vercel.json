@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/daily-sync",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/friday-reminder",
+      "schedule": "0 15 * * 5"
     }
   ]
 }
