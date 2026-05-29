@@ -187,6 +187,28 @@ model LateAddNotification {
   @@index([userId, sentAt])
 }
 
+// "It's Friday, add a song" hype emails sent crew-wide via Resend. One
+// row per weekly send attempt, successful or not. Unlike LateAddNotification
+// this isn't per-user — it's a single broadcast to the whole crew, so there's
+// no userId/FK. The per-week dedupe lookup reads from here (a successful send
+// for a given `weekOf` Friday means we don't re-send that week even if the
+// cron fires twice), and errorMessage records why a send refused without
+// having to log into Resend. Inserted by /api/friday-reminder.
+model FridayReminderNotification {
+  id           String   @id @default(cuid())
+  sentAt       DateTime @default(now())
+  bomptonYear  String
+  // UTC-midnight of the Friday this reminder is for. The dedupe key.
+  weekOf       DateTime
+  personaKey   String
+  recipients   Json     // string[] of crew emails on the To: line
+  resendId     String?
+  errorMessage String?
+
+  @@index([weekOf])
+  @@index([sentAt])
+}
+
 // Durable Spotify response cache. Populated whenever the dashboard's
 // /api/dashboard/[kind] route fetches fresh data from Spotify; read
 // on subsequent requests until expiresAt. Lets us honor long TTLs

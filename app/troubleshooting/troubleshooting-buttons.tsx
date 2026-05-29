@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import {
   initArtistTable,
   initCachedSpotifyResponseTable,
+  initFridayReminderTable,
   initLateAddNotificationTable,
   initListeningPlayTable,
   initUserPlaylistLinkTable,
@@ -11,6 +12,7 @@ import {
   resetPlaylistSyncState,
   type InitArtistTableResult,
   type InitCachedResponseTableResult,
+  type InitFridayReminderTableResult,
   type InitLateAddNotificationTableResult,
   type InitListeningPlayTableResult,
   type InitPlaylistLinkTableResult,
@@ -216,6 +218,39 @@ export function InitLateAddNotificationButton() {
         className="btn-ghost self-start disabled:cursor-not-allowed disabled:opacity-60"
       >
         {pending ? "Creating…" : "Initialize LateAddNotification table"}
+      </button>
+      {result && result.ok ? (
+        <p className="text-xs text-spotify-green">{result.message}</p>
+      ) : null}
+      {result && !result.ok ? (
+        <p className="whitespace-pre-wrap text-xs text-red-300">{result.error}</p>
+      ) : null}
+    </div>
+  );
+}
+
+export function InitFridayReminderButton() {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] =
+    useState<InitFridayReminderTableResult | null>(null);
+
+  function onClick() {
+    setResult(null);
+    startTransition(async () => {
+      const r = await initFridayReminderTable();
+      setResult(r);
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className="btn-ghost self-start disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Creating…" : "Initialize FridayReminderNotification table"}
       </button>
       {result && result.ok ? (
         <p className="text-xs text-spotify-green">{result.message}</p>
