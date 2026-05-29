@@ -167,68 +167,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 2 — Club DJ
-  {
-    key: "club-dj",
-    subject: () => `🔊 BWAAAAH. IT'S FRIDAY. DROP A SONG.`,
-    text: (i) =>
-      [
-        `AYO. AYO. PUT YOUR HANDS UP IF YOU LOVE BOMPTON ${i.bomptonYear}.`,
-        ``,
-        `*airhorn* *airhorn* *airhorn*`,
-        ``,
-        `It's ${formatFriday(i.fridayDate)} and the booth is OPEN baby. The crowd is sweaty. The playlist is THIRSTY. And it is, in fact, FRIDAY.`,
-        ``,
-        `You know the drill — one song, straight to the deck, no skips. Make 'em scream.`,
-        ``,
-        renderPlaylistLineText(i, "Step up to the decks"),
-        ``,
-        `WHEN I SAY FRI you say DAY. FRI— *airhorn*. Back next week, don't make me come find you.`,
-      ].join("\n"),
-    html: (i) =>
-      wrapHtml(
-        `🔊 BWAAAAH. IT'S FRIDAY. DROP A SONG.`,
-        `
-        <p style="font-size:18px"><strong>AYO. AYO. PUT YOUR HANDS UP IF YOU LOVE BOMPTON ${escapeHtml(i.bomptonYear)}.</strong></p>
-        <p style="letter-spacing:.1em">*airhorn* *airhorn* *airhorn*</p>
-        <p>It's ${escapeHtml(formatFriday(i.fridayDate))} and the booth is OPEN baby. The crowd is sweaty. The playlist is <strong>THIRSTY</strong>. And it is, in fact, <strong>FRIDAY</strong>.</p>
-        <p>You know the drill &mdash; one song, straight to the deck, no skips. Make 'em scream.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Step up to the decks.`)}</div>
-        <p style="${FOOTER_STYLE}">WHEN I SAY FRI you say DAY. Back next week, don't make me come find you.</p>
-        `,
-      ),
-  },
-
-  // 3 — Hype Man
-  {
-    key: "hype-man",
-    subject: () => `MAKE SOME NOISE — IT'S SONG FRIDAY BABY`,
-    text: (i) =>
-      [
-        `YO YO YO. CAN WE GET A ROUND OF APPLAUSE FOR THE FACT THAT IT IS FRIDAY???`,
-        ``,
-        `${formatFriday(i.fridayDate)}. The realest day. The day where legends are made and playlists are FED.`,
-        ``,
-        `Every single one of you beautiful degenerates has exactly one job today and it's the easiest job in the world: add a song. ONE song. To Bompton ${i.bomptonYear}. That's it. That's the whole bit.`,
-        ``,
-        renderPlaylistLineText(i, "The stage is yours"),
-        ``,
-        `LET'S GOOOO. I believe in every one of you. Even you. ESPECIALLY you. Same time next Friday.`,
-      ].join("\n"),
-    html: (i) =>
-      wrapHtml(
-        `MAKE SOME NOISE — IT'S SONG FRIDAY BABY`,
-        `
-        <p style="font-size:18px"><strong>YO YO YO. CAN WE GET A ROUND OF APPLAUSE FOR THE FACT THAT IT IS FRIDAY???</strong></p>
-        <p>${escapeHtml(formatFriday(i.fridayDate))}. The realest day. The day where legends are made and playlists are <strong>FED</strong>.</p>
-        <p>Every single one of you beautiful degenerates has exactly one job today and it's the easiest job in the world: add a song. ONE song. To Bompton ${escapeHtml(i.bomptonYear)}. That's it. That's the whole bit.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `The stage is yours.`)}</div>
-        <p style="${FOOTER_STYLE}">LET'S GOOOO. I believe in every one of you. Even you. ESPECIALLY you. Same time next Friday.</p>
-        `,
-      ),
-  },
-
-  // 4 — Emergency Broadcast
+  // 2 — Emergency Broadcast
   {
     key: "emergency-broadcast",
     subject: () => `🚨 THIS IS NOT A DRILL. IT'S FRIDAY.`,
@@ -260,7 +199,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 5 — Cult Ritual
+  // 3 — Cult Ritual
   {
     key: "cult-ritual",
     subject: () => `the ritual is upon us. it is friday.`,
@@ -289,7 +228,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 6 — Late-Night Infomercial
+  // 4 — Late-Night Infomercial
   {
     key: "infomercial",
     subject: () => `BUT WAIT — IT'S FRIDAY AND YOUR SONG IS MISSING`,
@@ -321,7 +260,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 7 — Sports Announcer
+  // 5 — Sports Announcer
   {
     key: "sports-announcer",
     subject: () => `AND IT'S FRIDAY, FOLKS — THE CROWD GOES WILD`,
@@ -350,7 +289,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 8 — Weather Forecast
+  // 6 — Weather Forecast
   {
     key: "weather-forecast",
     subject: () => `FRIDAY FORECAST: 100% chance of you adding a banger`,
@@ -379,7 +318,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 9 — Drill Sergeant (but hype)
+  // 7 — Drill Sergeant (but hype)
   {
     key: "drill-sergeant-hype",
     subject: () => `ON YOUR FEET — IT'S FRIDAY, MOVE MOVE MOVE`,
@@ -408,7 +347,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 10 — Cosmic / Space
+  // 8 — Cosmic / Space
   {
     key: "cosmic",
     subject: () => `🌌 THE PLANETS HAVE ALIGNED. IT IS, IN FACT, FRIDAY.`,
@@ -433,6 +372,67 @@ const PERSONAS: Persona[] = [
         <p>It is foretold in the ancient star-charts that on such a day, each soul must contribute one song to the great shared playlist, lest the cosmic balance be disturbed and the weekend begin without vibes.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Transmit your banger into the void.`)}</div>
         <p style="${FOOTER_STYLE}">The galaxy is counting on you. So, somehow, am I &mdash; a bot. Next alignment: 7 Earth-days from now. Safe travels.</p>
+        `,
+      ),
+  },
+
+  // 9 — Hype Man (moved to the end of the rotation)
+  {
+    key: "hype-man",
+    subject: () => `MAKE SOME NOISE — IT'S SONG FRIDAY BABY`,
+    text: (i) =>
+      [
+        `YO YO YO. CAN WE GET A ROUND OF APPLAUSE FOR THE FACT THAT IT IS FRIDAY???`,
+        ``,
+        `${formatFriday(i.fridayDate)}. The realest day. The day where legends are made and playlists are FED.`,
+        ``,
+        `Every single one of you beautiful degenerates has exactly one job today and it's the easiest job in the world: add a song. ONE song. To Bompton ${i.bomptonYear}. That's it. That's the whole bit.`,
+        ``,
+        renderPlaylistLineText(i, "The stage is yours"),
+        ``,
+        `LET'S GOOOO. I believe in every one of you. Even you. ESPECIALLY you. Same time next Friday.`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `MAKE SOME NOISE — IT'S SONG FRIDAY BABY`,
+        `
+        <p style="font-size:18px"><strong>YO YO YO. CAN WE GET A ROUND OF APPLAUSE FOR THE FACT THAT IT IS FRIDAY???</strong></p>
+        <p>${escapeHtml(formatFriday(i.fridayDate))}. The realest day. The day where legends are made and playlists are <strong>FED</strong>.</p>
+        <p>Every single one of you beautiful degenerates has exactly one job today and it's the easiest job in the world: add a song. ONE song. To Bompton ${escapeHtml(i.bomptonYear)}. That's it. That's the whole bit.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `The stage is yours.`)}</div>
+        <p style="${FOOTER_STYLE}">LET'S GOOOO. I believe in every one of you. Even you. ESPECIALLY you. Same time next Friday.</p>
+        `,
+      ),
+  },
+
+  // 10 — Nature Documentary (replaces the old Club DJ slot, new style)
+  {
+    key: "nature-doc",
+    subject: () => `Observe: the Bompton crew, in its natural Friday habitat`,
+    text: (i) =>
+      [
+        `[hushed voice]`,
+        ``,
+        `Here, on this ${formatFriday(i.fridayDate)}, we find the Bompton ${i.bomptonYear} crew in its natural habitat. Notice the stillness. The playlist has not yet been fed today. It is... Friday.`,
+        ``,
+        `Each year, as if guided by some ancient instinct, the members of this remarkable species feel the pull of the weekend and, one by one, contribute a single song to the shared playlist. It is one of nature's quietest miracles.`,
+        ``,
+        `Watch closely now. A member stirs. Could this be the one? Will it complete the sacred ritual of The Add?`,
+        ``,
+        renderPlaylistLineText(i, "Approach the watering hole"),
+        ``,
+        `Truly magnificent. We will return to observe the herd again next Friday. Until then — add a song, you beautiful creature.`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `Observe: the Bompton crew, in its natural Friday habitat`,
+        `
+        <p style="font-style:italic;color:#a3a3a3">[hushed voice]</p>
+        <p>Here, on this ${escapeHtml(formatFriday(i.fridayDate))}, we find the Bompton ${escapeHtml(i.bomptonYear)} crew in its natural habitat. Notice the stillness. The playlist has not yet been fed today. It is... <strong>Friday</strong>.</p>
+        <p>Each year, as if guided by some ancient instinct, the members of this remarkable species feel the pull of the weekend and, one by one, contribute a single song to the shared playlist. It is one of nature's quietest miracles.</p>
+        <p>Watch closely now. A member stirs. Could this be the one? Will it complete the sacred ritual of <strong>The Add</strong>?</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Approach the watering hole.`)}</div>
+        <p style="${FOOTER_STYLE}">Truly magnificent. We will return to observe the herd again next Friday. Until then &mdash; add a song, you beautiful creature.</p>
         `,
       ),
   },
