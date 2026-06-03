@@ -170,8 +170,8 @@ export function PlaylistSearch({ index }: { index: SearchableTrack[] }) {
                 onClick={() => setCategory(c.key)}
                 className={
                   selected
-                    ? "rounded-full bg-spotify-green px-4 py-1.5 text-sm font-bold text-black"
-                    : "rounded-full px-4 py-1.5 text-sm font-semibold text-spotify-subtext transition hover:text-spotify-text"
+                    ? "whitespace-nowrap rounded-full bg-spotify-green px-3 py-1.5 text-xs font-bold text-black sm:px-4 sm:text-sm"
+                    : "whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold text-spotify-subtext transition hover:text-spotify-text sm:px-4 sm:text-sm"
                 }
               >
                 {c.label}
