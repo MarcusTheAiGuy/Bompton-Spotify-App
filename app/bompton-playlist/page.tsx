@@ -18,6 +18,7 @@ import { BomptonColumn } from "@/components/bompton/bompton-column";
 import { BomptonAutoSync } from "@/components/bompton/bompton-auto-sync";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
 import { PlaylistStatsSummary } from "@/components/bompton/playlist-stats-summary";
+import { PlaylistSearch } from "@/components/bompton/playlist-search";
 import { RepeatedSongsWarning } from "@/components/bompton/repeated-songs-warning";
 import { SongCountWarning } from "@/components/bompton/song-count-warning";
 import { buildBomptonStats, findRepeatedTracks } from "@/lib/bompton-stats";
@@ -140,6 +141,8 @@ export default async function BomptonPlaylistPage() {
         violations={stats.currentSeasonCountViolations}
         variant="current"
       />
+
+      <PlaylistSearch index={stats.searchIndex} />
 
       <PlaylistStatsSummary stats={stats} />
 

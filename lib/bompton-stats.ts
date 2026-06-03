@@ -114,6 +114,90 @@ function findCrewBySpotifyId(
   return crew.find((m) => m.spotifyUserId === spotifyId) ?? null;
 }
 
+// ---------- Playlist search index ----------
+
+// One row per track occurrence across all four seasons, flattened with
+// everything the on-page "Playlist Search" box needs to match against
+// (song / artist / album / genre) and everything a result row shows
+// (which season's playlist it's on, when it was added, by who). Genres
+// are the union of every credited artist's cached genre tags — the same
+// tags the genre tracker uses — so a track by an artist tagged
+// {surf rock, garage rock} is searchable under either. A track that
+// appears in two seasons yields two rows (each with its own add
+// metadata), which is what the crew wants to see when they search.
+export type SearchableTrack = {
+  trackId: string | null;
+  trackName: string;
+  trackOpenUrl: string | null;
+  artists: string[];
+  artistsLabel: string;
+  album: string;
+  albumImageUrl: string | null;
+  genres: string[];
+  year: BomptonYear;
+  playlistName: string;
+  // ISO string, or null when the row has no usable added_at.
+  addedAt: string | null;
+  addedByLabel: string;
+  addedByImage: string | null;
+  explicit: boolean;
+  durationMs: number;
+};
+
+export function buildSearchIndex(
+  data: BomptonPlaylistByYear[],
+  crew: CrewMember[],
+  artistGenres: Map<string, ArtistGenres>,
+): SearchableTrack[] {
+  const out: SearchableTrack[] = [];
+  for (const season of data) {
+    const playlistName = season.playlist?.name ?? `Bompton ${season.year}`;
+    for (const item of season.tracks) {
+      const t = item.track;
+      if (!t) continue;
+      const member = findCrewBySpotifyId(crew, item.added_by?.id);
+      const artists = (t.artists ?? [])
+        .map((a) => a.name?.trim() ?? "")
+        .filter(Boolean);
+
+      // Union of cached genre tags across every credited artist that
+      // has a Spotify id we've looked up. Deduped so a tag shared by
+      // two artists on the same track only appears once.
+      const genreSet = new Set<string>();
+      for (const a of t.artists ?? []) {
+        if (!a?.id) continue;
+        const cached = artistGenres.get(a.id);
+        if (!cached) continue;
+        for (const g of cached.genres) genreSet.add(g);
+      }
+
+      const addedAt = item.added_at ? new Date(item.added_at) : null;
+      const addedAtValid = addedAt && !Number.isNaN(addedAt.getTime());
+
+      out.push({
+        trackId: t.id || null,
+        trackName: t.name,
+        trackOpenUrl: t.id ? `https://open.spotify.com/track/${t.id}` : null,
+        artists,
+        artistsLabel: artists.join(", "),
+        album: t.album?.name?.trim() ?? "",
+        albumImageUrl: t.album?.images?.[0]?.url ?? null,
+        genres: [...genreSet],
+        year: season.year,
+        playlistName,
+        addedAt: addedAtValid ? addedAt!.toISOString() : null,
+        addedByLabel: member
+          ? displayCrewName(member)
+          : displaySpotifyUserName(item.added_by?.id),
+        addedByImage: member?.image ?? null,
+        explicit: Boolean(t.explicit),
+        durationMs: t.duration_ms ?? 0,
+      });
+    }
+  }
+  return out;
+}
+
 // ---------- Repeated tracks across all four seasons ----------
 
 export type RepeatedTrackOccurrence = {
@@ -1372,6 +1456,10 @@ export type BomptonStatsBundle = {
   trackLength: TrackLengthStats;
   explicit: ExplicitEntry[];
   totalTracks: number;
+  // Flat per-track index that backs the on-page Playlist Search box.
+  // Built from the same flattened data + genre map the rest of the
+  // bundle uses, so it costs no extra DB or Last.fm round-trips.
+  searchIndex: SearchableTrack[];
   // Surfaced as red warning banners on the playlist page.
   pastSeasonCountViolations: SongCountViolation[];
   currentSeasonCountViolations: SongCountViolation[];
@@ -1465,6 +1553,7 @@ export async function buildBomptonStats(
     trackLength: getTrackLengthStats(flat),
     explicit: getExplicitContent(flat, crew),
     totalTracks: flat.length,
+    searchIndex: buildSearchIndex(data, crew, artistGenres),
     pastSeasonCountViolations: getPastSeasonCountViolations(
       data,
       crew,
