@@ -1,16 +1,35 @@
 import {
   SpotifyAccountMissingError,
   SpotifyError,
+  SpotifyReauthRequiredError,
   SpotifyRefreshFailedError,
 } from "@/lib/spotify";
 
-export type DescribedError = { title: string; detail: string };
+// `reauthRequired` lets callers (e.g. the dashboard API route) turn this
+// into a 401 + sign-in prompt rather than a generic error banner.
+export type DescribedError = {
+  title: string;
+  detail: string;
+  reauthRequired?: boolean;
+};
 
 export function describeSpotifyError(error: unknown): DescribedError {
+  if (error instanceof SpotifyReauthRequiredError) {
+    return {
+      title: "Your Spotify session expired — sign in again",
+      detail:
+        `${error.message}\n\n` +
+        "Spotify refresh tokens expire after six months (change effective July 20, 2026). " +
+        "The dead token has been discarded automatically, so this won't retry in a loop. " +
+        "Click Connect Spotify (or sign out and back in) to reauthorize and issue a fresh token.",
+      reauthRequired: true,
+    };
+  }
   if (error instanceof SpotifyAccountMissingError) {
     return {
       title: "No Spotify account linked for this user",
       detail: `userId=${error.userId}. They need to visit the site and click Connect Spotify at least once.`,
+      reauthRequired: true,
     };
   }
   if (error instanceof SpotifyRefreshFailedError) {

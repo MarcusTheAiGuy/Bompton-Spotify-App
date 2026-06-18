@@ -19,6 +19,8 @@ import {
   getTopArtists,
   getTopTracks,
   SpotifyError,
+  SpotifyAccountMissingError,
+  SpotifyReauthRequiredError,
 } from "@/lib/spotify";
 import { appendRecentPlays } from "@/lib/listening-history";
 
@@ -261,6 +263,30 @@ export async function GET(
     await writeCache(userId, kind, search, data);
     return NextResponse.json({ data, cached: false });
   } catch (error) {
+    // A dead/expired refresh token (invalid_grant) — or no linked account
+    // at all — means the only fix is to send the user back through sign-in.
+    // Return 401 + reauthRequired so the client can prompt for reauth
+    // instead of showing a generic error banner. The token has already
+    // been discarded inside getFreshAccessToken, so this won't loop.
+    if (
+      error instanceof SpotifyReauthRequiredError ||
+      error instanceof SpotifyAccountMissingError
+    ) {
+      console.warn("[dashboard.kind.reauth-required]", {
+        userId,
+        kind,
+        message: error.message,
+      });
+      return NextResponse.json(
+        {
+          error: "ReauthRequired",
+          message:
+            "Your Spotify session expired (refresh tokens now expire after six months). Sign in again to reconnect — the dead token has been discarded, so this won't retry in a loop.",
+          reauthRequired: true,
+        },
+        { status: 401 },
+      );
+    }
     if (error instanceof SpotifyError) {
       console.warn("[dashboard.kind]", {
         userId,
