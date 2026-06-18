@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { signIn } from "next-auth/react";
 import type {
   SpotifyArtist,
   SpotifyPaged,
@@ -95,6 +96,11 @@ export function LazyDashboardSections({
     for (const kind of LAZY_KINDS) initial[kind] = { status: "idle" };
     return initial;
   });
+  // Set when the dashboard API returns reauthRequired — i.e. the Spotify
+  // refresh token expired (six-month rule) or was revoked. There's no
+  // point continuing to load sections once this trips: every kind will
+  // 401 the same way until the user reauthorizes.
+  const [reauth, setReauth] = useState<{ detail: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +120,17 @@ export function LazyDashboardSections({
             signal: controller.signal,
           });
           const body = await response.json().catch(() => ({}));
+          if (response.status === 401 && body?.reauthRequired) {
+            if (!cancelled) {
+              setReauth({
+                detail:
+                  body?.message ??
+                  "Your Spotify session expired. Sign in again to reconnect.",
+              });
+            }
+            // Stop the queue — remaining kinds will all 401 identically.
+            return;
+          }
           if (!response.ok) {
             if (!cancelled) {
               setState((prev: StateByKind) => ({
@@ -233,6 +250,8 @@ export function LazyDashboardSections({
 
   return (
     <>
+      {reauth ? <ReauthBanner detail={reauth.detail} /> : null}
+
       {meState.status === "error" ? (
         <SpotifyErrorBanner title={meState.title} detail={meState.detail} />
       ) : meState.status === "loaded" ? (
@@ -471,6 +490,30 @@ export function LazyDashboardSections({
         </div>
       </CollapsibleSection>
     </>
+  );
+}
+
+// Shown when the Spotify refresh token has expired/been revoked. The app
+// session (NextAuth) is still valid, so we don't sign the user out — we
+// just re-run the Spotify OAuth grant to mint a fresh refresh_token.
+function ReauthBanner({ detail }: { detail: string }) {
+  return (
+    <div
+      role="alert"
+      className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+    >
+      <p className="font-semibold">Reconnect Spotify</p>
+      <p className="mt-1 whitespace-pre-wrap text-xs text-amber-200/90">
+        {detail}
+      </p>
+      <button
+        type="button"
+        onClick={() => signIn("spotify", { callbackUrl: "/dashboard" })}
+        className="btn-spotify mt-3"
+      >
+        Sign in with Spotify again
+      </button>
+    </div>
   );
 }
 

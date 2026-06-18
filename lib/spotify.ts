@@ -31,10 +31,45 @@ export class SpotifyRefreshFailedError extends Error {
     public body: string,
   ) {
     super(
-      `Spotify token refresh failed for user ${userId} (HTTP ${status}): ${body}. They likely need to sign out and sign in again.`,
+      `Spotify token refresh failed for user ${userId} (HTTP ${status}): ${body}. This looks transient (not an invalid_grant) — the stored refresh_token was kept, so a later request can retry. If it keeps happening, sign out and sign in again.`,
     );
     this.name = "SpotifyRefreshFailedError";
   }
+}
+
+// Raised when Spotify rejects the refresh_token itself — i.e. an
+// `invalid_grant` response. As of the July-20-2026 Spotify change,
+// refresh tokens issued on behalf of a user expire after six months,
+// after which the token endpoint returns HTTP 400 invalid_grant forever
+// for that token. Per Spotify's guidance we must NOT retry: we discard
+// the stored token (done at the throw site, before raising this) and
+// send the user back through the sign-in flow to mint a new one.
+// Distinct from SpotifyRefreshFailedError, which is for transient
+// failures (5xx, network) where retrying the same token is correct.
+export class SpotifyReauthRequiredError extends Error {
+  constructor(
+    public userId: string,
+    public reason: string,
+  ) {
+    super(
+      `Spotify reauthorization required for user ${userId}: ${reason}. The stored token has been discarded; the user must sign in again to issue a new refresh_token.`,
+    );
+    this.name = "SpotifyReauthRequiredError";
+  }
+}
+
+// Spotify signals a permanently-dead refresh_token with HTTP 400 and a
+// JSON body of { "error": "invalid_grant", ... }. Parse defensively —
+// fall back to a substring match if the body isn't clean JSON.
+function isInvalidGrant(status: number, body: string): boolean {
+  if (status !== 400) return false;
+  try {
+    const parsed = JSON.parse(body) as { error?: string };
+    if (parsed.error === "invalid_grant") return true;
+  } catch {
+    // not JSON — fall through to the substring check
+  }
+  return /invalid_grant/.test(body);
 }
 
 export async function getFreshAccessToken(userId: string): Promise<string> {
@@ -74,10 +109,12 @@ async function getFreshAccessTokenImpl(userId: string): Promise<string> {
   }
 
   if (!account.refresh_token) {
-    throw new SpotifyRefreshFailedError(
+    // No token to refresh with — either it was discarded after a prior
+    // invalid_grant, or one was never issued. Either way the fix is the
+    // same: sign in again.
+    throw new SpotifyReauthRequiredError(
       userId,
-      0,
-      "No refresh_token stored on the Account row.",
+      "No refresh_token stored on the Account row",
     );
   }
 
@@ -108,6 +145,28 @@ async function getFreshAccessTokenImpl(userId: string): Promise<string> {
 
   const text = await response.text();
   if (!response.ok) {
+    if (isInvalidGrant(response.status, text)) {
+      // The refresh_token is permanently dead (expired under the
+      // July-2026 six-month rule, or revoked). Discard it FIRST — clear
+      // the whole token triplet so no future request (dashboard render
+      // or daily cron) retries this dead token — then signal that the
+      // user must reauthorize. Retrying invalid_grant never succeeds.
+      await prisma.account.update({
+        where: { id: account.id },
+        data: { access_token: null, refresh_token: null, expires_at: null },
+      });
+      console.warn("[spotify.refresh] invalid_grant — discarded token", {
+        userId,
+        accountId: account.id,
+        body: text.slice(0, 300),
+      });
+      throw new SpotifyReauthRequiredError(
+        userId,
+        `Spotify returned invalid_grant on token refresh (HTTP ${response.status})`,
+      );
+    }
+    // Transient failure (5xx, network blip, etc.) — keep the stored
+    // refresh_token so a later request can retry it.
     throw new SpotifyRefreshFailedError(userId, response.status, text);
   }
 
