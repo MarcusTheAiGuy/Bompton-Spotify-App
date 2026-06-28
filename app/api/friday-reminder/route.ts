@@ -8,6 +8,7 @@ import {
   FRIDAY_REMINDER_PERSONA_COUNT,
   FridayReminderEmailConfigError,
   FridayReminderEmailSendError,
+  scheduledPersonaFor,
   sendFridayReminderEmail,
 } from "@/lib/friday-reminder-email";
 
@@ -166,12 +167,16 @@ async function handle(request: NextRequest) {
   }
 
   if (dryRun) {
+    // A scheduled one-off pinned to this Friday overrides the rotation; report
+    // it so an operator can confirm the right email is queued for the week.
+    const scheduled = scheduledPersonaFor(fridayDate);
     const personaIndex = rotationCursor % FRIDAY_REMINDER_PERSONA_COUNT;
     return NextResponse.json({
       ok: true,
       status: "skipped-dry-run",
       weekOf: fridayDate.toISOString(),
       bomptonYear: CURRENT_BOMPTON_YEAR,
+      scheduledPersonaKey: scheduled?.key ?? null,
       personaIndex,
       recipients,
       playlistUrl,
