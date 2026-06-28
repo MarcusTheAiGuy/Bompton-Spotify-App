@@ -70,7 +70,10 @@ export async function sendFridayReminderEmail(
     );
   }
 
+  // A scheduled one-off pinned to this exact Friday wins over the weekly
+  // rotation; otherwise fall back to the rotating persona at the cursor.
   const persona =
+    scheduledPersonaFor(input.fridayDate) ??
     PERSONAS[
       ((input.personaIndex % PERSONAS.length) + PERSONAS.length) %
         PERSONAS.length
@@ -441,6 +444,60 @@ const PERSONAS: Persona[] = [
 // Public so the route can seed the rotation cursor without importing the
 // array directly.
 export const FRIDAY_REMINDER_PERSONA_COUNT = PERSONAS.length;
+
+// ---------------------------------------------------------------------------
+// Scheduled one-off personas. Unlike PERSONAS (which rotate weekly and stay
+// evergreen), each of these is pinned to a single Friday and kept OUT of the
+// rotation — they're hand-written for a specific week, often calling out the
+// crew by name, so they only make sense on that date. Keyed by the UTC-midnight
+// Friday the reminder is *for* (YYYY-MM-DD) — the same `weekOf` the route
+// dedupes on. When a send's fridayDate matches a key here, this persona wins
+// over the rotation (see sendFridayReminderEmail); any other week falls through
+// to the rotating PERSONAS. The rotation cursor is unaffected — it counts
+// successful sends regardless of which persona fired, so a pinned week doesn't
+// desync the wheel; it just means that week's slot showed a one-off instead.
+//
+// To queue another one-off: add an entry keyed on its Friday's YYYY-MM-DD.
+const SCHEDULED_PERSONAS: Record<string, Persona> = {
+  // 2026-07-03 — hand-written crew callout (Sam / Evan / Sachin / Ben).
+  "2026-07-03": {
+    key: "crew-callout-2026-07-03",
+    subject: () => `It's Friday lads, time to add a banger!`,
+    text: (i) =>
+      [
+        `Sam, my lad, it's time for another Australian alt rock track, we're waiting on those Aussie stoner vibes my guy.`,
+        ``,
+        `Evan, the lads need to hear what the sad lesbians are up to, are there any new phoebe singles out yet?`,
+        ``,
+        `Sachin, we need another break neck change of genre. Perhaps Persian EDM this week? Who fucking knows what you are cooking up.`,
+        ``,
+        `Ben, we know you are itching to add your thousandth jazz rap track, how original.`,
+        ``,
+        `Regardless of what the boys are adding, don't wait, add it now!`,
+        ``,
+        renderPlaylistLineText(i, "Deposit Banger Here"),
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `It's Friday lads, time to add a banger!`,
+        `
+        <p>Sam, my lad, it's time for another Australian alt rock track, we're waiting on those Aussie stoner vibes my guy.</p>
+        <p>Evan, the lads need to hear what the sad lesbians are up to, are there any new phoebe singles out yet?</p>
+        <p>Sachin, we need another break neck change of genre. Perhaps Persian EDM this week? Who fucking knows what you are cooking up.</p>
+        <p>Ben, we know you are itching to add your thousandth jazz rap track, how original.</p>
+        <p><strong>Regardless of what the boys are adding, don't wait, add it now!</strong></p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, "Deposit Banger Here")}</div>
+        `,
+      ),
+  },
+};
+
+// Resolve a scheduled one-off for the given Friday, or null if that week
+// should use the normal rotation. Keyed on the UTC date so it matches the
+// route's `weekOf` (UTC-midnight Friday) regardless of server timezone.
+export function scheduledPersonaFor(fridayDate: Date): Persona | null {
+  return SCHEDULED_PERSONAS[fridayDate.toISOString().slice(0, 10)] ?? null;
+}
 
 // ---------------------------------------------------------------------------
 // Shared rendering helpers. Kept local to this module (like late-add-email)
