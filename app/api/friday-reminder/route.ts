@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 // Body (optional, POST only): { dryRun?: boolean }
 //
 // Sends ONE crew-wide "it's Friday, add a song" hype email, rotating
-// through the 10 personas in lib/friday-reminder-email.ts. This is the
+// through the personas in lib/friday-reminder-email.ts. This is the
 // direct target of the Friday-noon Vercel cron (see vercel.json), which
 // fires via GET, so we accept both verbs.
 //
