@@ -54,6 +54,7 @@ model User {
   playlistLinks        UserPlaylistLink[]
   cachedResponses      CachedSpotifyResponse[]
   listeningPlays       ListeningPlay[]
+  listeningSnapshots   ListeningSnapshot[]
   lateAddNotifications LateAddNotification[]
 }
 
@@ -162,6 +163,37 @@ model ListeningPlay {
   @@index([userId])
   @@index([userId, playedAt])
   @@index([trackSpotifyId])
+}
+
+// Daily snapshots of Spotify's window-limited "list" endpoints: top
+// tracks / top artists (each of the three time ranges), saved tracks,
+// and followed artists. Spotify only ever returns the *current* state
+// of these — there is no history endpoint — so we snapshot once per UTC
+// day per (user, kind) and accumulate. Over weeks and months this lets
+// us chart how a crew member's top items and library shift over time,
+// which Spotify itself never surfaces. Written by the daily-sync cron
+// (for every linked account) and opportunistically on dashboard visits.
+// `data` holds a trimmed projection (id / name / rank / addedAt / genres
+// depending on kind) rather than the raw Spotify blob, to keep these
+// append-forever rows small. `day` is the UTC-midnight dedup key, so a
+// second capture on the same day overwrites rather than duplicates.
+model ListeningSnapshot {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String
+  day        DateTime
+  capturedAt DateTime @default(now())
+  itemCount  Int      @default(0)
+  data       Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, day])
+  @@index([userId])
+  @@index([userId, kind])
+  @@index([userId, kind, day])
 }
 
 // Late-add nudge emails sent via Resend. One row per email attempt,

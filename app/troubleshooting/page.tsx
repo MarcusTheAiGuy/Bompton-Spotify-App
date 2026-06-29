@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { InitListeningSnapshotButton } from "./troubleshooting-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,18 @@ export default async function TroubleshootingPage() {
           buttons and temporary diagnostics here so they have a stable home.
         </p>
       </header>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Listening archive</h2>
+        <p className="max-w-3xl text-sm text-spotify-subtext">
+          One-shot DDL for the <code>ListeningSnapshot</code> table that backs
+          the daily listening archive (top tracks/artists, saved library, and
+          followed artists snapshotted once per UTC day per crew member). Click
+          once after deploy; then snapshots accrue on every dashboard visit and
+          on the daily-sync cron.
+        </p>
+        <InitListeningSnapshotButton />
+      </section>
     </section>
   );
 }
