@@ -249,6 +249,76 @@ export async function initArtistTable(): Promise<InitArtistTableResult> {
   }
 }
 
+export type InitListeningSnapshotTableResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// Backs the longitudinal listening archive. One row per UTC day per
+// (user, kind) holding a trimmed snapshot of a window-limited Spotify
+// list endpoint (top tracks/artists per range, saved tracks, followed
+// artists). Written by /api/archive-listening (daily cron) and by
+// dashboard visits. Same idempotent DDL pattern as the others.
+export async function initListeningSnapshotTable(): Promise<InitListeningSnapshotTableResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "ListeningSnapshot" (
+        "id" TEXT NOT NULL,
+        "userId" TEXT NOT NULL,
+        "kind" TEXT NOT NULL,
+        "day" TIMESTAMP(3) NOT NULL,
+        "capturedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "itemCount" INTEGER NOT NULL DEFAULT 0,
+        "data" JSONB NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "ListeningSnapshot_pkey" PRIMARY KEY ("id")
+      )
+    `);
+    await prisma.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "ListeningSnapshot_userId_kind_day_key" ON "ListeningSnapshot"("userId", "kind", "day")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "ListeningSnapshot_userId_idx" ON "ListeningSnapshot"("userId")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "ListeningSnapshot_userId_kind_idx" ON "ListeningSnapshot"("userId", "kind")`,
+    );
+    await prisma.$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "ListeningSnapshot_userId_kind_day_idx" ON "ListeningSnapshot"("userId", "kind", "day")`,
+    );
+    await prisma.$executeRawUnsafe(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ListeningSnapshot_userId_fkey') THEN
+          ALTER TABLE "ListeningSnapshot"
+            ADD CONSTRAINT "ListeningSnapshot_userId_fkey"
+            FOREIGN KEY ("userId") REFERENCES "User"("id")
+            ON DELETE CASCADE ON UPDATE CASCADE;
+        END IF;
+      END
+      $$
+    `);
+    revalidatePath("/troubleshooting");
+    return {
+      ok: true,
+      message:
+        "ListeningSnapshot table + indexes + FK are present (created if missing). Snapshots start banking on the next dashboard visit or daily-sync cron run (or POST /api/archive-listening to backfill now).",
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
+
 export type InitLateAddNotificationTableResult =
   | { ok: true; message: string }
   | { ok: false; error: string };

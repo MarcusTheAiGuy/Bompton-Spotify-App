@@ -77,6 +77,29 @@ them.
   legacy writer survives as `applyExtensionSync` in
   `lib/extension-sync.ts`, now reused by the server-side sync.
 
+## Listening archive
+Spotify's endpoints are point-in-time: `recently-played` only returns the
+last 50 plays, and top tracks/artists, the saved library, and followed
+artists only ever report *current* state. To build a longitudinal picture
+Spotify itself doesn't offer, we archive as much as we can each day.
+
+- **Recently played → `ListeningPlay`** (append-only). Every play is upserted
+  (deduped on `userId + trackSpotifyId + playedAt`) so the table fills over
+  time. Written by `lib/listening-history.ts`.
+- **Daily snapshots → `ListeningSnapshot`** (one row per UTC day per
+  `(user, kind)`). Captures top tracks/artists (all three ranges), the full
+  saved library (tracks, albums, shows, episodes, audiobooks), followed
+  artists, playlists, and the profile (follower count / product tier). Each
+  row stores a trimmed projection, not the raw blob. Written by
+  `lib/listening-archive.ts`.
+- **Capture triggers:** `POST /api/archive-listening` walks every linked
+  account (each with its own token) and is called once a day by the
+  `/api/cron/daily-sync` cron; snapshots are *also* taken opportunistically
+  whenever the relevant dashboard data is fetched. Snapshots are idempotent
+  per UTC day, so the two paths collapse to one row.
+- New table: run `npm run db:push`, or click **Initialize ListeningSnapshot
+  table** on `/troubleshooting` in prod.
+
 ## Deployment
 Push to `main` → Vercel auto-deploys. Preview deploys are created for each PR.
 

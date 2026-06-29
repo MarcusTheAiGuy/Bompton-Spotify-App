@@ -18,6 +18,14 @@ export const dynamic = "force-dynamic";
 //      which fires roast emails to anyone >3 days late on a Bompton add.
 //      That route already enforces a per-user 24h cooldown, so duplicate
 //      cron firings won't double-send.
+//   3. Capture every linked account's listening data via
+//      /api/archive-listening — recently-played into ListeningPlay and a
+//      daily snapshot of as much as we can pull (top items, the full saved
+//      library, followed artists, playlists, profile) into
+//      ListeningSnapshot. This runs for everyone regardless of who opened
+//      the dashboard, so the longitudinal archive keeps filling even on
+//      days nobody visits. Idempotent per UTC day, so a dashboard visit
+//      earlier in the day just means the snapshot already exists.
 //
 // Auth: gated by isAuthorizedCron() which requires either the
 // `x-vercel-cron: 1` header (Vercel attaches it automatically and strips
@@ -106,11 +114,51 @@ async function handle(request: NextRequest) {
     );
   }
 
-  const ok = syncStatus < 400 && notifyStatus < 400;
-  console.log("[cron.daily-sync]", { ok, syncStatus, notifyStatus });
+  let archiveStatus = 0;
+  let archiveBody: unknown = null;
+  try {
+    const r = await fetch(`${origin}/api/archive-listening`, {
+      method: "POST",
+      headers: cronHeaders,
+      body: JSON.stringify({}),
+    });
+    archiveStatus = r.status;
+    archiveBody = await r.json().catch(() => null);
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "FetchError";
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[cron.daily-sync.archive.failed]", { name, message });
+    return NextResponse.json(
+      {
+        error: name,
+        message: `Daily cron step 3 (archive-listening) threw before responding: ${message}. Check that /api/archive-listening is deployed and DATABASE_URL is reachable. Per-user Spotify failures don't throw here — they're reported in the route's results — so a throw means the DB or the route itself is down.`,
+        syncStatus,
+        syncBody,
+        notifyStatus,
+        notifyBody,
+      },
+      { status: 500 },
+    );
+  }
+
+  const ok = syncStatus < 400 && notifyStatus < 400 && archiveStatus < 400;
+  console.log("[cron.daily-sync]", {
+    ok,
+    syncStatus,
+    notifyStatus,
+    archiveStatus,
+  });
 
   return NextResponse.json(
-    { ok, syncStatus, syncBody, notifyStatus, notifyBody },
+    {
+      ok,
+      syncStatus,
+      syncBody,
+      notifyStatus,
+      notifyBody,
+      archiveStatus,
+      archiveBody,
+    },
     { status: ok ? 200 : 500 },
   );
 }

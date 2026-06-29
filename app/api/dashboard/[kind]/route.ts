@@ -23,6 +23,7 @@ import {
   SpotifyReauthRequiredError,
 } from "@/lib/spotify";
 import { appendRecentPlays } from "@/lib/listening-history";
+import { recordDailySnapshot, SNAPSHOT_KINDS } from "@/lib/listening-archive";
 
 export const dynamic = "force-dynamic";
 
@@ -261,6 +262,15 @@ export async function GET(
   try {
     const data = await fetchKind(userId, kind, request);
     await writeCache(userId, kind, search, data);
+    // Opportunistically bank a daily snapshot of the window-limited list
+    // endpoints (top items / saved tracks / followed artists) from the
+    // data we just fetched, so active users build history at a finer grain
+    // than the once-a-day cron. Deduped per UTC day and never throws — we
+    // await it because serverless can kill the function once the response
+    // is sent, dropping in-flight writes.
+    if (SNAPSHOT_KINDS.has(kind)) {
+      await recordDailySnapshot(userId, kind, data);
+    }
     return NextResponse.json({ data, cached: false });
   } catch (error) {
     // A dead/expired refresh token (invalid_grant) — or no linked account
