@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAuthorizedCron } from "@/lib/cron-auth";
+import { syncAllPlaylists } from "@/lib/sync-all-playlists";
+import { runLateAddNotifications } from "@/lib/late-add-notifications";
+import { captureAllListeningArchives } from "@/lib/listening-archive";
 
 export const dynamic = "force-dynamic";
+// The three steps run sequentially in a single invocation. Give the
+// function headroom over the default so a slow crew-wide Spotify sync
+// doesn't get killed mid-run (60s is within both the Hobby and Pro limits).
+export const maxDuration = 60;
 
 // Vercel cron entry point. Hits this URL once per day at the schedule
 // configured in vercel.json (currently 17:00 UTC = 2pm Atlantic Daylight
@@ -10,29 +17,36 @@ export const dynamic = "force-dynamic";
 //
 // Job:
 //   1. Sync every UserPlaylistLink whose Playlist.lastSyncAt is older
-//      than ~14 hours, calling the existing /api/sync-all-playlists
-//      route. The 14h staleness window means a dashboard visit earlier
-//      in the same day (after midnight Atlantic) is enough to skip the
-//      cron's sync work.
-//   2. Run the late-add notification check via /api/late-add-notifications,
+//      than ~14 hours (via lib/sync-all-playlists). The 14h staleness
+//      window means a dashboard visit earlier in the same day (after
+//      midnight Atlantic) is enough to skip the cron's sync work.
+//   2. Run the late-add notification check (via lib/late-add-notifications),
 //      which fires roast emails to anyone >3 days late on a Bompton add.
-//      That route already enforces a per-user 24h cooldown, so duplicate
-//      cron firings won't double-send.
+//      It already enforces a per-user 24h cooldown, so duplicate cron
+//      firings won't double-send.
 //   3. Capture every linked account's listening data via
-//      /api/archive-listening — recently-played into ListeningPlay and a
-//      daily snapshot of as much as we can pull (top items, the full saved
-//      library, followed artists, playlists, profile) into
-//      ListeningSnapshot. This runs for everyone regardless of who opened
-//      the dashboard, so the longitudinal archive keeps filling even on
-//      days nobody visits. Idempotent per UTC day, so a dashboard visit
-//      earlier in the day just means the snapshot already exists.
+//      captureAllListeningArchives — recently-played into ListeningPlay and
+//      a daily snapshot into ListeningSnapshot. Runs for everyone regardless
+//      of who opened the dashboard. Idempotent per UTC day.
+//
+// IMPORTANT: each step is invoked IN-PROCESS via a direct function call,
+// NOT by fetching /api/sync-all-playlists, /api/late-add-notifications, or
+// /api/archive-listening. An earlier version fetched those sub-routes and
+// tried to authorize the calls by forwarding an `x-vercel-cron: 1` header —
+// but Vercel strips client-supplied `x-vercel-*` headers at the edge (see
+// lib/cron-auth.ts), and an internal fetch is client-supplied from the
+// edge's point of view. With CRON_SECRET unset (it's documented as
+// optional) those sub-calls all 401'd, so the daily cron silently did
+// nothing: no sync, no roast email, no archive. The late-add email only
+// ever went out when a human opened the dashboard, whose session-authed
+// auto-sync chain runs the same steps. Calling the logic directly removes
+// the whole auth round-trip and makes the cron self-sufficient.
 //
 // Auth: gated by isAuthorizedCron() which requires either the
-// `x-vercel-cron: 1` header (Vercel attaches it automatically and strips
-// any client-supplied copy at the edge) or `Authorization: Bearer
-// $CRON_SECRET` (only useful if CRON_SECRET env var is set). No manual
-// env var setup needed for the cron to work — the secret is just an
-// optional escape hatch for curl-based testing.
+// `x-vercel-cron: 1` header (Vercel attaches it automatically to this
+// direct cron invocation and strips any client-supplied copy at the edge)
+// or `Authorization: Bearer $CRON_SECRET` (only useful if CRON_SECRET is
+// set, e.g. for curl-based testing).
 const FOURTEEN_HOURS_MS = 14 * 60 * 60_000;
 
 export async function POST(request: NextRequest) {
@@ -57,56 +71,49 @@ async function handle(request: NextRequest) {
     );
   }
 
-  const origin = request.nextUrl.origin;
-  const cronHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-    "x-vercel-cron": "1",
-  };
-  if (process.env.CRON_SECRET) {
-    cronHeaders.Authorization = `Bearer ${process.env.CRON_SECRET}`;
-  }
-
+  // Step 1: crew-wide playlist sync.
   let syncStatus = 0;
   let syncBody: unknown = null;
   try {
-    const r = await fetch(`${origin}/api/sync-all-playlists`, {
-      method: "POST",
-      headers: cronHeaders,
-      body: JSON.stringify({ force: false, staleMs: FOURTEEN_HOURS_MS }),
+    const r = await syncAllPlaylists({
+      force: false,
+      staleMs: FOURTEEN_HOURS_MS,
+      callerId: "vercel-cron",
     });
     syncStatus = r.status;
-    syncBody = await r.json().catch(() => null);
+    syncBody = r.body;
   } catch (error) {
-    const name = error instanceof Error ? error.name : "FetchError";
+    const name = error instanceof Error ? error.name : "SyncError";
     const message = error instanceof Error ? error.message : String(error);
     console.error("[cron.daily-sync.sync-all.failed]", { name, message });
     return NextResponse.json(
       {
         error: name,
-        message: `Daily cron step 1 (sync-all-playlists) threw before responding: ${message}. Check that /api/sync-all-playlists is deployed and DATABASE_URL is reachable from this Vercel function.`,
+        message: `Daily cron step 1 (syncAllPlaylists) threw before returning: ${message}. This is almost always DATABASE_URL being unreachable from this Vercel function — per-playlist Spotify failures are captured in the step's outcomes, not thrown.`,
       },
       { status: 500 },
     );
   }
 
+  // Step 2: late-add roast emails.
   let notifyStatus = 0;
   let notifyBody: unknown = null;
   try {
-    const r = await fetch(`${origin}/api/late-add-notifications`, {
-      method: "POST",
-      headers: cronHeaders,
-      body: JSON.stringify({}),
+    const r = await runLateAddNotifications({
+      thresholdDays: 3,
+      dryRun: false,
+      callerId: "vercel-cron",
     });
     notifyStatus = r.status;
-    notifyBody = await r.json().catch(() => null);
+    notifyBody = r.body;
   } catch (error) {
-    const name = error instanceof Error ? error.name : "FetchError";
+    const name = error instanceof Error ? error.name : "NotifyError";
     const message = error instanceof Error ? error.message : String(error);
     console.error("[cron.daily-sync.notify.failed]", { name, message });
     return NextResponse.json(
       {
         error: name,
-        message: `Daily cron step 2 (late-add-notifications) threw before responding: ${message}. Check that /api/late-add-notifications is deployed, RESEND_API_KEY + RESEND_FROM_EMAIL are set, and DATABASE_URL is reachable.`,
+        message: `Daily cron step 2 (runLateAddNotifications) threw before returning: ${message}. Check that RESEND_API_KEY + RESEND_FROM_EMAIL are set and DATABASE_URL is reachable. Per-offender send failures are captured in the step's outcomes, not thrown.`,
         syncStatus,
         syncBody,
       },
@@ -114,24 +121,44 @@ async function handle(request: NextRequest) {
     );
   }
 
+  // Step 3: daily listening archive for everyone.
   let archiveStatus = 0;
   let archiveBody: unknown = null;
   try {
-    const r = await fetch(`${origin}/api/archive-listening`, {
-      method: "POST",
-      headers: cronHeaders,
-      body: JSON.stringify({}),
+    const { users, results } = await captureAllListeningArchives();
+    let playsInserted = 0;
+    let snapshotsSaved = 0;
+    let needsReauth = 0;
+    for (const res of results) {
+      if ("inserted" in res.recentPlays) playsInserted += res.recentPlays.inserted;
+      snapshotsSaved += res.snapshots.filter((s) => s.status === "saved").length;
+      if (res.needsReauth) needsReauth += 1;
+    }
+    console.log("[archive-listening]", {
+      callerId: "vercel-cron",
+      users,
+      playsInserted,
+      snapshotsSaved,
+      needsReauth,
     });
-    archiveStatus = r.status;
-    archiveBody = await r.json().catch(() => null);
+    archiveStatus = 200;
+    archiveBody = {
+      ok: true,
+      callerId: "vercel-cron",
+      users,
+      playsInserted,
+      snapshotsSaved,
+      needsReauth,
+      results,
+    };
   } catch (error) {
-    const name = error instanceof Error ? error.name : "FetchError";
+    const name = error instanceof Error ? error.name : "ArchiveError";
     const message = error instanceof Error ? error.message : String(error);
     console.error("[cron.daily-sync.archive.failed]", { name, message });
     return NextResponse.json(
       {
         error: name,
-        message: `Daily cron step 3 (archive-listening) threw before responding: ${message}. Check that /api/archive-listening is deployed and DATABASE_URL is reachable. Per-user Spotify failures don't throw here — they're reported in the route's results — so a throw means the DB or the route itself is down.`,
+        message: `Daily cron step 3 (captureAllListeningArchives) threw before returning: ${message}. Per-user Spotify failures don't throw here — they're reported in the results array — so a throw means the DB or the archive code itself is down. Check DATABASE_URL and that the Account table exists.`,
         syncStatus,
         syncBody,
         notifyStatus,
