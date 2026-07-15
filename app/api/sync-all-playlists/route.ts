@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { isAuthorizedCron } from "@/lib/cron-auth";
-import { prisma } from "@/lib/prisma";
-import {
-  PlaylistSyncError,
-  syncPlaylistForUser,
-} from "@/lib/playlist-sync";
+import { syncAllPlaylists } from "@/lib/sync-all-playlists";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +16,9 @@ export const dynamic = "force-dynamic";
 // `staleMs` (1 hour by default). Pass { force: true } to ignore freshness
 // and resync every link unconditionally.
 //
-// Sequential: links are processed one-at-a-time so we don't burst
-// Spotify with N parallel requests and trip 429s. The page that calls
-// this should expect a multi-second response.
+// The actual work lives in lib/sync-all-playlists.ts so the daily-sync
+// cron can call it in-process instead of re-fetching this route (that
+// path 401'd — the forwarded x-vercel-cron header is stripped at the edge).
 export async function POST(request: NextRequest) {
   const session = await auth();
   const cron = isAuthorizedCron(request);
@@ -52,155 +48,10 @@ export async function POST(request: NextRequest) {
       ? body.staleMs
       : 60 * 60_000;
 
-  let links: {
-    userId: string;
-    playlistId: string;
-    playlist: { lastSyncAt: Date | null; name: string } | null;
-    user: { name: string | null; email: string | null };
-  }[];
-  try {
-    links = await prisma.userPlaylistLink.findMany({
-      select: {
-        userId: true,
-        playlistId: true,
-        playlist: { select: { lastSyncAt: true, name: true } },
-        user: { select: { name: true, email: true } },
-      },
-      orderBy: [{ userId: "asc" }, { createdAt: "asc" }],
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[sync-all-playlists.findMany.failed]", {
-      callerId,
-      message,
-    });
-    return NextResponse.json(
-      {
-        error: error instanceof Error ? error.name : "PrismaError",
-        message: `Failed to list UserPlaylistLink rows: ${message}. If the table is missing, visit /troubleshooting and click 'Initialize UserPlaylistLink table'.`,
-      },
-      { status: 500 },
-    );
-  }
-
-  const now = Date.now();
-  const targets = links.filter((l) => {
-    if (force) return true;
-    const last = l.playlist?.lastSyncAt;
-    if (!last) return true;
-    return now - last.getTime() >= staleMs;
-  });
-
-  type SyncOutcome = {
-    userId: string;
-    userLabel: string;
-    playlistId: string;
-    playlistName: string | null;
-    status: "synced" | "skipped" | "error";
-    tracksWritten?: number;
-    snapshotChanged?: boolean;
-    error?: { name: string; code?: string; message: string };
-  };
-
-  const outcomes: SyncOutcome[] = [];
-  let synced = 0;
-  let errors = 0;
-  let skippedFresh = 0;
-
-  for (const link of links) {
-    const userLabel = link.user.name ?? link.user.email ?? link.userId;
-    const isTarget = targets.some(
-      (t) => t.userId === link.userId && t.playlistId === link.playlistId,
-    );
-    if (!isTarget) {
-      skippedFresh++;
-      outcomes.push({
-        userId: link.userId,
-        userLabel,
-        playlistId: link.playlistId,
-        playlistName: link.playlist?.name ?? null,
-        status: "skipped",
-      });
-      continue;
-    }
-    try {
-      const result = await syncPlaylistForUser(link.userId, link.playlistId);
-      synced++;
-      outcomes.push({
-        userId: link.userId,
-        userLabel,
-        playlistId: link.playlistId,
-        playlistName: result.playlistName,
-        status: "synced",
-        tracksWritten: result.tracksWritten,
-        snapshotChanged: result.snapshotChanged,
-      });
-    } catch (error) {
-      errors++;
-      if (error instanceof PlaylistSyncError) {
-        outcomes.push({
-          userId: link.userId,
-          userLabel,
-          playlistId: link.playlistId,
-          playlistName: link.playlist?.name ?? null,
-          status: "error",
-          error: {
-            name: error.name,
-            code: error.code,
-            message: error.message,
-          },
-        });
-        console.warn("[sync-all-playlists.link.refused]", {
-          callerId,
-          userId: link.userId,
-          playlistId: link.playlistId,
-          code: error.code,
-          details: error.details,
-          message: error.message,
-        });
-      } else {
-        const name = error instanceof Error ? error.name : "UnknownError";
-        const message = error instanceof Error ? error.message : String(error);
-        const stack = error instanceof Error ? error.stack : undefined;
-        outcomes.push({
-          userId: link.userId,
-          userLabel,
-          playlistId: link.playlistId,
-          playlistName: link.playlist?.name ?? null,
-          status: "error",
-          error: { name, message },
-        });
-        console.error("[sync-all-playlists.link.failed]", {
-          callerId,
-          userId: link.userId,
-          playlistId: link.playlistId,
-          name,
-          message,
-          stack,
-        });
-      }
-    }
-  }
-
-  console.log("[sync-all-playlists]", {
-    callerId,
-    totalLinks: links.length,
-    attempted: targets.length,
-    synced,
-    errors,
-    skippedFresh,
+  const { status, body: resBody } = await syncAllPlaylists({
     force,
     staleMs,
-  });
-
-  return NextResponse.json({
-    ok: errors === 0,
     callerId,
-    totalLinks: links.length,
-    attempted: targets.length,
-    synced,
-    errors,
-    skippedFresh,
-    outcomes,
   });
+  return NextResponse.json(resBody, { status });
 }
