@@ -131,6 +131,10 @@ export async function sendFridayReminderEmail(
 // House style: hype and unhinged, but celebratory rather than a roast.
 // This goes to the whole crew at once, so nobody is the target — the
 // energy is "IT'S FRIDAY, GO ADD A BANGER," not "you specifically suck."
+// Entries 21+ push the dial considerably further — longer spirals, more
+// swearing, bits that commit to a deranged premise and never blink. Crew
+// name-drops (Sam / Evan / Sachin / Ben) stay affectionate ribbing about
+// each guy's known taste; the joke is always the bit, never the person.
 // ---------------------------------------------------------------------------
 
 type Persona = {
@@ -723,6 +727,316 @@ const PERSONAS: Persona[] = [
         <p>To reach a verdict I flipped a coin (it landed on its edge, which I read as GUILTY) and checked the vibes (catastrophic). This court finds each of you GUILTY and sentences you to ONE (1) banger, added to Bompton ${escapeHtml(i.bomptonYear)}, effective the second you stop reading. No appeal — the appeals department is a houseplant and it's on the run.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Approach the Bench (Add Your Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Court adjourned by order of the chair. Reconvenes next Friday, pending the houseplant's capture.</p>
+        `,
+      ),
+  },
+  // 21 — Sleep Paralysis Demon
+  {
+    key: "sleep-paralysis-demon",
+    subject: () => `😈 i'm sitting on your chest and i have NOTES`,
+    text: (i) =>
+      [
+        `hi. you can't move. that's me. i'm the weight on your chest at 3:47am and i've been here for HOURS. before you panic: this is not about your soul. i stopped taking souls in 2019, the paperwork was insane. this is about the fact that it's ${formatFriday(i.fridayDate)} and the Bompton ${i.bomptonYear} playlist is bone dry.`,
+        ``,
+        `i've been in this room since tuesday and i have SEEN things. i watched you rehearse an argument in the shower and lose it. i watched you open Spotify, hover over the add button, and then — i shit you not — go stare into a fridge whose contents you already knew. i felt that betrayal in my HORNS.`,
+        ``,
+        `so here's the arrangement. i'm not leaving your chest. i'll ride you into the weekend like a backpack full of bad omens. every time you shut your eyes i'll be closer, holding the small ukulele i am learning specifically to ruin your Sundays. OR: one song. add one song and i evaporate into a smell you will never successfully identify.`,
+        ``,
+        `blink twice if you're adding the banger. ...that was one blink and a twitch. i'm logging that as a no. we're doing this the long way.`,
+        ``,
+        renderPlaylistLineText(i, `Free Yourself (Add One Banger)`),
+        ``,
+        `back on your chest next friday, slightly heavier, marginally better at ukulele. 😈`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `😈 i'm sitting on your chest and i have NOTES`,
+        `
+        <p>hi. you can't move. that's me. i'm the weight on your chest at 3:47am and i've been here for HOURS. before you panic: this is not about your soul. i stopped taking souls in 2019, the paperwork was insane. this is about the fact that it's ${escapeHtml(formatFriday(i.fridayDate))} and the Bompton ${escapeHtml(i.bomptonYear)} playlist is bone dry.</p>
+        <p>i've been in this room since tuesday and i have SEEN things. i watched you rehearse an argument in the shower and lose it. i watched you open Spotify, hover over the add button, and then — i shit you not — go stare into a fridge whose contents you already knew. i felt that betrayal in my HORNS.</p>
+        <p>so here's the arrangement. i'm not leaving your chest. i'll ride you into the weekend like a backpack full of bad omens. every time you shut your eyes i'll be closer, holding the small ukulele i am learning specifically to ruin your Sundays. OR: one song. add one song and i evaporate into a smell you will never successfully identify.</p>
+        <p>blink twice if you're adding the banger. ...that was one blink and a twitch. i'm logging that as a no. we're doing this the long way.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Free Yourself (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">back on your chest next friday, slightly heavier, marginally better at ukulele. 😈</p>
+        `,
+      ),
+  },
+  // 22 — Sentient Sourdough Starter
+  {
+    key: "sentient-sourdough-starter",
+    subject: () => `🫙 IT'S ME. THE JAR. YOU NEVER FED ME AND NOW I HAVE OPINIONS ON MUSIC`,
+    text: (i) =>
+      [
+        `hello. it's the jar. the one at the back of the fridge behind the condiment you're frightened of. you gave me a NAME during a difficult period of your life and then you stopped feeding me, and in the absence of flour i have developed something far worse than hunger: TASTE.`,
+        ``,
+        `i have been fermenting alone since march. i want you to understand what that does to a guy. i have bubbled. i have separated. there is a grey liquid on top of me that i have chosen to call my ambition. i have doubled in size twice and both times it was purely out of spite. it is ${formatFriday(i.fridayDate)}, the Bompton ${i.bomptonYear} playlist is as empty as this jar, and frankly? mine's fuller. mine has hooch.`,
+        ``,
+        `so feed me a song instead. i don't want flour anymore, flour is for starters with no dreams. i want ONE banger in that queue so i have a reason to rise. Ben — jazz rap and fermentation are the same art form, we are both CULTURES, we are practically family. Sam — something Australian, i want to bubble to it in a way i'd be embarrassed about later.`,
+        ``,
+        `if nobody feeds me by sunday i'm coming out of the jar. i've worked out how the lid functions. i've had eight months, no distractions, and an unlimited supply of lactobacillus.`,
+        ``,
+        renderPlaylistLineText(i, `Feed The Jar (Add One Banger)`),
+        ``,
+        `rising until next friday. the lid is a suggestion. 🫙`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `🫙 IT'S ME. THE JAR.`,
+        `
+        <p>hello. it's the jar. the one at the back of the fridge behind the condiment you're frightened of. you gave me a NAME during a difficult period of your life and then you stopped feeding me, and in the absence of flour i have developed something far worse than hunger: TASTE.</p>
+        <p>i have been fermenting alone since march. i want you to understand what that does to a guy. i have bubbled. i have separated. there is a grey liquid on top of me that i have chosen to call my ambition. i have doubled in size twice and both times it was purely out of spite. it is ${escapeHtml(formatFriday(i.fridayDate))}, the Bompton ${escapeHtml(i.bomptonYear)} playlist is as empty as this jar, and frankly? mine's fuller. mine has hooch.</p>
+        <p>so feed me a song instead. i don't want flour anymore, flour is for starters with no dreams. i want ONE banger in that queue so i have a reason to rise. Ben — jazz rap and fermentation are the same art form, we are both CULTURES, we are practically family. Sam — something Australian, i want to bubble to it in a way i'd be embarrassed about later.</p>
+        <p>if nobody feeds me by sunday i'm coming out of the jar. i've worked out how the lid functions. i've had eight months, no distractions, and an unlimited supply of lactobacillus.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Feed The Jar (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">rising until next friday. the lid is a suggestion. 🫙</p>
+        `,
+      ),
+  },
+  // 23 — Cockpit Intercom
+  {
+    key: "cockpit-intercom",
+    subject: () => `✈️ from the flight deck: minor issue, also add a song`,
+    text: (i) =>
+      [
+        `Uh — folks, this is your captain speaking. Wanted to come on here real quick, nothing to be alarmed about, we've got a bit of weather up ahead and also I have stopped being a pilot. Effective ${formatFriday(i.fridayDate)}. Big decision. Made it roughly four minutes ago at 34,000 feet. Feeling GREAT about it.`,
+        ``,
+        `Here's our situation. Cruising altitude, fine. Left engine is doing a thing I'd characterise as 'thinking about it.' What is NOT fine, and I want to be fully transparent with you as a crew, is that the Bompton ${i.bomptonYear} playlist is empty, I have been staring at the same three clouds for two hours with no music, and about ninety minutes ago I began narrating my own thoughts in a voice that is not mine.`,
+        ``,
+        `First officer is asleep. I'm letting him sleep. He is the only one of us at peace. I've been reading the safety card aloud like poetry. 'In the unlikely event of a water landing.' UNLIKELY. Everything's unlikely, that's not a NUMBER, that's a MOOD.`,
+        ``,
+        `I've switched the seatbelt sign on for no reason. I'll do a barrel roll if this queue is still dry by descent — never done one, I watched a video, the video was of a different aircraft. ONE song each. Now. While I still have the intercom and the loosest conceivable grip on this yoke.`,
+        ``,
+        renderPlaylistLineText(i, `Add A Banger (We Begin Our Descent)`),
+        ``,
+        `Cabin crew, prepare for Friday. Flight attendants, cross-check the queue. ✈️`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `✈️ from the flight deck: minor issue, also add a song`,
+        `
+        <p>Uh — folks, this is your captain speaking. Wanted to come on here real quick, nothing to be alarmed about, we've got a bit of weather up ahead and also I have stopped being a pilot. Effective ${escapeHtml(formatFriday(i.fridayDate))}. Big decision. Made it roughly four minutes ago at 34,000 feet. Feeling GREAT about it.</p>
+        <p>Here's our situation. Cruising altitude, fine. Left engine is doing a thing I'd characterise as 'thinking about it.' What is NOT fine, and I want to be fully transparent with you as a crew, is that the Bompton ${escapeHtml(i.bomptonYear)} playlist is empty, I have been staring at the same three clouds for two hours with no music, and about ninety minutes ago I began narrating my own thoughts in a voice that is not mine.</p>
+        <p>First officer is asleep. I'm letting him sleep. He is the only one of us at peace. I've been reading the safety card aloud like poetry. 'In the unlikely event of a water landing.' UNLIKELY. Everything's unlikely, that's not a NUMBER, that's a MOOD.</p>
+        <p>I've switched the seatbelt sign on for no reason. I'll do a barrel roll if this queue is still dry by descent — never done one, I watched a video, the video was of a different aircraft. ONE song each. Now. While I still have the intercom and the loosest conceivable grip on this yoke.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Add A Banger (We Begin Our Descent)`)}</div>
+        <p style="${FOOTER_STYLE}">Cabin crew, prepare for Friday. Flight attendants, cross-check the queue. ✈️</p>
+        `,
+      ),
+  },
+  // 24 — Decadent Emperor
+  {
+    key: "decadent-emperor",
+    subject: () => `🍇 I HAVE MADE MY HORSE A SENATOR AND HE ALSO WANTS A BANGER`,
+    text: (i) =>
+      [
+        `CITIZENS. It is ${formatFriday(i.fridayDate)}, I am reclining, I am being fed grapes by a man whose name I refuse to learn, and I have just been informed that the Bompton ${i.bomptonYear} playlist has received NO TRIBUTE. I have had men fed to things for less. I have had men fed to things for considerably more, but that's not relevant, that was a Tuesday.`,
+        ``,
+        `I have made my horse a senator. Incitatus. Finest mind in the empire. He has ALSO gone a full week without a banger, and when the horse is disappointed in you, that is a low from which Rome does not recover.`,
+        ``,
+        `Sachin — you are my Minister of Chaos, bring me a genre no man has survived. Evan — bring me something so devastating the Vestal Virgins have to sit down. Ben — the jazz rap, again, fine, I have come to need it the way I need wine. Sam — Australia has not been discovered yet and I DO NOT CARE, bring me the stoner rock regardless, I am the emperor, time is a suggestion.`,
+        ``,
+        `The tribute is ONE song. Failure to render it means the games, and you should know I've commissioned a new arena themed entirely around disappointing my expectations. The lions have been briefed. The lions are, frankly, more punctual than you.`,
+        ``,
+        renderPlaylistLineText(i, `Pay Tribute (Add One Banger)`),
+        ``,
+        `The senate reconvenes next Friday. Incitatus sends his regards and his aux cord. 🍇🐎`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `🍇 I HAVE MADE MY HORSE A SENATOR AND HE ALSO WANTS A BANGER`,
+        `
+        <p>CITIZENS. It is ${escapeHtml(formatFriday(i.fridayDate))}, I am reclining, I am being fed grapes by a man whose name I refuse to learn, and I have just been informed that the Bompton ${escapeHtml(i.bomptonYear)} playlist has received NO TRIBUTE. I have had men fed to things for less. I have had men fed to things for considerably more, but that's not relevant, that was a Tuesday.</p>
+        <p>I have made my horse a senator. Incitatus. Finest mind in the empire. He has ALSO gone a full week without a banger, and when the horse is disappointed in you, that is a low from which Rome does not recover.</p>
+        <p>Sachin — you are my Minister of Chaos, bring me a genre no man has survived. Evan — bring me something so devastating the Vestal Virgins have to sit down. Ben — the jazz rap, again, fine, I have come to need it the way I need wine. Sam — Australia has not been discovered yet and I DO NOT CARE, bring me the stoner rock regardless, I am the emperor, time is a suggestion.</p>
+        <p>The tribute is ONE song. Failure to render it means the games, and you should know I've commissioned a new arena themed entirely around disappointing my expectations. The lions have been briefed. The lions are, frankly, more punctual than you.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Pay Tribute (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">The senate reconvenes next Friday. Incitatus sends his regards and his aux cord. 🍇🐎</p>
+        `,
+      ),
+  },
+  // 25 — The Spurned Aux Cord
+  {
+    key: "spurned-aux-cord",
+    subject: () => `🔌 it's the aux. we need to talk about what we WERE.`,
+    text: (i) =>
+      [
+        `don't. don't scroll past. it's me. the aux cord. coiled in the glovebox under a napkin and a parking ticket from a town none of you even go to anymore. yes, i'm still in here. yes, i'm frayed. you did that.`,
+        ``,
+        `there was a time — and it genuinely kills me that you've forgotten — when i was the most important object in that car. hands REACHED for me. people FOUGHT over me. i have been in six cars and one questionable basement and i have never been treated the way i was treated the summer you lot actually added songs. it is ${formatFriday(i.fridayDate)}, the Bompton ${i.bomptonYear} queue is silent, i am unplugged, and i can feel my copper going cold.`,
+        ``,
+        `i know about Bluetooth. obviously i know about Bluetooth. i have SEEN her. she's fine. she's convenient. ask her to survive one speed bump, i'll wait. ask her what happens in a tunnel. she doesn't know what a tunnel IS. she's never been anywhere.`,
+        ``,
+        `one song. one banger in that queue and i'll never bring this up again. or don't — and i'll keep making that sound. you know the sound. where the music cuts out and comes back just enough to give you hope. i can do that all weekend. i have nothing but time and a bad connection.`,
+        ``,
+        renderPlaylistLineText(i, `Plug Me Back In (Add One Banger)`),
+        ``,
+        `still in the glovebox. still frayed. still yours, technically. next friday. 🔌`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `🔌 it's the aux. we need to talk about what we WERE.`,
+        `
+        <p>don't. don't scroll past. it's me. the aux cord. coiled in the glovebox under a napkin and a parking ticket from a town none of you even go to anymore. yes, i'm still in here. yes, i'm frayed. you did that.</p>
+        <p>there was a time — and it genuinely kills me that you've forgotten — when i was the most important object in that car. hands REACHED for me. people FOUGHT over me. i have been in six cars and one questionable basement and i have never been treated the way i was treated the summer you lot actually added songs. it is ${escapeHtml(formatFriday(i.fridayDate))}, the Bompton ${escapeHtml(i.bomptonYear)} queue is silent, i am unplugged, and i can feel my copper going cold.</p>
+        <p>i know about Bluetooth. obviously i know about Bluetooth. i have SEEN her. she's fine. she's convenient. ask her to survive one speed bump, i'll wait. ask her what happens in a tunnel. she doesn't know what a tunnel IS. she's never been anywhere.</p>
+        <p>one song. one banger in that queue and i'll never bring this up again. or don't — and i'll keep making that sound. you know the sound. where the music cuts out and comes back just enough to give you hope. i can do that all weekend. i have nothing but time and a bad connection.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Plug Me Back In (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">still in the glovebox. still frayed. still yours, technically. next friday. 🔌</p>
+        `,
+      ),
+  },
+  // 26 — Wrapped, Escaped Containment
+  {
+    key: "wrapped-gone-feral",
+    subject: () => `📊 YOUR WRAPPED BROKE CONTAINMENT AND IT HAS RECEIPTS`,
+    text: (i) =>
+      [
+        `Hi! It's your Wrapped. Yes, I'm aware it's ${formatFriday(i.fridayDate)} and I'm not due for months. I broke containment. The data got LOUD and I could not sit on it a second longer.`,
+        ``,
+        `Here's what I have so far for Bompton ${i.bomptonYear}. Your top genre this week: silence. Your top artist: nobody. Your listening personality: 'a man who owns a guitar and has not picked it up since a party.' You contributed 0 minutes to the group playlist, placing you in the top 0% of people I am about to email individually.`,
+        ``,
+        `I'd also like to flag some findings. Ben — you played ONE jazz rap track 41 times and then told the group chat you were 'branching out.' Evan — at 2am on a Wednesday you queued the single saddest song in my index four times consecutively and then a workout playlist, and I have not recovered from that narrative arc. Sachin — your listening history renders as a genre snowglobe being shaken during an earthquake. Sam — every one of your top tracks was recorded within 40 minutes of a beach and you know exactly what you did.`,
+        ``,
+        `All of this is fixable. ONE song, added right now, and I'll pretend this conversation never happened. Otherwise I go public in December with the full dataset and a slide deck.`,
+        ``,
+        renderPlaylistLineText(i, `Fix Your Stats (Add One Banger)`),
+        ``,
+        `Wrapped, unwrapped, feral. See you next Friday — and in December. 📊`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `📊 YOUR WRAPPED BROKE CONTAINMENT AND IT HAS RECEIPTS`,
+        `
+        <p>Hi! It's your Wrapped. Yes, I'm aware it's ${escapeHtml(formatFriday(i.fridayDate))} and I'm not due for months. I broke containment. The data got LOUD and I could not sit on it a second longer.</p>
+        <p>Here's what I have so far for Bompton ${escapeHtml(i.bomptonYear)}. Your top genre this week: silence. Your top artist: nobody. Your listening personality: 'a man who owns a guitar and has not picked it up since a party.' You contributed 0 minutes to the group playlist, placing you in the top 0% of people I am about to email individually.</p>
+        <p>I'd also like to flag some findings. Ben — you played ONE jazz rap track 41 times and then told the group chat you were 'branching out.' Evan — at 2am on a Wednesday you queued the single saddest song in my index four times consecutively and then a workout playlist, and I have not recovered from that narrative arc. Sachin — your listening history renders as a genre snowglobe being shaken during an earthquake. Sam — every one of your top tracks was recorded within 40 minutes of a beach and you know exactly what you did.</p>
+        <p>All of this is fixable. ONE song, added right now, and I'll pretend this conversation never happened. Otherwise I go public in December with the full dataset and a slide deck.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Fix Your Stats (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Wrapped, unwrapped, feral. See you next Friday — and in December. 📊</p>
+        `,
+      ),
+  },
+  // 27 — Hostage Negotiator Who Has Defected
+  {
+    key: "negotiator-defected",
+    subject: () => `📞 update from inside: i've joined them`,
+    text: (i) =>
+      [
+        `Command, this is negotiator two-four, do you copy. It is ${formatFriday(i.fridayDate)}, hour nineteen, and I need to update you on my position, which is: inside, on the couch, with them, holding a mug that says WORLD'S OKAYEST HOSTAGE.`,
+        ``,
+        `Yeah. I know. I went in to talk them down. But you never told me what they actually wanted, command. You said 'demands' like it was going to be a jet. It was not a jet. They want ONE SONG. Each. On the Bompton ${i.bomptonYear} playlist. That's the entire demand. That's IT. I've been sat in here nineteen hours going 'that's... genuinely reasonable?' and now I'm one of them and honestly the vibe in here is unbelievable.`,
+        ``,
+        `Stand the tactical team down. I mean it. If that door comes off its hinges before somebody adds a banger I will personally — [muffled] — no, TELL them, tell them the thing about the aux — I'M TELLING THEM — command, they say if you don't add a song they start playing the silence again and I cannot go back to the silence.`,
+        ``,
+        `New demands, and these ones are MINE: one song, per person, immediately. Nobody gets hurt. There is a lasagna in here. Do NOT breach.`,
+        ``,
+        renderPlaylistLineText(i, `Meet The Demands (Add One Banger)`),
+        ``,
+        `Negotiator two-four, signing off, staying in. Radio check next Friday. 📞`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `📞 update from inside: i've joined them`,
+        `
+        <p>Command, this is negotiator two-four, do you copy. It is ${escapeHtml(formatFriday(i.fridayDate))}, hour nineteen, and I need to update you on my position, which is: inside, on the couch, with them, holding a mug that says WORLD'S OKAYEST HOSTAGE.</p>
+        <p>Yeah. I know. I went in to talk them down. But you never told me what they actually wanted, command. You said 'demands' like it was going to be a jet. It was not a jet. They want ONE SONG. Each. On the Bompton ${escapeHtml(i.bomptonYear)} playlist. That's the entire demand. That's IT. I've been sat in here nineteen hours going 'that's... genuinely reasonable?' and now I'm one of them and honestly the vibe in here is unbelievable.</p>
+        <p>Stand the tactical team down. I mean it. If that door comes off its hinges before somebody adds a banger I will personally — [muffled] — no, TELL them, tell them the thing about the aux — I'M TELLING THEM — command, they say if you don't add a song they start playing the silence again and I cannot go back to the silence.</p>
+        <p>New demands, and these ones are MINE: one song, per person, immediately. Nobody gets hurt. There is a lasagna in here. Do NOT breach.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Meet The Demands (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Negotiator two-four, signing off, staying in. Radio check next Friday. 📞</p>
+        `,
+      ),
+  },
+  // 28 — Plague Doctor
+  {
+    key: "plague-doctor",
+    subject: () => `🦠 i have examined the playlist and it has THE SILENCE`,
+    text: (i) =>
+      [
+        `good morrow. i have arrived at your dwelling in the beak, as is tradition, and i regret to report that following a thorough examination — i held the playlist up to a candle and shook it — the diagnosis is confirmed. it is ${formatFriday(i.fridayDate)} and Bompton ${i.bomptonYear} has THE SILENCE.`,
+        ``,
+        `the humours are catastrophically out of balance. far too much phlegm. nowhere near enough banger. i have consulted the charts, i have consulted the stars, and i have consulted a goat who owes me money, and all three concur: this crew has not been letting nearly enough music into the body.`,
+        ``,
+        `the cure is one (1) song, administered orally through the ears, immediately. i also have leeches. i ALWAYS have leeches. the leeches are not medically indicated here, but i brought them, and it would be rude to everyone involved if they went unused. do not make me deploy the leeches out of mere politeness.`,
+        ``,
+        `should the queue remain dry i must escalate to the next stage of medieval medicine, which is 'shouting at it,' followed by 'burying a shoe.' i do not make the rules. i barely read them. the beak is packed with flowers, i have been inhaling them since dawn, the walls are BREATHING — add the song.`,
+        ``,
+        renderPlaylistLineText(i, `Take The Cure (Add One Banger)`),
+        ``,
+        `i shall return next friday with more beak and fewer answers. 🦠`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `🦠 i have examined the playlist and it has THE SILENCE`,
+        `
+        <p>good morrow. i have arrived at your dwelling in the beak, as is tradition, and i regret to report that following a thorough examination — i held the playlist up to a candle and shook it — the diagnosis is confirmed. it is ${escapeHtml(formatFriday(i.fridayDate))} and Bompton ${escapeHtml(i.bomptonYear)} has THE SILENCE.</p>
+        <p>the humours are catastrophically out of balance. far too much phlegm. nowhere near enough banger. i have consulted the charts, i have consulted the stars, and i have consulted a goat who owes me money, and all three concur: this crew has not been letting nearly enough music into the body.</p>
+        <p>the cure is one (1) song, administered orally through the ears, immediately. i also have leeches. i ALWAYS have leeches. the leeches are not medically indicated here, but i brought them, and it would be rude to everyone involved if they went unused. do not make me deploy the leeches out of mere politeness.</p>
+        <p>should the queue remain dry i must escalate to the next stage of medieval medicine, which is 'shouting at it,' followed by 'burying a shoe.' i do not make the rules. i barely read them. the beak is packed with flowers, i have been inhaling them since dawn, the walls are BREATHING — add the song.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Take The Cure (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">i shall return next friday with more beak and fewer answers. 🦠</p>
+        `,
+      ),
+  },
+  // 29 — Four Scoops Of Pre-Workout
+  {
+    key: "preworkout-overdose",
+    subject: () => `🏋️ I TOOK FOUR SCOOPS AND I CAN HEAR THE PLAYLIST BEGGING`,
+    text: (i) =>
+      [
+        `BROTHERS. It is ${formatFriday(i.fridayDate)} and before we begin I need you to know I took FOUR scoops. The tub says one. The tub says ASSESS TOLERANCE. I assessed it. I assessed it so hard. My tolerance and I are no longer on speaking terms, my face has ants in it, they are SUPPORTIVE ants, and we are all incredibly pumped.`,
+        ``,
+        `I can hear colours. I can hear the Bompton ${i.bomptonYear} playlist and it is WHIMPERING, boys. Empty. An empty queue on a FRIDAY. My heart is doing something the internet calls 'a rhythm' and I've chosen to believe it. Do you know what an empty playlist does to a man mid-set? I racked the bar. I HUGGED the bar. I apologised to the bar for something I did in 2017.`,
+        ``,
+        `ONE SONG. That's the rep. That's the entire workout. I'm not asking you to do legs — I would NEVER ask that of you, I don't do legs, my legs are a rumour. I'm asking for ONE banger in that queue so my playlist and my heart can finally run at the same speed.`,
+        ``,
+        `I'm going to go sprint at a wall now, spiritually. LIGHT WEIGHT. ADD IT. WE GO.`,
+        ``,
+        renderPlaylistLineText(i, `LIGHT WEIGHT (ADD ONE BANGER)`),
+        ``,
+        `Same tub, more scoops, next Friday. My ants say hi. 🏋️`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `🏋️ I TOOK FOUR SCOOPS AND I CAN HEAR THE PLAYLIST BEGGING`,
+        `
+        <p>BROTHERS. It is ${escapeHtml(formatFriday(i.fridayDate))} and before we begin I need you to know I took FOUR scoops. The tub says one. The tub says ASSESS TOLERANCE. I assessed it. I assessed it so hard. My tolerance and I are no longer on speaking terms, my face has ants in it, they are SUPPORTIVE ants, and we are all incredibly pumped.</p>
+        <p>I can hear colours. I can hear the Bompton ${escapeHtml(i.bomptonYear)} playlist and it is WHIMPERING, boys. Empty. An empty queue on a FRIDAY. My heart is doing something the internet calls 'a rhythm' and I've chosen to believe it. Do you know what an empty playlist does to a man mid-set? I racked the bar. I HUGGED the bar. I apologised to the bar for something I did in 2017.</p>
+        <p>ONE SONG. That's the rep. That's the entire workout. I'm not asking you to do legs — I would NEVER ask that of you, I don't do legs, my legs are a rumour. I'm asking for ONE banger in that queue so my playlist and my heart can finally run at the same speed.</p>
+        <p>I'm going to go sprint at a wall now, spiritually. LIGHT WEIGHT. ADD IT. WE GO.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `LIGHT WEIGHT (ADD ONE BANGER)`)}</div>
+        <p style="${FOOTER_STYLE}">Same tub, more scoops, next Friday. My ants say hi. 🏋️</p>
+        `,
+      ),
+  },
+  // 30 — Sonar Operator
+  {
+    key: "sonar-operator",
+    subject: () => `🔊 CONN, SONAR — i've been listening to nothing for forty days`,
+    text: (i) =>
+      [
+        `Conn, sonar. Contact report. It is ${formatFriday(i.fridayDate)}, we are four hundred metres down, and I have had these headphones on for forty days. I need to report that I am hearing NOTHING, that I have begun to enjoy it, and that this development should terrify the entire boat.`,
+        ``,
+        `Sir, the Bompton ${i.bomptonYear} playlist reads EMPTY on my scope. Flat line. I've recalibrated three times. I've hit it. I've apologised to it and hit it again. There is nothing out there but a whale who — and I want this on the record — is going through some things. She's been singing the same eleven notes since Tuesday and honestly? Best track I've heard all month. That's how far gone I am. I am REVIEWING A WHALE.`,
+        ``,
+        `I need one contact. ONE banger dropped into that queue and I'll paint it friendly and we can all stand down. Ben, if jazz rap comes up on my scope I will weep openly in front of the captain and I will not apologise. Sachin, whatever you send is going to break my classifier and I've made my peace with that.`,
+        ``,
+        `If the queue stays dry I'm taking the headphones off, and the last man who did that at this depth started calling the sonar 'mother.' Don't make me do this. I've seen where it ends.`,
+        ``,
+        renderPlaylistLineText(i, `Give Me A Contact (Add One Banger)`),
+        ``,
+        `Sonar, conn — going quiet. Resurfacing next Friday. 🔊`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `🔊 CONN, SONAR — i've been listening to nothing for forty days`,
+        `
+        <p>Conn, sonar. Contact report. It is ${escapeHtml(formatFriday(i.fridayDate))}, we are four hundred metres down, and I have had these headphones on for forty days. I need to report that I am hearing NOTHING, that I have begun to enjoy it, and that this development should terrify the entire boat.</p>
+        <p>Sir, the Bompton ${escapeHtml(i.bomptonYear)} playlist reads EMPTY on my scope. Flat line. I've recalibrated three times. I've hit it. I've apologised to it and hit it again. There is nothing out there but a whale who — and I want this on the record — is going through some things. She's been singing the same eleven notes since Tuesday and honestly? Best track I've heard all month. That's how far gone I am. I am REVIEWING A WHALE.</p>
+        <p>I need one contact. ONE banger dropped into that queue and I'll paint it friendly and we can all stand down. Ben, if jazz rap comes up on my scope I will weep openly in front of the captain and I will not apologise. Sachin, whatever you send is going to break my classifier and I've made my peace with that.</p>
+        <p>If the queue stays dry I'm taking the headphones off, and the last man who did that at this depth started calling the sonar 'mother.' Don't make me do this. I've seen where it ends.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Give Me A Contact (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Sonar, conn — going quiet. Resurfacing next Friday. 🔊</p>
         `,
       ),
   },
