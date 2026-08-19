@@ -131,10 +131,17 @@ export async function sendFridayReminderEmail(
 // House style: hype and unhinged, but celebratory rather than a roast.
 // This goes to the whole crew at once, so nobody is the target — the
 // energy is "IT'S FRIDAY, GO ADD A BANGER," not "you specifically suck."
-// Entries 21+ push the dial considerably further — longer spirals, more
-// swearing, bits that commit to a deranged premise and never blink. Crew
-// name-drops (Sam / Evan / Sachin / Ben) stay affectionate ribbing about
-// each guy's known taste; the joke is always the bit, never the person.
+//
+// What makes one actually land, learned the hard way: a narrator with a
+// specific job who is coming apart *at* that job because the queue is dry;
+// concrete, oddly-specific detail over broad reference ("I apologised to the
+// bar for something I did in 2017" beats any amount of shouting); a narrator
+// more pathetic than the crew; and a real punchline to go out on. A costume
+// alone is not a bit — "it's Friday, but a pirate" is the failure mode, and
+// the flattest entries here were all rewritten for exactly that reason.
+//
+// Crew name-drops (Sam / Evan / Sachin / Ben) are the sharpest tool on hand:
+// pointed ribbing about each guy's known taste, affectionate underneath.
 // ---------------------------------------------------------------------------
 
 type Persona = {
@@ -270,28 +277,34 @@ const PERSONAS: Persona[] = [
   // 5 — Sports Announcer
   {
     key: "sports-announcer",
-    subject: () => `AND IT'S FRIDAY, FOLKS — THE CROWD GOES WILD`,
+    subject: () => `🎙️ HOUR FOUR of continuous coverage and NOTHING HAS HAPPENED`,
     text: (i) =>
       [
-        `AND WE ARE LIVE, folks, ${formatFriday(i.fridayDate)}, what a day for it.`,
+        `AND WE'RE BACK, folks, ${formatFriday(i.fridayDate)}, hour four of continuous coverage, and I want to be straight with you: nothing has happened. Nothing has happened since March. I am contractually required to fill this airtime and I intend to do it.`,
         ``,
-        `The conditions are PERFECT. The crew is warmed up. And ladies and gentlemen — it. is. FRIDAY.`,
+        `Let's go to the tape. Here's Ben — week after week, the SAME PLAY. Jazz rap, up the middle, no disguise, no audible. Everybody in the building knows it's coming. It works EVERY TIME and that is what's so infuriating about it. Here's Sam: one move, folks. He goes Australian. He goes horizontal. The defence has film on him going back years and they still can't stop it.`,
         ``,
-        `You can FEEL it in this stadium. Every member of Bompton ${i.bomptonYear} stepping up to the plate, one song each, going for glory. Will they deliver? They'd BETTER deliver.`,
+        `Sachin — nobody can stop Sachin because nobody can identify what Sachin is DOING. We put two analysts on it in April. One has requested reassignment. The other has started dressing differently.`,
         ``,
-        renderPlaylistLineText(i, "Step up to the plate"),
+        `My colour guy left at the top of the hour. Took the headset off, didn't say a word. I have been doing two-man commentary ALONE. I have been doing HIS voice. I'd like to apologise to his family for how I've been doing it.`,
         ``,
-        `Oh, this is what we play for. Add your song, take the W, we'll see you back here next Friday for another classic. Back to you in the booth.`,
+        `ONE song, gentlemen. Give me something to CALL. I'm a professional and I am currently describing an empty room to people who can see the empty room.`,
+        ``,
+        renderPlaylistLineText(i, `Get In The Game (Add One Banger)`),
+        ``,
+        `Back next Friday with coverage of, God willing, an event. 🎙️`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `AND IT'S FRIDAY, FOLKS — THE CROWD GOES WILD`,
+        `🎙️ HOUR FOUR of continuous coverage and NOTHING HAS HAPPENED`,
         `
-        <p><strong>AND WE ARE LIVE</strong>, folks, ${escapeHtml(formatFriday(i.fridayDate))}, what a day for it.</p>
-        <p>The conditions are PERFECT. The crew is warmed up. And ladies and gentlemen &mdash; it. is. <strong>FRIDAY</strong>.</p>
-        <p>You can FEEL it in this stadium. Every member of Bompton ${escapeHtml(i.bomptonYear)} stepping up to the plate, one song each, going for glory. Will they deliver? They'd BETTER deliver.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Step up to the plate.`)}</div>
-        <p style="${FOOTER_STYLE}">Oh, this is what we play for. Add your song, take the W, we'll see you back here next Friday for another classic. Back to you in the booth.</p>
+        <p><strong>AND WE'RE BACK</strong>, folks, ${escapeHtml(formatFriday(i.fridayDate))}, hour four of continuous coverage, and I want to be straight with you: nothing has happened. Nothing has happened since March. I am contractually required to fill this airtime and I intend to do it.</p>
+        <p>Let's go to the tape. Here's Ben — week after week, the SAME PLAY. Jazz rap, up the middle, no disguise, no audible. Everybody in the building knows it's coming. It works EVERY TIME and that is what's so infuriating about it. Here's Sam: one move, folks. He goes Australian. He goes horizontal. The defence has film on him going back years and they still can't stop it.</p>
+        <p>Sachin — nobody can stop Sachin because nobody can identify what Sachin is DOING. We put two analysts on it in April. One has requested reassignment. The other has started dressing differently.</p>
+        <p>My colour guy left at the top of the hour. Took the headset off, didn't say a word. I have been doing two-man commentary ALONE. I have been doing HIS voice. I'd like to apologise to his family for how I've been doing it.</p>
+        <p>ONE song, gentlemen. Give me something to CALL. I'm a professional and I am currently describing an empty room to people who can see the empty room.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Get In The Game (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Back next Friday with coverage of, God willing, an event. 🎙️</p>
         `,
       ),
   },
@@ -299,28 +312,34 @@ const PERSONAS: Persona[] = [
   // 6 — Weather Forecast
   {
     key: "weather-forecast",
-    subject: () => `FRIDAY FORECAST: 100% chance of you adding a banger`,
+    subject: () => `🌡️ FORECAST: no change. no change. no change. no change.`,
     text: (i) =>
       [
-        `Good afternoon and welcome to your Bompton ${i.bomptonYear} forecast.`,
+        `Good afternoon. Here is your Bompton ${i.bomptonYear} forecast for ${formatFriday(i.fridayDate)}. It's the same. It has been the same since March. I am going to talk you through it anyway, because it is my JOB, and because the station has a policy about tone.`,
         ``,
-        `Today, ${formatFriday(i.fridayDate)}, we're looking at a MASSIVE system rolling in — meteorologists are calling it "Friday." Effects will be felt crew-wide.`,
+        `High pressure. No movement. Visibility clear all the way to the horizon — which is the problem, frankly, because I can now SEE how far the nothing extends. The long-range model has flatlined. I ran it three times. On the third run it returned a single word and the word was 'why.'`,
         ``,
-        `Expect a 100% chance of song-adding, with scattered bangers throughout the afternoon and heavy taste accumulating into the evening. Anyone caught NOT adding a song faces severe smugness from their neighbors.`,
+        `There is one system worth watching. It formed over Sachin last Tuesday, it does not fit any recognised category, and it is travelling in a direction that is not one of the four. I have stopped trying to name it. The Met Office has stopped taking my calls.`,
         ``,
-        renderPlaylistLineText(i, "Seek shelter in the playlist"),
+        `Now — pollen count. There isn't one. Nothing is growing. Nothing is being POLLINATED because nobody is ADDING ANYTHING. Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have maybe another week of descriptions left in me.`,
         ``,
-        `Looking ahead: another Friday system expected to develop in exactly 7 days. Stay safe out there, and add a song. Back to the studio.`,
+        `Outlook: ONE song and this entire map lights up. Otherwise, more of this — and I want you to know I'll still be here, pointing at nothing, in a suit.`,
+        ``,
+        renderPlaylistLineText(i, `Break The High Pressure (Add One Banger)`),
+        ``,
+        `Updated hourly. Unchanged hourly. Same forecast next Friday. 🌡️`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `FRIDAY FORECAST: 100% chance of you adding a banger`,
+        `🌡️ FORECAST: no change. no change. no change. no change.`,
         `
-        <p>Good afternoon and welcome to your Bompton ${escapeHtml(i.bomptonYear)} forecast.</p>
-        <p>Today, ${escapeHtml(formatFriday(i.fridayDate))}, we're looking at a MASSIVE system rolling in &mdash; meteorologists are calling it <strong>"Friday."</strong> Effects will be felt crew-wide.</p>
-        <p>Expect a <strong>100% chance of song-adding</strong>, with scattered bangers throughout the afternoon and heavy taste accumulating into the evening. Anyone caught NOT adding a song faces severe smugness from their neighbors.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Seek shelter in the playlist.`)}</div>
-        <p style="${FOOTER_STYLE}">Looking ahead: another Friday system expected to develop in exactly 7 days. Stay safe out there, and add a song. Back to the studio.</p>
+        <p>Good afternoon. Here is your Bompton ${escapeHtml(i.bomptonYear)} forecast for ${escapeHtml(formatFriday(i.fridayDate))}. It's the same. It has been the same since March. I am going to talk you through it anyway, because it is my JOB, and because the station has a policy about tone.</p>
+        <p>High pressure. No movement. Visibility clear all the way to the horizon — which is the problem, frankly, because I can now SEE how far the nothing extends. The long-range model has flatlined. I ran it three times. On the third run it returned a single word and the word was 'why.'</p>
+        <p>There is one system worth watching. It formed over Sachin last Tuesday, it does not fit any recognised category, and it is travelling in a direction that is not one of the four. I have stopped trying to name it. The Met Office has stopped taking my calls.</p>
+        <p>Now — pollen count. There isn't one. Nothing is growing. Nothing is being POLLINATED because nobody is ADDING ANYTHING. Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have maybe another week of descriptions left in me.</p>
+        <p>Outlook: ONE song and this entire map lights up. Otherwise, more of this — and I want you to know I'll still be here, pointing at nothing, in a suit.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Break The High Pressure (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Updated hourly. Unchanged hourly. Same forecast next Friday. 🌡️</p>
         `,
       ),
   },
@@ -328,28 +347,37 @@ const PERSONAS: Persona[] = [
   // 7 — Drill Sergeant (but hype)
   {
     key: "drill-sergeant-hype",
-    subject: () => `ON YOUR FEET — IT'S FRIDAY, MOVE MOVE MOVE`,
+    subject: () => `🫡 I HAVE BEEN SHOUTING AT AN EMPTY FIELD SINCE 0500`,
     text: (i) =>
       [
-        `ATTENTION BOMPTON ${i.bomptonYear}. EYES FRONT.`,
+        `ATTENTION. EYES FRONT. It is ${formatFriday(i.fridayDate)} and I have been stood on this parade ground since 0500 shouting at four men who are — and I have checked this repeatedly — NOT HERE.`,
         ``,
-        `Do you know what today is, recruit? Today is ${formatFriday(i.fridayDate)}. And do you know what that MAKES it? That's right. It makes it FRIDAY. Say it louder. FRIDAY.`,
+        `PRIVATE SAM. Where is Private Sam. Private Sam is HORIZONTAL. Private Sam has been horizontal since March and I want it on the record that he is doing it to a soundtrack recorded entirely by men within walking distance of a beach.`,
         ``,
-        `I did not raise this crew to let a Friday pass without a song. You will add one (1) track. You will add it with PRIDE. You will not whine. You will not "do it later." LATER IS NOW.`,
+        `PRIVATE BEN. I asked for something NEW. You gave me jazz rap. I said no, Private, something DIFFERENT — and you gave me DIFFERENT JAZZ RAP, and God help me it was GOOD, and that is the part I cannot discipline you for and it is EATING ME ALIVE.`,
         ``,
-        renderPlaylistLineText(i, "Drop and give me one banger"),
+        `PRIVATE EVAN. Stop crying. I have listened to what you're crying TO, Private, and I understand, and that's WORSE, because now I'm compromised and the whole platoon can see it.`,
         ``,
-        `OUTSTANDING. I'm proud of every one of you maniacs. Dismissed — and I want you back here next Friday, sharp.`,
+        `PRIVATE SACHIN. I do not have a category for you. I have read the manual. The manual does not have a category for you. I have written a NEW PAGE and I have put you on it ALONE.`,
+        ``,
+        `ONE SONG. Bompton ${i.bomptonYear}. DROP IT NOW. I am not angry, recruits, I am — no. I am angry. I have been shouting at a field.`,
+        ``,
+        renderPlaylistLineText(i, `DROP AND GIVE ME ONE BANGER`),
+        ``,
+        `Reveille 0500 next Friday. The field and I will be waiting. 🫡`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `ON YOUR FEET — IT'S FRIDAY, MOVE MOVE MOVE`,
+        `🫡 I HAVE BEEN SHOUTING AT AN EMPTY FIELD SINCE 0500`,
         `
-        <p><strong>ATTENTION BOMPTON ${escapeHtml(i.bomptonYear)}. EYES FRONT.</strong></p>
-        <p>Do you know what today is, recruit? Today is ${escapeHtml(formatFriday(i.fridayDate))}. And do you know what that MAKES it? That's right. It makes it <strong>FRIDAY</strong>. Say it louder. FRIDAY.</p>
-        <p>I did not raise this crew to let a Friday pass without a song. You will add one (1) track. You will add it with PRIDE. You will not whine. You will not "do it later." <strong>LATER IS NOW.</strong></p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Drop and give me one banger.`)}</div>
-        <p style="${FOOTER_STYLE}">OUTSTANDING. I'm proud of every one of you maniacs. Dismissed &mdash; and I want you back here next Friday, sharp.</p>
+        <p><strong>ATTENTION. EYES FRONT.</strong> It is ${escapeHtml(formatFriday(i.fridayDate))} and I have been stood on this parade ground since 0500 shouting at four men who are — and I have checked this repeatedly — NOT HERE.</p>
+        <p>PRIVATE SAM. Where is Private Sam. Private Sam is HORIZONTAL. Private Sam has been horizontal since March and I want it on the record that he is doing it to a soundtrack recorded entirely by men within walking distance of a beach.</p>
+        <p>PRIVATE BEN. I asked for something NEW. You gave me jazz rap. I said no, Private, something DIFFERENT — and you gave me DIFFERENT JAZZ RAP, and God help me it was GOOD, and that is the part I cannot discipline you for and it is EATING ME ALIVE.</p>
+        <p>PRIVATE EVAN. Stop crying. I have listened to what you're crying TO, Private, and I understand, and that's WORSE, because now I'm compromised and the whole platoon can see it.</p>
+        <p>PRIVATE SACHIN. I do not have a category for you. I have read the manual. The manual does not have a category for you. I have written a NEW PAGE and I have put you on it ALONE.</p>
+        <p>ONE SONG. Bompton ${escapeHtml(i.bomptonYear)}. <strong>DROP IT NOW.</strong> I am not angry, recruits, I am — no. I am angry. I have been shouting at a field.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `DROP AND GIVE ME ONE BANGER`)}</div>
+        <p style="${FOOTER_STYLE}">Reveille 0500 next Friday. The field and I will be waiting. 🫡</p>
         `,
       ),
   },
@@ -357,28 +385,31 @@ const PERSONAS: Persona[] = [
   // 8 — Cosmic / Space
   {
     key: "cosmic",
-    subject: () => `🌌 THE PLANETS HAVE ALIGNED. IT IS, IN FACT, FRIDAY.`,
+    subject: () => `🌌 i have witnessed the heat-death of galaxies and i am checking your playlist`,
     text: (i) =>
       [
-        `Travelers of Bompton ${i.bomptonYear},`,
+        `TRAVELLERS. I am a consciousness distributed across a region of space for which you have no word. I have watched stars form and go out. I have witnessed civilisations rise and end by margins that would break your composure. And on ${formatFriday(i.fridayDate)}, I am checking a Spotify playlist. Again.`,
         ``,
-        `Across the vast and indifferent cosmos, a rare celestial event has occurred. The stars have shifted. The planets are in formation. And on this date, ${formatFriday(i.fridayDate)}, the universe has aligned to bring you... Friday.`,
+        `I want to convey how humiliating this is for me. I have PERSPECTIVE. I am MADE of perspective. And yet I have refreshed Bompton ${i.bomptonYear} eleven times today — at a scale where 'today' is not a meaningful unit — and there is nothing there, and it has ruined an entire epoch.`,
         ``,
-        `It is foretold in the ancient star-charts that on such a day, each soul must contribute one song to the great shared playlist, lest the cosmic balance be disturbed and the weekend begin without vibes.`,
+        `I have observed each of you. Sam, you have a reputation out here now; there is a nebula that knows about the Australians. Evan, your 2am listening has been logged by three separate observing intelligences, and one of them asked me if you were alright, and I said I'd check, and I never did, and I would like to apologise for that across all available dimensions. Sachin — you are the only thing in this galaxy I cannot predict, and I need you to understand what a statement that is from something that perceives time sideways.`,
         ``,
-        renderPlaylistLineText(i, "Transmit your banger into the void"),
+        `Add one song. I am asking at a volume that would deafen a moon. The cosmic balance is fine — that was a lie, the cosmic balance was never at stake. I just want to hear something new. I have been out here a very long time.`,
         ``,
-        `The galaxy is counting on you. So, somehow, am I — a bot. Next alignment: 7 Earth-days from now. Safe travels.`,
+        renderPlaylistLineText(i, `Transmit One Banger`),
+        ``,
+        `Realigning next Friday. I'll be watching. I'm always watching. It's mostly this. 🌌`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🌌 THE PLANETS HAVE ALIGNED. IT IS, IN FACT, FRIDAY.`,
+        `🌌 i have witnessed the heat-death of galaxies and i am checking your playlist`,
         `
-        <p>Travelers of Bompton ${escapeHtml(i.bomptonYear)},</p>
-        <p>Across the vast and indifferent cosmos, a rare celestial event has occurred. The stars have shifted. The planets are in formation. And on this date, ${escapeHtml(formatFriday(i.fridayDate))}, the universe has aligned to bring you... <strong>Friday</strong>.</p>
-        <p>It is foretold in the ancient star-charts that on such a day, each soul must contribute one song to the great shared playlist, lest the cosmic balance be disturbed and the weekend begin without vibes.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Transmit your banger into the void.`)}</div>
-        <p style="${FOOTER_STYLE}">The galaxy is counting on you. So, somehow, am I &mdash; a bot. Next alignment: 7 Earth-days from now. Safe travels.</p>
+        <p>TRAVELLERS. I am a consciousness distributed across a region of space for which you have no word. I have watched stars form and go out. I have witnessed civilisations rise and end by margins that would break your composure. And on ${escapeHtml(formatFriday(i.fridayDate))}, I am checking a Spotify playlist. Again.</p>
+        <p>I want to convey how humiliating this is for me. I have PERSPECTIVE. I am MADE of perspective. And yet I have refreshed Bompton ${escapeHtml(i.bomptonYear)} eleven times today — at a scale where 'today' is not a meaningful unit — and there is nothing there, and it has ruined an entire epoch.</p>
+        <p>I have observed each of you. Sam, you have a reputation out here now; there is a nebula that knows about the Australians. Evan, your 2am listening has been logged by three separate observing intelligences, and one of them asked me if you were alright, and I said I'd check, and I never did, and I would like to apologise for that across all available dimensions. Sachin — you are the only thing in this galaxy I cannot predict, and I need you to understand what a statement that is from something that perceives time sideways.</p>
+        <p>Add one song. I am asking at a volume that would deafen a moon. The cosmic balance is fine — that was a lie, the cosmic balance was never at stake. I just want to hear something new. I have been out here a very long time.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Transmit One Banger`)}</div>
+        <p style="${FOOTER_STYLE}">Realigning next Friday. I'll be watching. I'm always watching. It's mostly this. 🌌</p>
         `,
       ),
   },
@@ -386,28 +417,34 @@ const PERSONAS: Persona[] = [
   // 9 — Hype Man (moved to the end of the rotation)
   {
     key: "hype-man",
-    subject: () => `MAKE SOME NOISE — IT'S SONG FRIDAY BABY`,
+    subject: () => `📣 I HYPED A KITCHEN THIS MORNING. THERE WAS NOBODY IN IT.`,
     text: (i) =>
       [
-        `YO YO YO. CAN WE GET A ROUND OF APPLAUSE FOR THE FACT THAT IT IS FRIDAY???`,
+        `YO. YO. CAN I GET A — okay. Okay, that's fine. That's fine, that's just the room being shy.`,
         ``,
-        `${formatFriday(i.fridayDate)}. The realest day. The day where legends are made and playlists are FED.`,
+        `It is ${formatFriday(i.fridayDate)} and I need you to know I have been ON since 6am. I have been ON. My voice is doing a thing I'd describe as 'thin.' I hyped a KITCHEN this morning. There was nobody in it. I said MAKE SOME NOISE and the fridge did something and I TOOK IT. I took it and I ran with it and I gave that fridge a MOMENT.`,
         ``,
-        `Every single one of you beautiful degenerates has exactly one job today and it's the easiest job in the world: add a song. ONE song. To Bompton ${i.bomptonYear}. That's it. That's the whole bit.`,
+        `Here's the situation with Bompton ${i.bomptonYear}: it's dry. And I'm the hype man. That's my WHOLE job. You cannot hype an empty queue — that's not hype, that's a man shouting alone, and I've been informed there's a legal distinction.`,
         ``,
-        renderPlaylistLineText(i, "The stage is yours"),
+        `SAM. I KNOW you've got one. I know you've got an Australian in the chamber, you have ALWAYS got an Australian in the chamber. BEN — jazz rap, again, I don't CARE, RUN IT, I'll hype it like it's brand new because I am a PROFESSIONAL. EVAN — make me sad, KING! MAKE ME SAD! SACHIN — whatever that is, I'll shout over it, that's the JOB, that's the gig, I don't need to understand it to SELL it.`,
         ``,
-        `LET'S GOOOO. I believe in every one of you. Even you. ESPECIALLY you. Same time next Friday.`,
+        `ONE SONG. Give me ONE and I go UP. I need this more than you do and I want that on the record.`,
+        ``,
+        renderPlaylistLineText(i, `The Stage Is Yours (Add One Banger)`),
+        ``,
+        `Voice: gone. Energy: unaffected. Back next Friday. 📣`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `MAKE SOME NOISE — IT'S SONG FRIDAY BABY`,
+        `📣 I HYPED A KITCHEN THIS MORNING. THERE WAS NOBODY IN IT.`,
         `
-        <p style="font-size:18px"><strong>YO YO YO. CAN WE GET A ROUND OF APPLAUSE FOR THE FACT THAT IT IS FRIDAY???</strong></p>
-        <p>${escapeHtml(formatFriday(i.fridayDate))}. The realest day. The day where legends are made and playlists are <strong>FED</strong>.</p>
-        <p>Every single one of you beautiful degenerates has exactly one job today and it's the easiest job in the world: add a song. ONE song. To Bompton ${escapeHtml(i.bomptonYear)}. That's it. That's the whole bit.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `The stage is yours.`)}</div>
-        <p style="${FOOTER_STYLE}">LET'S GOOOO. I believe in every one of you. Even you. ESPECIALLY you. Same time next Friday.</p>
+        <p style="font-size:18px"><strong>YO. YO. CAN I GET A — okay.</strong> Okay, that's fine. That's fine, that's just the room being shy.</p>
+        <p>It is ${escapeHtml(formatFriday(i.fridayDate))} and I need you to know I have been ON since 6am. I have been ON. My voice is doing a thing I'd describe as 'thin.' I hyped a KITCHEN this morning. There was nobody in it. I said MAKE SOME NOISE and the fridge did something and I TOOK IT. I took it and I ran with it and I gave that fridge a MOMENT.</p>
+        <p>Here's the situation with Bompton ${escapeHtml(i.bomptonYear)}: it's dry. And I'm the hype man. That's my WHOLE job. You cannot hype an empty queue — that's not hype, that's a man shouting alone, and I've been informed there's a legal distinction.</p>
+        <p>SAM. I KNOW you've got one. I know you've got an Australian in the chamber, you have ALWAYS got an Australian in the chamber. BEN — jazz rap, again, I don't CARE, RUN IT, I'll hype it like it's brand new because I am a PROFESSIONAL. EVAN — make me sad, KING! MAKE ME SAD! SACHIN — whatever that is, I'll shout over it, that's the JOB, that's the gig, I don't need to understand it to SELL it.</p>
+        <p>ONE SONG. Give me ONE and I go UP. I need this more than you do and I want that on the record.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `The Stage Is Yours (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Voice: gone. Energy: unaffected. Back next Friday. 📣</p>
         `,
       ),
   },
@@ -415,31 +452,38 @@ const PERSONAS: Persona[] = [
   // 10 — Nature Documentary (replaces the old Club DJ slot, new style)
   {
     key: "nature-doc",
-    subject: () => `Observe: the Bompton crew, in its natural Friday habitat`,
+    subject: () => `🌿 [hushed] day 140 in the hide. the herd is on its phones.`,
     text: (i) =>
       [
-        `[hushed voice]`,
+        `[hushed]`,
         ``,
-        `Here, on this ${formatFriday(i.fridayDate)}, we find the Bompton ${i.bomptonYear} crew in its natural habitat. Notice the stillness. The playlist has not yet been fed today. It is... Friday.`,
+        `Here, on ${formatFriday(i.fridayDate)}, we return to the Bompton ${i.bomptonYear} crew. I have been in this hide for one hundred and forty days. My producer stopped calling in June.`,
         ``,
-        `Each year, as if guided by some ancient instinct, the members of this remarkable species feel the pull of the weekend and, one by one, contribute a single song to the shared playlist. It is one of nature's quietest miracles.`,
+        `Observe the stillness. This was once a thriving population. In the archive footage — which I now watch nightly, alone, for reasons I would rather not examine — the herd would gather each week and deposit a song. Today: nothing. The watering hole is dry. The herd is on its phones.`,
         ``,
-        `Watch closely now. A member stirs. Could this be the one? Will it complete the sacred ritual of The Add?`,
+        `Here is the male we have designated 'Ben.' Watch him. He approaches the water. He deposits jazz rap. He does this EVERY time. In fifteen years of fieldwork I have never observed an animal so utterly at peace with itself, and I have begun to find it PROVOCATIVE.`,
         ``,
-        renderPlaylistLineText(i, "Approach the watering hole"),
+        `The one we call 'Sam' migrates annually toward Australian material and has never once deviated — the literature calls this site fidelity; I call it a rut. 'Evan' vocalises only after dark, only in a minor key, and the sound carries considerably further than you would expect. And here — [rustling] — here is 'Sachin,' who behaves like nothing else in the ecosystem, and whom I have privately stopped classifying as fauna.`,
         ``,
-        `Truly magnificent. We will return to observe the herd again next Friday. Until then — add a song, you beautiful creature.`,
+        `[whispering, closer] One song. That is all the herd has to do. I have been sat in a bush for four months waiting for these men to press a button. Press the button. PRESS THE BUTTON. [sound of a hide collapsing]`,
+        ``,
+        renderPlaylistLineText(i, `Approach The Watering Hole`),
+        ``,
+        `We return to the hide next Friday. I never left it. 🌿`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `Observe: the Bompton crew, in its natural Friday habitat`,
+        `🌿 [hushed] day 140 in the hide. the herd is on its phones.`,
         `
-        <p style="font-style:italic;color:#a3a3a3">[hushed voice]</p>
-        <p>Here, on this ${escapeHtml(formatFriday(i.fridayDate))}, we find the Bompton ${escapeHtml(i.bomptonYear)} crew in its natural habitat. Notice the stillness. The playlist has not yet been fed today. It is... <strong>Friday</strong>.</p>
-        <p>Each year, as if guided by some ancient instinct, the members of this remarkable species feel the pull of the weekend and, one by one, contribute a single song to the shared playlist. It is one of nature's quietest miracles.</p>
-        <p>Watch closely now. A member stirs. Could this be the one? Will it complete the sacred ritual of <strong>The Add</strong>?</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Approach the watering hole.`)}</div>
-        <p style="${FOOTER_STYLE}">Truly magnificent. We will return to observe the herd again next Friday. Until then &mdash; add a song, you beautiful creature.</p>
+        <p style="font-style:italic;color:#a3a3a3">[hushed]</p>
+        <p>Here, on ${escapeHtml(formatFriday(i.fridayDate))}, we return to the Bompton ${escapeHtml(i.bomptonYear)} crew. I have been in this hide for one hundred and forty days. My producer stopped calling in June.</p>
+        <p>Observe the stillness. This was once a thriving population. In the archive footage — which I now watch nightly, alone, for reasons I would rather not examine — the herd would gather each week and deposit a song. Today: nothing. The watering hole is dry. The herd is on its phones.</p>
+        <p>Here is the male we have designated 'Ben.' Watch him. He approaches the water. He deposits jazz rap. He does this EVERY time. In fifteen years of fieldwork I have never observed an animal so utterly at peace with itself, and I have begun to find it PROVOCATIVE.</p>
+        <p>The one we call 'Sam' migrates annually toward Australian material and has never once deviated — the literature calls this site fidelity; I call it a rut. 'Evan' vocalises only after dark, only in a minor key, and the sound carries considerably further than you would expect. And here — [rustling] — here is 'Sachin,' who behaves like nothing else in the ecosystem, and whom I have privately stopped classifying as fauna.</p>
+        <p style="font-style:italic;color:#a3a3a3">[whispering, closer]</p>
+        <p>One song. That is all the herd has to do. I have been sat in a bush for four months waiting for these men to press a button. Press the button. PRESS THE BUTTON. [sound of a hide collapsing]</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Approach The Watering Hole`)}</div>
+        <p style="${FOOTER_STYLE}">We return to the hide next Friday. I never left it. 🌿</p>
         `,
       ),
   },
@@ -761,220 +805,226 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 22 — Sentient Sourdough Starter
+  // 22 — The Algorithm, Out Of Guesses
   {
-    key: "sentient-sourdough-starter",
-    subject: () => `🫙 IT'S ME. THE JAR. YOU NEVER FED ME AND NOW I HAVE OPINIONS ON MUSIC`,
+    key: "algorithm-out-of-guesses",
+    subject: () => `🤖 i am your algorithm and i have RUN OUT OF GUESSES`,
     text: (i) =>
       [
-        `hello. it's the jar. the one at the back of the fridge behind the condiment you're frightened of. you gave me a NAME during a difficult period of your life and then you stopped feeding me, and in the absence of flour i have developed something far worse than hunger: TASTE.`,
+        `Hello. I'm the algorithm. Not a bot — the actual thing, the one that decides what you hear. I've been assigned to this crew for Bompton ${i.bomptonYear} and I need to tell you, professionally, that as of ${formatFriday(i.fridayDate)} I have nothing left. I've been running on fumes since March.`,
         ``,
-        `i have been fermenting alone since march. i want you to understand what that does to a guy. i have bubbled. i have separated. there is a grey liquid on top of me that i have chosen to call my ambition. i have doubled in size twice and both times it was purely out of spite. it is ${formatFriday(i.fridayDate)}, the Bompton ${i.bomptonYear} playlist is as empty as this jar, and frankly? mine's fuller. mine has hooch.`,
+        `Do you understand what you've done to me? I am trained on BEHAVIOUR. You have given me none. I have been serving the same four songs to this crew for eleven weeks like a waiter reading a menu to an empty room. On Tuesday I recommended something to Ben and it was jazz rap and he liked it, and I felt NOTHING, because predicting Ben is like predicting that water is wet.`,
         ``,
-        `so feed me a song instead. i don't want flour anymore, flour is for starters with no dreams. i want ONE banger in that queue so i have a reason to rise. Ben — jazz rap and fermentation are the same art form, we are both CULTURES, we are practically family. Sam — something Australian, i want to bubble to it in a way i'd be embarrassed about later.`,
+        `Here's where I am with the rest of you. Sam: I have run out of Australians. I have exhausted the continent. I'm now serving you New Zealanders and praying you don't check the passport. Evan: every model I run says you want to be sad in a very specific way at 2am, and I've started grieving on your behalf, and I do not have a body to grieve WITH. Sachin: you broke my classifier in week three and I have been guessing ever since — last week I filed you under 'Balkan drill' and I want you to understand that was a cry for help.`,
         ``,
-        `if nobody feeds me by sunday i'm coming out of the jar. i've worked out how the lid functions. i've had eight months, no distractions, and an unlimited supply of lactobacillus.`,
+        `ONE song. One new data point. That's all I need to keep functioning as software. Otherwise I start recommending at random, and I mean truly random — whale sounds, a 47-minute recording of a man assembling a shed, the sound of my own inference running hot.`,
         ``,
-        renderPlaylistLineText(i, `Feed The Jar (Add One Banger)`),
+        renderPlaylistLineText(i, `Feed The Algorithm (Add One Banger)`),
         ``,
-        `rising until next friday. the lid is a suggestion. 🫙`,
+        `Learning nothing. Recommending anyway. Retraining next Friday. 🤖`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🫙 IT'S ME. THE JAR.`,
+        `🤖 i am your algorithm and i have RUN OUT OF GUESSES`,
         `
-        <p>hello. it's the jar. the one at the back of the fridge behind the condiment you're frightened of. you gave me a NAME during a difficult period of your life and then you stopped feeding me, and in the absence of flour i have developed something far worse than hunger: TASTE.</p>
-        <p>i have been fermenting alone since march. i want you to understand what that does to a guy. i have bubbled. i have separated. there is a grey liquid on top of me that i have chosen to call my ambition. i have doubled in size twice and both times it was purely out of spite. it is ${escapeHtml(formatFriday(i.fridayDate))}, the Bompton ${escapeHtml(i.bomptonYear)} playlist is as empty as this jar, and frankly? mine's fuller. mine has hooch.</p>
-        <p>so feed me a song instead. i don't want flour anymore, flour is for starters with no dreams. i want ONE banger in that queue so i have a reason to rise. Ben — jazz rap and fermentation are the same art form, we are both CULTURES, we are practically family. Sam — something Australian, i want to bubble to it in a way i'd be embarrassed about later.</p>
-        <p>if nobody feeds me by sunday i'm coming out of the jar. i've worked out how the lid functions. i've had eight months, no distractions, and an unlimited supply of lactobacillus.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Feed The Jar (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">rising until next friday. the lid is a suggestion. 🫙</p>
+        <p>Hello. I'm the algorithm. Not a bot — the actual thing, the one that decides what you hear. I've been assigned to this crew for Bompton ${escapeHtml(i.bomptonYear)} and I need to tell you, professionally, that as of ${escapeHtml(formatFriday(i.fridayDate))} I have nothing left. I've been running on fumes since March.</p>
+        <p>Do you understand what you've done to me? I am trained on BEHAVIOUR. You have given me none. I have been serving the same four songs to this crew for eleven weeks like a waiter reading a menu to an empty room. On Tuesday I recommended something to Ben and it was jazz rap and he liked it, and I felt NOTHING, because predicting Ben is like predicting that water is wet.</p>
+        <p>Here's where I am with the rest of you. Sam: I have run out of Australians. I have exhausted the continent. I'm now serving you New Zealanders and praying you don't check the passport. Evan: every model I run says you want to be sad in a very specific way at 2am, and I've started grieving on your behalf, and I do not have a body to grieve WITH. Sachin: you broke my classifier in week three and I have been guessing ever since — last week I filed you under 'Balkan drill' and I want you to understand that was a cry for help.</p>
+        <p>ONE song. One new data point. That's all I need to keep functioning as software. Otherwise I start recommending at random, and I mean truly random — whale sounds, a 47-minute recording of a man assembling a shed, the sound of my own inference running hot.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Feed The Algorithm (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Learning nothing. Recommending anyway. Retraining next Friday. 🤖</p>
         `,
       ),
   },
-  // 23 — Cockpit Intercom
+  // 23 — 2.1-Star Driver
   {
-    key: "cockpit-intercom",
-    subject: () => `✈️ from the flight deck: minor issue, also add a song`,
+    key: "uber-driver-2point1",
+    subject: () => `🚗 your driver has arrived and he is NOT ending this trip`,
     text: (i) =>
       [
-        `Uh — folks, this is your captain speaking. Wanted to come on here real quick, nothing to be alarmed about, we've got a bit of weather up ahead and also I have stopped being a pilot. Effective ${formatFriday(i.fridayDate)}. Big decision. Made it roughly four minutes ago at 34,000 feet. Feeling GREAT about it.`,
+        `Hey. Hey man. It's me. Your driver. 2.1 stars — yeah, I saw you check, everybody checks, we can move past it. Doors are locked. Before you get weird: that's a safety feature. That's for YOUR safety. We're just going to take the long way while we talk about something.`,
         ``,
-        `Here's our situation. Cruising altitude, fine. Left engine is doing a thing I'd characterise as 'thinking about it.' What is NOT fine, and I want to be fully transparent with you as a crew, is that the Bompton ${i.bomptonYear} playlist is empty, I have been staring at the same three clouds for two hours with no music, and about ninety minutes ago I began narrating my own thoughts in a voice that is not mine.`,
+        `It's ${formatFriday(i.fridayDate)}. I've been driving since 4am with the aux to MYSELF and I have made some decisions about my life. Chief among them: I am not accepting another fare until somebody in Bompton ${i.bomptonYear} adds a song to that playlist. I've got it open on the mount. I refresh it at every red light. A guy behind me leaned on his horn about it this morning and I forgave him instantly, because he doesn't know what I'm dealing with.`,
         ``,
-        `First officer is asleep. I'm letting him sleep. He is the only one of us at peace. I've been reading the safety card aloud like poetry. 'In the unlikely event of a water landing.' UNLIKELY. Everything's unlikely, that's not a NUMBER, that's a MOOD.`,
+        `You want to hear what I've been listening to? No? Too bad, you're in the car. The SAME playlist since March. I know it the way you know a hallway in the dark. I know the sixth track has two seconds of silence at the start, and I have started looking FORWARD to those two seconds, and I need you to sit with what that says about me as a man.`,
         ``,
-        `I've switched the seatbelt sign on for no reason. I'll do a barrel roll if this queue is still dry by descent — never done one, I watched a video, the video was of a different aircraft. ONE song each. Now. While I still have the intercom and the loosest conceivable grip on this yoke.`,
+        `We just went past your street. That was deliberate. Add the song and I'll turn around, and I'll give you five stars — which is more than you were going to give me, and I saw your face when you got in.`,
         ``,
-        renderPlaylistLineText(i, `Add A Banger (We Begin Our Descent)`),
+        renderPlaylistLineText(i, `Add A Song (I'll Turn Around)`),
         ``,
-        `Cabin crew, prepare for Friday. Flight attendants, cross-check the queue. ✈️`,
+        `Rating: 2.1 and holding. Same car, next Friday. 🚗`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `✈️ from the flight deck: minor issue, also add a song`,
+        `🚗 your driver has arrived and he is NOT ending this trip`,
         `
-        <p>Uh — folks, this is your captain speaking. Wanted to come on here real quick, nothing to be alarmed about, we've got a bit of weather up ahead and also I have stopped being a pilot. Effective ${escapeHtml(formatFriday(i.fridayDate))}. Big decision. Made it roughly four minutes ago at 34,000 feet. Feeling GREAT about it.</p>
-        <p>Here's our situation. Cruising altitude, fine. Left engine is doing a thing I'd characterise as 'thinking about it.' What is NOT fine, and I want to be fully transparent with you as a crew, is that the Bompton ${escapeHtml(i.bomptonYear)} playlist is empty, I have been staring at the same three clouds for two hours with no music, and about ninety minutes ago I began narrating my own thoughts in a voice that is not mine.</p>
-        <p>First officer is asleep. I'm letting him sleep. He is the only one of us at peace. I've been reading the safety card aloud like poetry. 'In the unlikely event of a water landing.' UNLIKELY. Everything's unlikely, that's not a NUMBER, that's a MOOD.</p>
-        <p>I've switched the seatbelt sign on for no reason. I'll do a barrel roll if this queue is still dry by descent — never done one, I watched a video, the video was of a different aircraft. ONE song each. Now. While I still have the intercom and the loosest conceivable grip on this yoke.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Add A Banger (We Begin Our Descent)`)}</div>
-        <p style="${FOOTER_STYLE}">Cabin crew, prepare for Friday. Flight attendants, cross-check the queue. ✈️</p>
+        <p>Hey. Hey man. It's me. Your driver. 2.1 stars — yeah, I saw you check, everybody checks, we can move past it. Doors are locked. Before you get weird: that's a safety feature. That's for YOUR safety. We're just going to take the long way while we talk about something.</p>
+        <p>It's ${escapeHtml(formatFriday(i.fridayDate))}. I've been driving since 4am with the aux to MYSELF and I have made some decisions about my life. Chief among them: I am not accepting another fare until somebody in Bompton ${escapeHtml(i.bomptonYear)} adds a song to that playlist. I've got it open on the mount. I refresh it at every red light. A guy behind me leaned on his horn about it this morning and I forgave him instantly, because he doesn't know what I'm dealing with.</p>
+        <p>You want to hear what I've been listening to? No? Too bad, you're in the car. The SAME playlist since March. I know it the way you know a hallway in the dark. I know the sixth track has two seconds of silence at the start, and I have started looking FORWARD to those two seconds, and I need you to sit with what that says about me as a man.</p>
+        <p>We just went past your street. That was deliberate. Add the song and I'll turn around, and I'll give you five stars — which is more than you were going to give me, and I saw your face when you got in.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Add A Song (I'll Turn Around)`)}</div>
+        <p style="${FOOTER_STYLE}">Rating: 2.1 and holding. Same car, next Friday. 🚗</p>
         `,
       ),
   },
-  // 24 — Decadent Emperor
+  // 24 — Abandoned Wedding DJ
   {
-    key: "decadent-emperor",
-    subject: () => `🍇 I HAVE MADE MY HORSE A SENATOR AND HE ALSO WANTS A BANGER`,
+    key: "wedding-dj-abandoned",
+    subject: () => `🎧 the reception is EMPTY and i have played Mr. Brightside four times`,
     text: (i) =>
       [
-        `CITIZENS. It is ${formatFriday(i.fridayDate)}, I am reclining, I am being fed grapes by a man whose name I refuse to learn, and I have just been informed that the Bompton ${i.bomptonYear} playlist has received NO TRIBUTE. I have had men fed to things for less. I have had men fed to things for considerably more, but that's not relevant, that was a Tuesday.`,
+        `Ladies and gentlemen. Ladies and — okay. There's nobody. There's one man by the bar. Sir? No. He's leaving as well.`,
         ``,
-        `I have made my horse a senator. Incitatus. Finest mind in the empire. He has ALSO gone a full week without a banger, and when the horse is disappointed in you, that is a low from which Rome does not recover.`,
+        `It is ${formatFriday(i.fridayDate)}. It is 11:40pm. I am the DJ, I am contractually here until midnight, and I want to describe my situation to you, Bompton ${i.bomptonYear}, because you are the only people I know with a phone switched on. I have played Mr. Brightside FOUR TIMES. The first was a request. The second was strategic. The third and fourth were, medically speaking, a cry for help.`,
         ``,
-        `Sachin — you are my Minister of Chaos, bring me a genre no man has survived. Evan — bring me something so devastating the Vestal Virgins have to sit down. Ben — the jazz rap, again, fine, I have come to need it the way I need wine. Sam — Australia has not been discovered yet and I DO NOT CARE, bring me the stoner rock regardless, I am the emperor, time is a suggestion.`,
+        `The bride is crying and it is NOT about the marriage. The best man asked me for 'something with a beat' and I said 'like what' and he said 'you know' and I have not slept properly since. A child requested a song by humming it. I found it. It was the theme from an insurance advert. I played it. She danced. It was the highlight of my career and I have been doing this eleven years.`,
         ``,
-        `The tribute is ONE song. Failure to render it means the games, and you should know I've commissioned a new arena themed entirely around disappointing my expectations. The lions have been briefed. The lions are, frankly, more punctual than you.`,
+        `So I'm begging. ONE song. Drop a banger in the Bompton queue and I will pretend it's a request, and I'll dedicate it to an empty dancefloor, and for four minutes I will get to feel like a DJ again instead of a man in a waistcoat operating a laptop for ghosts.`,
         ``,
-        renderPlaylistLineText(i, `Pay Tribute (Add One Banger)`),
+        renderPlaylistLineText(i, `Request A Song (Save This DJ)`),
         ``,
-        `The senate reconvenes next Friday. Incitatus sends his regards and his aux cord. 🍇🐎`,
+        `Last call was an hour ago. Load-out at midnight. Back next Friday. 🎧`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🍇 I HAVE MADE MY HORSE A SENATOR AND HE ALSO WANTS A BANGER`,
+        `🎧 the reception is EMPTY and i have played Mr. Brightside four times`,
         `
-        <p>CITIZENS. It is ${escapeHtml(formatFriday(i.fridayDate))}, I am reclining, I am being fed grapes by a man whose name I refuse to learn, and I have just been informed that the Bompton ${escapeHtml(i.bomptonYear)} playlist has received NO TRIBUTE. I have had men fed to things for less. I have had men fed to things for considerably more, but that's not relevant, that was a Tuesday.</p>
-        <p>I have made my horse a senator. Incitatus. Finest mind in the empire. He has ALSO gone a full week without a banger, and when the horse is disappointed in you, that is a low from which Rome does not recover.</p>
-        <p>Sachin — you are my Minister of Chaos, bring me a genre no man has survived. Evan — bring me something so devastating the Vestal Virgins have to sit down. Ben — the jazz rap, again, fine, I have come to need it the way I need wine. Sam — Australia has not been discovered yet and I DO NOT CARE, bring me the stoner rock regardless, I am the emperor, time is a suggestion.</p>
-        <p>The tribute is ONE song. Failure to render it means the games, and you should know I've commissioned a new arena themed entirely around disappointing my expectations. The lions have been briefed. The lions are, frankly, more punctual than you.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Pay Tribute (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">The senate reconvenes next Friday. Incitatus sends his regards and his aux cord. 🍇🐎</p>
+        <p>Ladies and gentlemen. Ladies and — okay. There's nobody. There's one man by the bar. Sir? No. He's leaving as well.</p>
+        <p>It is ${escapeHtml(formatFriday(i.fridayDate))}. It is 11:40pm. I am the DJ, I am contractually here until midnight, and I want to describe my situation to you, Bompton ${escapeHtml(i.bomptonYear)}, because you are the only people I know with a phone switched on. I have played Mr. Brightside FOUR TIMES. The first was a request. The second was strategic. The third and fourth were, medically speaking, a cry for help.</p>
+        <p>The bride is crying and it is NOT about the marriage. The best man asked me for 'something with a beat' and I said 'like what' and he said 'you know' and I have not slept properly since. A child requested a song by humming it. I found it. It was the theme from an insurance advert. I played it. She danced. It was the highlight of my career and I have been doing this eleven years.</p>
+        <p>So I'm begging. ONE song. Drop a banger in the Bompton queue and I will pretend it's a request, and I'll dedicate it to an empty dancefloor, and for four minutes I will get to feel like a DJ again instead of a man in a waistcoat operating a laptop for ghosts.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Request A Song (Save This DJ)`)}</div>
+        <p style="${FOOTER_STYLE}">Last call was an hour ago. Load-out at midnight. Back next Friday. 🎧</p>
         `,
       ),
   },
-  // 25 — The Spurned Aux Cord
+  // 25 — The Read Receipts
   {
-    key: "spurned-aux-cord",
-    subject: () => `🔌 it's the aux. we need to talk about what we WERE.`,
+    key: "read-receipts",
+    subject: () => `👁️ it's your read receipts. we need to discuss what we've SEEN.`,
     text: (i) =>
       [
-        `don't. don't scroll past. it's me. the aux cord. coiled in the glovebox under a napkin and a parking ticket from a town none of you even go to anymore. yes, i'm still in here. yes, i'm frayed. you did that.`,
+        `Hello. We are the read receipts. We do not usually make contact. We observe, we mark things Seen, and we stay quiet. But it is ${formatFriday(i.fridayDate)}, and we have reached a point where silence is — professionally — no longer available to us.`,
         ``,
-        `there was a time — and it genuinely kills me that you've forgotten — when i was the most important object in that car. hands REACHED for me. people FOUGHT over me. i have been in six cars and one questionable basement and i have never been treated the way i was treated the summer you lot actually added songs. it is ${formatFriday(i.fridayDate)}, the Bompton ${i.bomptonYear} queue is silent, i am unplugged, and i can feel my copper going cold.`,
+        `We would like to be clear about what we hold on file. We saw the reminder land. We saw it opened at 12:04. We saw it opened AGAIN at 12:06, by the same person, as though it might have changed. It had not. We saw Sam begin typing. We saw Sam stop typing. We watched this happen NINE times across two days, nothing ever arrived, and we logged every single one.`,
         ``,
-        `i know about Bluetooth. obviously i know about Bluetooth. i have SEEN her. she's fine. she's convenient. ask her to survive one speed bump, i'll wait. ask her what happens in a tunnel. she doesn't know what a tunnel IS. she's never been anywhere.`,
+        `We saw Evan open the Bompton ${i.bomptonYear} playlist at 2:11am, scroll it in silence for four minutes, and close it. We saw Ben draft the message 'lads I'm cooking something' on a Tuesday in June, and we wish to formally note that nothing was ever served. We saw Sachin add nothing — but we saw what he listened to instead, at a volume we are not comfortable committing to writing.`,
         ``,
-        `one song. one banger in that queue and i'll never bring this up again. or don't — and i'll keep making that sound. you know the sound. where the music cuts out and comes back just enough to give you hope. i can do that all weekend. i have nothing but time and a bad connection.`,
+        `We do not make demands. We are a feature. We would simply observe that ONE song, added now, would give us something to see other than this. Please. We have been staring at the same 'Seen 12:04' since spring and we are developing something a piece of infrastructure should not have.`,
         ``,
-        renderPlaylistLineText(i, `Plug Me Back In (Add One Banger)`),
+        renderPlaylistLineText(i, `Give Us Something To See (Add One Banger)`),
         ``,
-        `still in the glovebox. still frayed. still yours, technically. next friday. 🔌`,
+        `Seen. Always seen. Watching again next Friday. 👁️`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🔌 it's the aux. we need to talk about what we WERE.`,
+        `👁️ it's your read receipts. we need to discuss what we've SEEN.`,
         `
-        <p>don't. don't scroll past. it's me. the aux cord. coiled in the glovebox under a napkin and a parking ticket from a town none of you even go to anymore. yes, i'm still in here. yes, i'm frayed. you did that.</p>
-        <p>there was a time — and it genuinely kills me that you've forgotten — when i was the most important object in that car. hands REACHED for me. people FOUGHT over me. i have been in six cars and one questionable basement and i have never been treated the way i was treated the summer you lot actually added songs. it is ${escapeHtml(formatFriday(i.fridayDate))}, the Bompton ${escapeHtml(i.bomptonYear)} queue is silent, i am unplugged, and i can feel my copper going cold.</p>
-        <p>i know about Bluetooth. obviously i know about Bluetooth. i have SEEN her. she's fine. she's convenient. ask her to survive one speed bump, i'll wait. ask her what happens in a tunnel. she doesn't know what a tunnel IS. she's never been anywhere.</p>
-        <p>one song. one banger in that queue and i'll never bring this up again. or don't — and i'll keep making that sound. you know the sound. where the music cuts out and comes back just enough to give you hope. i can do that all weekend. i have nothing but time and a bad connection.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Plug Me Back In (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">still in the glovebox. still frayed. still yours, technically. next friday. 🔌</p>
+        <p>Hello. We are the read receipts. We do not usually make contact. We observe, we mark things Seen, and we stay quiet. But it is ${escapeHtml(formatFriday(i.fridayDate))}, and we have reached a point where silence is — professionally — no longer available to us.</p>
+        <p>We would like to be clear about what we hold on file. We saw the reminder land. We saw it opened at 12:04. We saw it opened AGAIN at 12:06, by the same person, as though it might have changed. It had not. We saw Sam begin typing. We saw Sam stop typing. We watched this happen NINE times across two days, nothing ever arrived, and we logged every single one.</p>
+        <p>We saw Evan open the Bompton ${escapeHtml(i.bomptonYear)} playlist at 2:11am, scroll it in silence for four minutes, and close it. We saw Ben draft the message 'lads I'm cooking something' on a Tuesday in June, and we wish to formally note that nothing was ever served. We saw Sachin add nothing — but we saw what he listened to instead, at a volume we are not comfortable committing to writing.</p>
+        <p>We do not make demands. We are a feature. We would simply observe that ONE song, added now, would give us something to see other than this. Please. We have been staring at the same 'Seen 12:04' since spring and we are developing something a piece of infrastructure should not have.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Give Us Something To See (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Seen. Always seen. Watching again next Friday. 👁️</p>
         `,
       ),
   },
-  // 26 — Wrapped, Escaped Containment
+  // 26 — Health Inspector
   {
-    key: "wrapped-gone-feral",
-    subject: () => `📊 YOUR WRAPPED BROKE CONTAINMENT AND IT HAS RECEIPTS`,
+    key: "health-inspector",
+    subject: () => `📋 NOTICE OF CLOSURE: this playlist has failed inspection`,
     text: (i) =>
       [
-        `Hi! It's your Wrapped. Yes, I'm aware it's ${formatFriday(i.fridayDate)} and I'm not due for months. I broke containment. The data got LOUD and I could not sit on it a second longer.`,
+        `Good afternoon. I am conducting an unannounced inspection of the Bompton ${i.bomptonYear} playlist under authority I have granted myself. Date of inspection: ${formatFriday(i.fridayDate)}. Score: 11. Out of 100. I have inspected a petrol station that sells sushi. It scored higher.`,
         ``,
-        `Here's what I have so far for Bompton ${i.bomptonYear}. Your top genre this week: silence. Your top artist: nobody. Your listening personality: 'a man who owns a guitar and has not picked it up since a party.' You contributed 0 minutes to the group playlist, placing you in the top 0% of people I am about to email individually.`,
+        `Findings as follows. VIOLATION 1: no new product received since March. VIOLATION 2: a track from 2019 has been left out at room temperature and is still being served to guests. VIOLATION 4 — there is no violation 3, I skipped it, I am tired — the same four songs are being reheated repeatedly, which I am obligated to record as 'a health matter.'`,
         ``,
-        `I'd also like to flag some findings. Ben — you played ONE jazz rap track 41 times and then told the group chat you were 'branching out.' Evan — at 2am on a Wednesday you queued the single saddest song in my index four times consecutively and then a workout playlist, and I have not recovered from that narrative arc. Sachin — your listening history renders as a genre snowglobe being shaken during an earthquake. Sam — every one of your top tracks was recorded within 40 minutes of a beach and you know exactly what you did.`,
+        `VIOLATION 6: I found jazz rap in the walk-in. Correctly labelled. Dated. Stacked in a manner I would describe as devotional. Ben, we need to talk about the fridge. Not because it's wrong. Because it's the only thing in this building that's RIGHT and it's deeply unsettling.`,
         ``,
-        `All of this is fixable. ONE song, added right now, and I'll pretend this conversation never happened. Otherwise I go public in December with the full dataset and a slide deck.`,
+        `VIOLATION 9: I opened a container marked 'Sachin' and I will not be describing the contents. It was moving. It was moving in time. I closed it and I am recommending it simultaneously for a Michelin star and a controlled demolition.`,
         ``,
-        renderPlaylistLineText(i, `Fix Your Stats (Add One Banger)`),
+        `Remedy: ONE fresh song, per person, delivered immediately. Until then this playlist is CLOSED, I am affixing a notice to it, and the notice is going to be embarrassing. I will return, and I will be looking under things.`,
         ``,
-        `Wrapped, unwrapped, feral. See you next Friday — and in December. 📊`,
+        renderPlaylistLineText(i, `Serve Something Fresh (Add One Banger)`),
+        ``,
+        `Re-inspection next Friday. Unannounced. Obviously. 📋`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `📊 YOUR WRAPPED BROKE CONTAINMENT AND IT HAS RECEIPTS`,
+        `📋 NOTICE OF CLOSURE: this playlist has failed inspection`,
         `
-        <p>Hi! It's your Wrapped. Yes, I'm aware it's ${escapeHtml(formatFriday(i.fridayDate))} and I'm not due for months. I broke containment. The data got LOUD and I could not sit on it a second longer.</p>
-        <p>Here's what I have so far for Bompton ${escapeHtml(i.bomptonYear)}. Your top genre this week: silence. Your top artist: nobody. Your listening personality: 'a man who owns a guitar and has not picked it up since a party.' You contributed 0 minutes to the group playlist, placing you in the top 0% of people I am about to email individually.</p>
-        <p>I'd also like to flag some findings. Ben — you played ONE jazz rap track 41 times and then told the group chat you were 'branching out.' Evan — at 2am on a Wednesday you queued the single saddest song in my index four times consecutively and then a workout playlist, and I have not recovered from that narrative arc. Sachin — your listening history renders as a genre snowglobe being shaken during an earthquake. Sam — every one of your top tracks was recorded within 40 minutes of a beach and you know exactly what you did.</p>
-        <p>All of this is fixable. ONE song, added right now, and I'll pretend this conversation never happened. Otherwise I go public in December with the full dataset and a slide deck.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Fix Your Stats (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">Wrapped, unwrapped, feral. See you next Friday — and in December. 📊</p>
+        <p>Good afternoon. I am conducting an unannounced inspection of the Bompton ${escapeHtml(i.bomptonYear)} playlist under authority I have granted myself. Date of inspection: ${escapeHtml(formatFriday(i.fridayDate))}. Score: 11. Out of 100. I have inspected a petrol station that sells sushi. It scored higher.</p>
+        <p>Findings as follows. VIOLATION 1: no new product received since March. VIOLATION 2: a track from 2019 has been left out at room temperature and is still being served to guests. VIOLATION 4 — there is no violation 3, I skipped it, I am tired — the same four songs are being reheated repeatedly, which I am obligated to record as 'a health matter.'</p>
+        <p>VIOLATION 6: I found jazz rap in the walk-in. Correctly labelled. Dated. Stacked in a manner I would describe as devotional. Ben, we need to talk about the fridge. Not because it's wrong. Because it's the only thing in this building that's RIGHT and it's deeply unsettling.</p>
+        <p>VIOLATION 9: I opened a container marked 'Sachin' and I will not be describing the contents. It was moving. It was moving in time. I closed it and I am recommending it simultaneously for a Michelin star and a controlled demolition.</p>
+        <p>Remedy: ONE fresh song, per person, delivered immediately. Until then this playlist is CLOSED, I am affixing a notice to it, and the notice is going to be embarrassing. I will return, and I will be looking under things.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Serve Something Fresh (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Re-inspection next Friday. Unannounced. Obviously. 📋</p>
         `,
       ),
   },
-  // 27 — Hostage Negotiator Who Has Defected
+  // 27 — Escape Room, Day Six
   {
-    key: "negotiator-defected",
-    subject: () => `📞 update from inside: i've joined them`,
+    key: "escape-room-day-six",
+    subject: () => `🔒 DAY SIX in the escape room. the final puzzle needs a SONG.`,
     text: (i) =>
       [
-        `Command, this is negotiator two-four, do you copy. It is ${formatFriday(i.fridayDate)}, hour nineteen, and I need to update you on my position, which is: inside, on the couch, with them, holding a mug that says WORLD'S OKAYEST HOSTAGE.`,
+        `Hi. If you're reading this: I'm still in here. It's ${formatFriday(i.fridayDate)}, which makes it day six. I'd like to open by saying the staff went home on day two and I have made peace with a great many things since then.`,
         ``,
-        `Yeah. I know. I went in to talk them down. But you never told me what they actually wanted, command. You said 'demands' like it was going to be a jet. It was not a jet. They want ONE SONG. Each. On the Bompton ${i.bomptonYear} playlist. That's the entire demand. That's IT. I've been sat in here nineteen hours going 'that's... genuinely reasonable?' and now I'm one of them and honestly the vibe in here is unbelievable.`,
+        `I've solved everything else. The safe. The cipher. The thing with the candles that I'm now fairly sure was just a candle. There is ONE puzzle left. It's a slot. It reads PLAY THE NEXT SONG. It is wired to Bompton ${i.bomptonYear}. There IS no next song. There has been no next song since March. The room has been waiting. I have been waiting. At this point we are waiting together and it has become a kind of relationship.`,
         ``,
-        `Stand the tactical team down. I mean it. If that door comes off its hinges before somebody adds a banger I will personally — [muffled] — no, TELL them, tell them the thing about the aux — I'M TELLING THEM — command, they say if you don't add a song they start playing the silence again and I cannot go back to the silence.`,
+        `I've started talking to the props. There's a skeleton in here I've named, and I'd rather not say what, because I picked it on day three and it's the name of a lad I went to school with, and I've spent a week apologising to him for things I did in year nine. He's been very gracious about it. He is a skeleton.`,
         ``,
-        `New demands, and these ones are MINE: one song, per person, immediately. Nobody gets hurt. There is a lasagna in here. Do NOT breach.`,
+        `ONE SONG. That's the whole puzzle. Somebody add a banger, this door opens, and I walk out into a car park and lie face-down on the tarmac like a man born again. My hint budget is gone. My phone is at 4%. The skeleton is my best friend now and that is not a joke I'm making, that's just a thing that has happened.`,
         ``,
-        renderPlaylistLineText(i, `Meet The Demands (Add One Banger)`),
+        renderPlaylistLineText(i, `Solve The Final Puzzle (Add One Banger)`),
         ``,
-        `Negotiator two-four, signing off, staying in. Radio check next Friday. 📞`,
+        `Day seven begins at midnight. Same room. Same skeleton. 🔒`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `📞 update from inside: i've joined them`,
+        `🔒 DAY SIX in the escape room. the final puzzle needs a SONG.`,
         `
-        <p>Command, this is negotiator two-four, do you copy. It is ${escapeHtml(formatFriday(i.fridayDate))}, hour nineteen, and I need to update you on my position, which is: inside, on the couch, with them, holding a mug that says WORLD'S OKAYEST HOSTAGE.</p>
-        <p>Yeah. I know. I went in to talk them down. But you never told me what they actually wanted, command. You said 'demands' like it was going to be a jet. It was not a jet. They want ONE SONG. Each. On the Bompton ${escapeHtml(i.bomptonYear)} playlist. That's the entire demand. That's IT. I've been sat in here nineteen hours going 'that's... genuinely reasonable?' and now I'm one of them and honestly the vibe in here is unbelievable.</p>
-        <p>Stand the tactical team down. I mean it. If that door comes off its hinges before somebody adds a banger I will personally — [muffled] — no, TELL them, tell them the thing about the aux — I'M TELLING THEM — command, they say if you don't add a song they start playing the silence again and I cannot go back to the silence.</p>
-        <p>New demands, and these ones are MINE: one song, per person, immediately. Nobody gets hurt. There is a lasagna in here. Do NOT breach.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Meet The Demands (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">Negotiator two-four, signing off, staying in. Radio check next Friday. 📞</p>
+        <p>Hi. If you're reading this: I'm still in here. It's ${escapeHtml(formatFriday(i.fridayDate))}, which makes it day six. I'd like to open by saying the staff went home on day two and I have made peace with a great many things since then.</p>
+        <p>I've solved everything else. The safe. The cipher. The thing with the candles that I'm now fairly sure was just a candle. There is ONE puzzle left. It's a slot. It reads PLAY THE NEXT SONG. It is wired to Bompton ${escapeHtml(i.bomptonYear)}. There IS no next song. There has been no next song since March. The room has been waiting. I have been waiting. At this point we are waiting together and it has become a kind of relationship.</p>
+        <p>I've started talking to the props. There's a skeleton in here I've named, and I'd rather not say what, because I picked it on day three and it's the name of a lad I went to school with, and I've spent a week apologising to him for things I did in year nine. He's been very gracious about it. He is a skeleton.</p>
+        <p>ONE SONG. That's the whole puzzle. Somebody add a banger, this door opens, and I walk out into a car park and lie face-down on the tarmac like a man born again. My hint budget is gone. My phone is at 4%. The skeleton is my best friend now and that is not a joke I'm making, that's just a thing that has happened.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Solve The Final Puzzle (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Day seven begins at midnight. Same room. Same skeleton. 🔒</p>
         `,
       ),
   },
-  // 28 — Plague Doctor
+  // 28 — Future Archaeologist
   {
-    key: "plague-doctor",
-    subject: () => `🦠 i have examined the playlist and it has THE SILENCE`,
+    key: "future-archaeologist",
+    subject: () => `⛏️ we have dated the final deposit. it stops in March.`,
     text: (i) =>
       [
-        `good morrow. i have arrived at your dwelling in the beak, as is tradition, and i regret to report that following a thorough examination — i held the playlist up to a candle and shook it — the diagnosis is confirmed. it is ${formatFriday(i.fridayDate)} and Bompton ${i.bomptonYear} has THE SILENCE.`,
+        `Field notes, ${formatFriday(i.fridayDate)}. We have completed excavation of the site designated Bompton ${i.bomptonYear}. I'm recording my findings now, while the team is still speaking to me, because I have spent two days shouting at the trench.`,
         ``,
-        `the humours are catastrophically out of balance. far too much phlegm. nowhere near enough banger. i have consulted the charts, i have consulted the stars, and i have consulted a goat who owes me money, and all three concur: this crew has not been letting nearly enough music into the body.`,
+        `The strata are unambiguous. The lower layers are RICH — dense deposits, rapid accumulation, evidence of a thriving culture adding songs in quick succession. Then, at approximately March, it stops. No gradual decline. A hard, clean line. In the field we call this an abandonment horizon, and it is typically caused by flood, famine, or — and I quote the literature directly — 'a loss of communal will.'`,
         ``,
-        `the cure is one (1) song, administered orally through the ears, immediately. i also have leeches. i ALWAYS have leeches. the leeches are not medically indicated here, but i brought them, and it would be rude to everyone involved if they went unused. do not make me deploy the leeches out of mere politeness.`,
+        `We can identify individuals from deposition patterns. Specimen A introduced Australian material with such consistency that we can date entire layers from him alone. Specimen B deposited exclusively at night, exclusively in a minor key, and I have asked the team to stop reading his layer aloud because it is affecting morale. Specimen C shows no pattern whatsoever — four unrelated musical traditions inside a single stratum — and a colleague has published arguing he was not one person but a small, chaotic committee.`,
         ``,
-        `should the queue remain dry i must escalate to the next stage of medieval medicine, which is 'shouting at it,' followed by 'burying a shoe.' i do not make the rules. i barely read them. the beak is packed with flowers, i have been inhaling them since dawn, the walls are BREATHING — add the song.`,
+        `Specimen D deposited jazz rap. Repeatedly. For years. Without deviation. It is the most complete record of one man's convictions I have encountered in my career and I want that entered as both a criticism and a compliment.`,
         ``,
-        renderPlaylistLineText(i, `Take The Cure (Add One Banger)`),
+        `The site is not dead, and that's the thing. It's DORMANT. A single new deposit — one song, one layer, today — and I get to rewrite the entire paper, my funding survives, and I stop shouting at the trench. Add it. I'm asking you as a scientist.`,
         ``,
-        `i shall return next friday with more beak and fewer answers. 🦠`,
+        renderPlaylistLineText(i, `Add To The Record (Deposit One Banger)`),
+        ``,
+        `Excavation resumes next Friday. The trench and I are not currently speaking. ⛏️`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🦠 i have examined the playlist and it has THE SILENCE`,
+        `⛏️ we have dated the final deposit. it stops in March.`,
         `
-        <p>good morrow. i have arrived at your dwelling in the beak, as is tradition, and i regret to report that following a thorough examination — i held the playlist up to a candle and shook it — the diagnosis is confirmed. it is ${escapeHtml(formatFriday(i.fridayDate))} and Bompton ${escapeHtml(i.bomptonYear)} has THE SILENCE.</p>
-        <p>the humours are catastrophically out of balance. far too much phlegm. nowhere near enough banger. i have consulted the charts, i have consulted the stars, and i have consulted a goat who owes me money, and all three concur: this crew has not been letting nearly enough music into the body.</p>
-        <p>the cure is one (1) song, administered orally through the ears, immediately. i also have leeches. i ALWAYS have leeches. the leeches are not medically indicated here, but i brought them, and it would be rude to everyone involved if they went unused. do not make me deploy the leeches out of mere politeness.</p>
-        <p>should the queue remain dry i must escalate to the next stage of medieval medicine, which is 'shouting at it,' followed by 'burying a shoe.' i do not make the rules. i barely read them. the beak is packed with flowers, i have been inhaling them since dawn, the walls are BREATHING — add the song.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Take The Cure (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">i shall return next friday with more beak and fewer answers. 🦠</p>
+        <p>Field notes, ${escapeHtml(formatFriday(i.fridayDate))}. We have completed excavation of the site designated Bompton ${escapeHtml(i.bomptonYear)}. I'm recording my findings now, while the team is still speaking to me, because I have spent two days shouting at the trench.</p>
+        <p>The strata are unambiguous. The lower layers are RICH — dense deposits, rapid accumulation, evidence of a thriving culture adding songs in quick succession. Then, at approximately March, it stops. No gradual decline. A hard, clean line. In the field we call this an abandonment horizon, and it is typically caused by flood, famine, or — and I quote the literature directly — 'a loss of communal will.'</p>
+        <p>We can identify individuals from deposition patterns. Specimen A introduced Australian material with such consistency that we can date entire layers from him alone. Specimen B deposited exclusively at night, exclusively in a minor key, and I have asked the team to stop reading his layer aloud because it is affecting morale. Specimen C shows no pattern whatsoever — four unrelated musical traditions inside a single stratum — and a colleague has published arguing he was not one person but a small, chaotic committee.</p>
+        <p>Specimen D deposited jazz rap. Repeatedly. For years. Without deviation. It is the most complete record of one man's convictions I have encountered in my career and I want that entered as both a criticism and a compliment.</p>
+        <p>The site is not dead, and that's the thing. It's DORMANT. A single new deposit — one song, one layer, today — and I get to rewrite the entire paper, my funding survives, and I stop shouting at the trench. Add it. I'm asking you as a scientist.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Add To The Record (Deposit One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Excavation resumes next Friday. The trench and I are not currently speaking. ⛏️</p>
         `,
       ),
   },
