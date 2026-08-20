@@ -35,3 +35,8 @@ yarn-error.log*
 
 # prisma
 /prisma/*.db
+
+# crew dossier dumps (scripts/dump-crew-dossier.mjs) — playlist data, not for the repo
+dossier.md
+dossier*.md
+dossier.json
