@@ -105,3 +105,19 @@ times need converting first.
 - Per-artist first-appearance: who introduced an artist the others then adopted.
 - Gap between a track's release date and the add — who is always six months late to
   a record.
+
+---
+
+## Note on the two email surfaces
+
+`lib/friday-reminder-email.ts` goes crew-wide, so it can name individuals and
+use their own facts — that's where the per-person material above belongs.
+
+`lib/late-add-email.ts` is the public shaming: sent TO whoever fell behind,
+CC'd to everyone else. The rotation is global, so a persona there has no idea
+who it is addressing and **cannot use recipient-specific facts**. What it can
+use is the shared archive as a benchmark — "a man in this crew once cleared
+112 days in six minutes and you can't manage one in three weeks." Those work
+on anybody. The late-add batch added in this pass (autopsy, collections-agency,
+missing-person-poster, intervention, trade-deadline, principals-office,
+prison-yard, exorcism) all use that device.

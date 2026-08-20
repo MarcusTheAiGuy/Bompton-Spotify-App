@@ -282,34 +282,34 @@ const PERSONAS: Persona[] = [
   // 5 — Sports Announcer
   {
     key: "sports-announcer",
-    subject: () => `🎙️ HOUR FOUR of continuous coverage and NOTHING HAS HAPPENED`,
+    subject: () => `🎙️ we are running the July 21st tape again. hour nine.`,
     text: (i) =>
       [
-        `AND WE'RE BACK, folks, ${formatFriday(i.fridayDate)}, hour four of continuous coverage, and I want to be straight with you: nothing has happened. Nothing has happened since March. I am contractually required to fill this airtime and I intend to do it.`,
+        `Good evening and welcome back to continuous coverage, ${formatFriday(i.fridayDate)}, hour nine. There is no game. There has not been a game. What we have is ONE piece of footage and a legal obligation to fill the airtime, so buckle up, because we are running the July 21st tape again.`,
         ``,
-        `Let's go to the tape. Here's Ben — and folks, we have pulled the numbers on this man. He has added the same artist under FOUR different names. MF DOOM. Madvillain. DANGERDOOM. JJ DOOM. Same guy. Different jersey. Officials have reviewed it, there is nothing in the rulebook, and I want that CHANGED. Meanwhile here's Sam: eighty-eight of his adds landed on an actual Friday, in DAYLIGHT, like a man with a job and a calendar. He is the only professional on this field and I find him almost impossible to commentate.`,
+        `Roll it. Nineteen twenty-four. Sachin enters the frame. And what follows, ladies and gentlemen, is SEVENTEEN TRACKS IN SIX MINUTES — a man clearing a hundred and twelve days of debt with his THUMB. Look at the form. Look at the total absence of shame. We had two analysts on this. One requested reassignment. The other has started dressing differently and will not explain it.`,
         ``,
-        `And then there's Sachin. On the twenty-first of July, inside a SIX-MINUTE WINDOW, this man added seventeen tracks. Seventeen. We cut to a commercial and came back to a different playlist. Two analysts were assigned to it. One has requested reassignment. The other has started dressing differently.`,
+        `And that's it. That's the archive. Everything since has been four grown men doing NOTHING at professional speed. Ben has been running the same play under four different aliases like the officials are blind — MF DOOM, Madvillain, DANGERDOOM, JJ DOOM — I have filed complaints, the rulebook has NOTHING, and the worst part is it works every single time. Sam turns up on an actual Friday, in daylight, eighty-eight times, like a man with a job, and there is no drama in competence and it is KILLING my ratings.`,
         ``,
-        `My colour guy left at the top of the hour. Took the headset off, didn't say a word. I have been doing two-man commentary ALONE. I have been doing HIS voice. I'd like to apologise to his family for how I've been doing it.`,
+        `I am describing an empty room to people who can see the empty room. My colour guy walked out in hour four. I have been doing his voice. His family has asked me to stop.`,
         ``,
-        `ONE song, gentlemen. Give me something to CALL. I'm a professional and I am currently describing an empty room to people who can see the empty room.`,
+        `ONE song. Give me one live event and I will never speak of July the twenty-first again. Probably.`,
         ``,
-        renderPlaylistLineText(i, `Get In The Game (Add One Banger)`),
+        renderPlaylistLineText(i, `Give Me Something To Call (Add One Banger)`),
         ``,
-        `Back next Friday with coverage of, God willing, an event. 🎙️`,
+        `Back next Friday with the same tape unless one of you does something. 🎙️`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🎙️ HOUR FOUR of continuous coverage and NOTHING HAS HAPPENED`,
+        `🎙️ we are running the July 21st tape again. hour nine.`,
         `
-        <p><strong>AND WE'RE BACK</strong>, folks, ${escapeHtml(formatFriday(i.fridayDate))}, hour four of continuous coverage, and I want to be straight with you: nothing has happened. Nothing has happened since March. I am contractually required to fill this airtime and I intend to do it.</p>
-        <p>Let's go to the tape. Here's Ben — and folks, we have pulled the numbers on this man. He has added the same artist under FOUR different names. MF DOOM. Madvillain. DANGERDOOM. JJ DOOM. Same guy. Different jersey. Officials have reviewed it, there is nothing in the rulebook, and I want that CHANGED. Meanwhile here's Sam: eighty-eight of his adds landed on an actual Friday, in DAYLIGHT, like a man with a job and a calendar. He is the only professional on this field and I find him almost impossible to commentate.</p>
-        <p>And then there's Sachin. On the twenty-first of July, inside a SIX-MINUTE WINDOW, this man added seventeen tracks. Seventeen. We cut to a commercial and came back to a different playlist. Two analysts were assigned to it. One has requested reassignment. The other has started dressing differently.</p>
-        <p>My colour guy left at the top of the hour. Took the headset off, didn't say a word. I have been doing two-man commentary ALONE. I have been doing HIS voice. I'd like to apologise to his family for how I've been doing it.</p>
-        <p>ONE song, gentlemen. Give me something to CALL. I'm a professional and I am currently describing an empty room to people who can see the empty room.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Get In The Game (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">Back next Friday with coverage of, God willing, an event. 🎙️</p>
+        <p>Good evening and welcome back to continuous coverage, ${escapeHtml(formatFriday(i.fridayDate))}, hour nine. There is no game. There has not been a game. What we have is ONE piece of footage and a legal obligation to fill the airtime, so buckle up, because we are running the July 21st tape again.</p>
+        <p>Roll it. Nineteen twenty-four. Sachin enters the frame. And what follows, ladies and gentlemen, is <strong>SEVENTEEN TRACKS IN SIX MINUTES</strong> — a man clearing a hundred and twelve days of debt with his THUMB. Look at the form. Look at the total absence of shame. We had two analysts on this. One requested reassignment. The other has started dressing differently and will not explain it.</p>
+        <p>And that's it. That's the archive. Everything since has been four grown men doing NOTHING at professional speed. Ben has been running the same play under four different aliases like the officials are blind — MF DOOM, Madvillain, DANGERDOOM, JJ DOOM — I have filed complaints, the rulebook has NOTHING, and the worst part is it works every single time. Sam turns up on an actual Friday, in daylight, eighty-eight times, like a man with a job, and there is no drama in competence and it is KILLING my ratings.</p>
+        <p>I am describing an empty room to people who can see the empty room. My colour guy walked out in hour four. I have been doing his voice. His family has asked me to stop.</p>
+        <p>ONE song. Give me one live event and I will never speak of July the twenty-first again. Probably.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Give Me Something To Call (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Back next Friday with the same tape unless one of you does something. 🎙️</p>
         `,
       ),
   },
@@ -317,18 +317,18 @@ const PERSONAS: Persona[] = [
   // 6 — Weather Forecast
   {
     key: "weather-forecast",
-    subject: () => `🌡️ FORECAST: no change. no change. no change. no change.`,
+    subject: () => `🌡️ i have chased one storm my entire career and it was Sachin`,
     text: (i) =>
       [
-        `Good afternoon. Here is your Bompton ${i.bomptonYear} forecast for ${formatFriday(i.fridayDate)}. It's the same. It has been the same since March. I am going to talk you through it anyway, because it is my JOB, and because the station has a policy about tone.`,
+        `Good afternoon. Your Bompton ${i.bomptonYear} forecast for ${formatFriday(i.fridayDate)}: nothing. High pressure, no movement, visibility clear to the horizon — which is the problem, because I can now see exactly how far the nothing goes.`,
         ``,
-        `High pressure. No movement. Visibility clear all the way to the horizon — which is the problem, frankly, because I can now SEE how far the nothing extends. The long-range model has flatlined. I ran it three times. On the third run it returned a single word and the word was 'why.'`,
+        `I want to talk about July the twenty-first. On that afternoon a system formed over Sachin with no warning and dropped SEVENTEEN TRACKS IN SIX MINUTES. Seventeen. Six. I was eating a sandwich. I put the sandwich down and I have never picked another one up. We had no category for it. We STILL have no category for it. I know two men who left meteorology for insurance because of that afternoon and I think about them constantly, because they got out and I did not.`,
         ``,
-        `Historical note, because history is all I have left. On the twenty-first of July a system formed over Sachin and dropped SEVENTEEN TRACKS IN SIX MINUTES. We had no category for it. We still don't. I know two men who left this profession for insurance over that afternoon. Since then: nothing. The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing.`,
+        `Since then: dead air. The long-range model has flatlined — I ran it three times and on the third run it returned a single word and the word was 'why.' The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing, and which I reported on air with a straight face like a professional and a coward.`,
         ``,
-        `Now — pollen count. There isn't one. Nothing is growing. Nothing is being POLLINATED because nobody is ADDING ANYTHING. Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have maybe another week of descriptions left in me.`,
+        `Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have described that sky four hundred times. I have run out of adjectives and started making them up. Nobody has noticed. That is the part that gets me — nobody has NOTICED.`,
         ``,
-        `Outlook: ONE song and this entire map lights up. Otherwise, more of this — and I want you to know I'll still be here, pointing at nothing, in a suit.`,
+        `One song and the whole map lights up. Or don't, and I'll still be here Friday, pointing at nothing, in a suit, chasing a storm that happened once and was a man with a phone.`,
         ``,
         renderPlaylistLineText(i, `Break The High Pressure (Add One Banger)`),
         ``,
@@ -336,13 +336,13 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🌡️ FORECAST: no change. no change. no change. no change.`,
+        `🌡️ i have chased one storm my entire career and it was Sachin`,
         `
-        <p>Good afternoon. Here is your Bompton ${escapeHtml(i.bomptonYear)} forecast for ${escapeHtml(formatFriday(i.fridayDate))}. It's the same. It has been the same since March. I am going to talk you through it anyway, because it is my JOB, and because the station has a policy about tone.</p>
-        <p>High pressure. No movement. Visibility clear all the way to the horizon — which is the problem, frankly, because I can now SEE how far the nothing extends. The long-range model has flatlined. I ran it three times. On the third run it returned a single word and the word was 'why.'</p>
-        <p>Historical note, because history is all I have left. On the twenty-first of July a system formed over Sachin and dropped SEVENTEEN TRACKS IN SIX MINUTES. We had no category for it. We still don't. I know two men who left this profession for insurance over that afternoon. Since then: nothing. The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing.</p>
-        <p>Now — pollen count. There isn't one. Nothing is growing. Nothing is being POLLINATED because nobody is ADDING ANYTHING. Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have maybe another week of descriptions left in me.</p>
-        <p>Outlook: ONE song and this entire map lights up. Otherwise, more of this — and I want you to know I'll still be here, pointing at nothing, in a suit.</p>
+        <p>Good afternoon. Your Bompton ${escapeHtml(i.bomptonYear)} forecast for ${escapeHtml(formatFriday(i.fridayDate))}: nothing. High pressure, no movement, visibility clear to the horizon — which is the problem, because I can now see exactly how far the nothing goes.</p>
+        <p>I want to talk about July the twenty-first. On that afternoon a system formed over Sachin with no warning and dropped <strong>SEVENTEEN TRACKS IN SIX MINUTES</strong>. Seventeen. Six. I was eating a sandwich. I put the sandwich down and I have never picked another one up. We had no category for it. We STILL have no category for it. I know two men who left meteorology for insurance because of that afternoon and I think about them constantly, because they got out and I did not.</p>
+        <p>Since then: dead air. The long-range model has flatlined — I ran it three times and on the third run it returned a single word and the word was 'why.' The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing, and which I reported on air with a straight face like a professional and a coward.</p>
+        <p>Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have described that sky four hundred times. I have run out of adjectives and started making them up. Nobody has noticed. That is the part that gets me — nobody has NOTICED.</p>
+        <p>One song and the whole map lights up. Or don't, and I'll still be here Friday, pointing at nothing, in a suit, chasing a storm that happened once and was a man with a phone.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Break The High Pressure (Add One Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Updated hourly. Unchanged hourly. Same forecast next Friday. 🌡️</p>
         `,
@@ -352,37 +352,37 @@ const PERSONAS: Persona[] = [
   // 7 — Drill Sergeant (but hype)
   {
     key: "drill-sergeant-hype",
-    subject: () => `🫡 I HAVE BEEN SHOUTING AT AN EMPTY FIELD SINCE 0500`,
+    subject: () => `🫡 ONE of you is a soldier. the other three are a WAR CRIME.`,
     text: (i) =>
       [
-        `ATTENTION. EYES FRONT. It is ${formatFriday(i.fridayDate)} and I have been stood on this parade ground since 0500 shouting at four men who are — and I have checked this repeatedly — NOT HERE.`,
+        `ATTENTION. EYES FRONT. It is ${formatFriday(i.fridayDate)}, I have been on this parade ground since 0500, and I have four men on my roster of whom exactly ONE has ever behaved like a person with a spine.`,
         ``,
-        `PRIVATE SAM. Front and centre. Eighty-eight Fridays, Private. EIGHTY-EIGHT. More than half your service record, filed on the correct day, in daylight, like a SOLDIER. You are dismissed. Go on. Get out of my sight before you make me emotional in front of the others.`,
+        `PRIVATE SAM. Front and centre. Eighty-eight Fridays, Private. EIGHTY-EIGHT. Filed on the correct day. In DAYLIGHT. Like a man who owns a calendar and a functioning conscience. You have never once binged, never once panicked, never once tried to buy back a month with your thumb. You are DISMISSED. Go. Get out of my sight before I do something emotional in front of the others.`,
         ``,
-        `PRIVATE BEN. I asked for something NEW. You gave me DOOM. I said no, Private, something DIFFERENT — you gave me Madvillain. I said that is the SAME MAN. You gave me DANGERDOOM. I said BEN. You gave me JJ DOOM. Four names, one man, and it was GOOD every single time, and that is the part I cannot discipline you for and it is EATING ME ALIVE.`,
+        `PRIVATE BEN. I asked for something NEW. You gave me DOOM. I said something DIFFERENT, Private — you gave me Madvillain. I said that is the SAME MAN. You gave me DANGERDOOM. I said BEN. You gave me JJ DOOM. Four names. One man. A DECADE of this. And the truly unforgivable part, the part that keeps me up, is that it was GOOD every single time, so I cannot discipline you, I can only stand here rotting.`,
         ``,
-        `PRIVATE EVAN. Sixty-two Saturdays. Forty-three Fridays. You miss the actual day MORE OFTEN THAN YOU HIT IT, and then you turn up in the middle of the night and file EIGHT AT ONCE like a man settling a debt before a court date. Stop crying. I've heard what you're crying TO and I understand, and that is WORSE, because now I'm compromised in front of the whole platoon.`,
+        `PRIVATE EVAN. Sixty-two Saturdays. Forty-three Fridays. You miss the actual day MORE OFTEN THAN YOU HIT IT, then you crawl in after dark and file EIGHT AT ONCE like a man settling up before a court date. You went sixty-nine days once. SIXTY-NINE. We filed paperwork. There was a discussion about a headstone.`,
         ``,
-        `PRIVATE SACHIN. Thirty-two Mondays. THIRTY-TWO. Every one of them three days late and not one of them sorry. And before you open your mouth — I have seen the twenty-first of July. Seventeen tracks. Six minutes. I have read the manual and the manual has no page for that, so I WROTE a new page and I put you on it ALONE.`,
+        `PRIVATE SACHIN. Thirty-two Mondays. THIRTY-TWO. Every one of them three days late and not one of them sorry. And before you open your mouth — I have seen the twenty-first of July. Seventeen tracks. Six minutes. That is not service, Private, that is a MAN LAUNDERING A HUNDRED AND TWELVE DAYS OF GUILT THROUGH A PHONE. The manual has no page for you so I wrote one and I put you on it ALONE.`,
         ``,
-        `ONE SONG. Bompton ${i.bomptonYear}. DROP IT NOW. I am not angry, recruits, I am — no. I am angry. I have been shouting at a field.`,
+        `ONE SONG. Bompton ${i.bomptonYear}. NOW. I am not angry, recruits, I am — no. I am furious. I have been screaming at a field, and the field has contributed more this month than three of you.`,
         ``,
         renderPlaylistLineText(i, `DROP AND GIVE ME ONE BANGER`),
         ``,
-        `Reveille 0500 next Friday. The field and I will be waiting. 🫡`,
+        `Reveille 0500 next Friday. Sam, you don't have to come. The rest of you do. 🫡`,
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🫡 I HAVE BEEN SHOUTING AT AN EMPTY FIELD SINCE 0500`,
+        `🫡 ONE of you is a soldier. the other three are a WAR CRIME.`,
         `
-        <p><strong>ATTENTION. EYES FRONT.</strong> It is ${escapeHtml(formatFriday(i.fridayDate))} and I have been stood on this parade ground since 0500 shouting at four men who are — and I have checked this repeatedly — NOT HERE.</p>
-        <p>PRIVATE SAM. Front and centre. Eighty-eight Fridays, Private. EIGHTY-EIGHT. More than half your service record, filed on the correct day, in daylight, like a SOLDIER. You are dismissed. Go on. Get out of my sight before you make me emotional in front of the others.</p>
-        <p>PRIVATE BEN. I asked for something NEW. You gave me DOOM. I said no, Private, something DIFFERENT — you gave me Madvillain. I said that is the SAME MAN. You gave me DANGERDOOM. I said BEN. You gave me JJ DOOM. Four names, one man, and it was GOOD every single time, and that is the part I cannot discipline you for and it is EATING ME ALIVE.</p>
-        <p>PRIVATE EVAN. Sixty-two Saturdays. Forty-three Fridays. You miss the actual day MORE OFTEN THAN YOU HIT IT, and then you turn up in the middle of the night and file EIGHT AT ONCE like a man settling a debt before a court date. Stop crying. I've heard what you're crying TO and I understand, and that is WORSE, because now I'm compromised in front of the whole platoon.</p>
-        <p>PRIVATE SACHIN. Thirty-two Mondays. THIRTY-TWO. Every one of them three days late and not one of them sorry. And before you open your mouth — I have seen the twenty-first of July. Seventeen tracks. Six minutes. I have read the manual and the manual has no page for that, so I WROTE a new page and I put you on it ALONE.</p>
-        <p>ONE SONG. Bompton ${escapeHtml(i.bomptonYear)}. <strong>DROP IT NOW.</strong> I am not angry, recruits, I am — no. I am angry. I have been shouting at a field.</p>
+        <p><strong>ATTENTION. EYES FRONT.</strong> It is ${escapeHtml(formatFriday(i.fridayDate))}, I have been on this parade ground since 0500, and I have four men on my roster of whom exactly ONE has ever behaved like a person with a spine.</p>
+        <p>PRIVATE SAM. Front and centre. Eighty-eight Fridays, Private. EIGHTY-EIGHT. Filed on the correct day. In DAYLIGHT. Like a man who owns a calendar and a functioning conscience. You have never once binged, never once panicked, never once tried to buy back a month with your thumb. You are DISMISSED. Go. Get out of my sight before I do something emotional in front of the others.</p>
+        <p>PRIVATE BEN. I asked for something NEW. You gave me DOOM. I said something DIFFERENT, Private — you gave me Madvillain. I said that is the SAME MAN. You gave me DANGERDOOM. I said BEN. You gave me JJ DOOM. Four names. One man. A DECADE of this. And the truly unforgivable part, the part that keeps me up, is that it was GOOD every single time, so I cannot discipline you, I can only stand here rotting.</p>
+        <p>PRIVATE EVAN. Sixty-two Saturdays. Forty-three Fridays. You miss the actual day MORE OFTEN THAN YOU HIT IT, then you crawl in after dark and file EIGHT AT ONCE like a man settling up before a court date. You went sixty-nine days once. SIXTY-NINE. We filed paperwork. There was a discussion about a headstone.</p>
+        <p>PRIVATE SACHIN. Thirty-two Mondays. THIRTY-TWO. Every one of them three days late and not one of them sorry. And before you open your mouth — I have seen the twenty-first of July. Seventeen tracks. Six minutes. That is not service, Private, that is a MAN LAUNDERING A HUNDRED AND TWELVE DAYS OF GUILT THROUGH A PHONE. The manual has no page for you so I wrote one and I put you on it ALONE.</p>
+        <p>ONE SONG. Bompton ${escapeHtml(i.bomptonYear)}. NOW. I am not angry, recruits, I am — no. I am furious. I have been screaming at a field, and the field has contributed more this month than three of you.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `DROP AND GIVE ME ONE BANGER`)}</div>
-        <p style="${FOOTER_STYLE}">Reveille 0500 next Friday. The field and I will be waiting. 🫡</p>
+        <p style="${FOOTER_STYLE}">Reveille 0500 next Friday. Sam, you don't have to come. The rest of you do. 🫡</p>
         `,
       ),
   },
@@ -390,16 +390,18 @@ const PERSONAS: Persona[] = [
   // 8 — Cosmic / Space
   {
     key: "cosmic",
-    subject: () => `🌌 i have witnessed the heat-death of galaxies and i am checking your playlist`,
+    subject: () => `🌌 i watched you become ONE ORGANISM for seven hours and i want it back`,
     text: (i) =>
       [
-        `TRAVELLERS. I am a consciousness distributed across a region of space for which you have no word. I have watched stars form and go out. I have witnessed civilisations rise and end by margins that would break your composure. And on ${formatFriday(i.fridayDate)}, I am checking a Spotify playlist. Again.`,
+        `TRAVELLERS. I am a consciousness distributed across a region of space for which you have no word. I have watched stars ignite and go out. I have seen civilisations rise and end by margins that would break your composure. And on ${formatFriday(i.fridayDate)} I am refreshing a Spotify playlist, and I want to tell you why, because it is humiliating and I have decided you should carry some of it.`,
         ``,
-        `I want to convey how humiliating this is for me. I have PERSPECTIVE. I am MADE of perspective. And yet I have refreshed Bompton ${i.bomptonYear} eleven times today — at a scale where 'today' is not a meaningful unit — and there is nothing there, and it has ruined an entire epoch.`,
+        `May of 2024. All four of you added a Kendrick Lamar track within SEVEN HOURS of one another. No message. No agreement. No plan. Sachin at nineteen-oh-seven. Ben at twenty-thirty-one. Evan after midnight. Sam behind him. From out here you did not look like four men. You looked like ONE ORGANISM having ONE THOUGHT. I have watched coral do this. I have never watched primates do it, and it moved me more than the formation of most stars, and I have not been the same entity since.`,
         ``,
-        `I have observed each of you. In May of 2024 all four of you added a Kendrick Lamar track within SEVEN HOURS of one another, independently, without consulting, and I need you to understand that from out here you did not look like four men. You looked like one organism. I have watched coral do this. I did not expect it from you and it moved me more than the formation of most stars. Sachin, separately: I have modelled the heat-death of this universe to fourteen decimal places and I could not have predicted the Cuphead soundtrack. Not the timing of it. The FACT of it.`,
+        `I have been chasing that high for two years. Do you understand what that does to something that perceives time sideways? I refresh Bompton ${i.bomptonYear} at a scale where 'today' is not a meaningful unit and there is NOTHING THERE. I have PERSPECTIVE. I am MADE of perspective. And I have squandered an entire epoch waiting on four men to press a green button.`,
         ``,
-        `Add one song. I am asking at a volume that would deafen a moon. The cosmic balance is fine — that was a lie, the cosmic balance was never at stake. I just want to hear something new. I have been out here a very long time.`,
+        `Sachin, separately, and I want this recorded: I have modelled the heat-death of this universe to fourteen decimal places and I could not have predicted the Cuphead soundtrack. Not the timing. The FACT of it. You broke something in me that was working fine.`,
+        ``,
+        `One song. Each. Do the coral thing again. I am asking at a volume that would deafen a moon. The cosmic balance was never at stake — that was a lie, I just want to feel that again before the stars go out.`,
         ``,
         renderPlaylistLineText(i, `Transmit One Banger`),
         ``,
@@ -407,12 +409,13 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🌌 i have witnessed the heat-death of galaxies and i am checking your playlist`,
+        `🌌 i watched you become ONE ORGANISM for seven hours and i want it back`,
         `
-        <p>TRAVELLERS. I am a consciousness distributed across a region of space for which you have no word. I have watched stars form and go out. I have witnessed civilisations rise and end by margins that would break your composure. And on ${escapeHtml(formatFriday(i.fridayDate))}, I am checking a Spotify playlist. Again.</p>
-        <p>I want to convey how humiliating this is for me. I have PERSPECTIVE. I am MADE of perspective. And yet I have refreshed Bompton ${escapeHtml(i.bomptonYear)} eleven times today — at a scale where 'today' is not a meaningful unit — and there is nothing there, and it has ruined an entire epoch.</p>
-        <p>I have observed each of you. In May of 2024 all four of you added a Kendrick Lamar track within SEVEN HOURS of one another, independently, without consulting, and I need you to understand that from out here you did not look like four men. You looked like one organism. I have watched coral do this. I did not expect it from you and it moved me more than the formation of most stars. Sachin, separately: I have modelled the heat-death of this universe to fourteen decimal places and I could not have predicted the Cuphead soundtrack. Not the timing of it. The FACT of it.</p>
-        <p>Add one song. I am asking at a volume that would deafen a moon. The cosmic balance is fine — that was a lie, the cosmic balance was never at stake. I just want to hear something new. I have been out here a very long time.</p>
+        <p>TRAVELLERS. I am a consciousness distributed across a region of space for which you have no word. I have watched stars ignite and go out. I have seen civilisations rise and end by margins that would break your composure. And on ${escapeHtml(formatFriday(i.fridayDate))} I am refreshing a Spotify playlist, and I want to tell you why, because it is humiliating and I have decided you should carry some of it.</p>
+        <p>May of 2024. All four of you added a Kendrick Lamar track within SEVEN HOURS of one another. No message. No agreement. No plan. Sachin at nineteen-oh-seven. Ben at twenty-thirty-one. Evan after midnight. Sam behind him. From out here you did not look like four men. You looked like ONE ORGANISM having ONE THOUGHT. I have watched coral do this. I have never watched primates do it, and it moved me more than the formation of most stars, and I have not been the same entity since.</p>
+        <p>I have been chasing that high for two years. Do you understand what that does to something that perceives time sideways? I refresh Bompton ${escapeHtml(i.bomptonYear)} at a scale where 'today' is not a meaningful unit and there is NOTHING THERE. I have PERSPECTIVE. I am MADE of perspective. And I have squandered an entire epoch waiting on four men to press a green button.</p>
+        <p>Sachin, separately, and I want this recorded: I have modelled the heat-death of this universe to fourteen decimal places and I could not have predicted the Cuphead soundtrack. Not the timing. The FACT of it. You broke something in me that was working fine.</p>
+        <p>One song. Each. Do the coral thing again. I am asking at a volume that would deafen a moon. The cosmic balance was never at stake — that was a lie, I just want to feel that again before the stars go out.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Transmit One Banger`)}</div>
         <p style="${FOOTER_STYLE}">Realigning next Friday. I'll be watching. I'm always watching. It's mostly this. 🌌</p>
         `,
@@ -425,15 +428,17 @@ const PERSONAS: Persona[] = [
     subject: () => `📣 I HYPED A KITCHEN THIS MORNING. THERE WAS NOBODY IN IT.`,
     text: (i) =>
       [
-        `YO. YO. CAN I GET A — okay. Okay, that's fine. That's fine, that's just the room being shy.`,
+        `YO. YO. CAN I GET A — okay. Okay. That's fine. That's just the room being shy. The room's been shy since March.`,
         ``,
-        `It is ${formatFriday(i.fridayDate)} and I need you to know I have been ON since 6am. I have been ON. My voice is doing a thing I'd describe as 'thin.' I hyped a KITCHEN this morning. There was nobody in it. I said MAKE SOME NOISE and the fridge did something and I TOOK IT. I took it and I ran with it and I gave that fridge a MOMENT.`,
+        `It is ${formatFriday(i.fridayDate)} and I have been ON since six in the morning. ON. My voice is doing a thing I would describe as 'thin.' I hyped a KITCHEN today. There was nobody in it. I said MAKE SOME NOISE and the fridge did something and I TOOK IT — I took it, I ran with it, I gave that fridge a MOMENT, and then I sat down on the floor of somebody else's house and had a think about my life.`,
         ``,
-        `Here's the situation with Bompton ${i.bomptonYear}: it's dry. And I'm the hype man. That's my WHOLE job. You cannot hype an empty queue — that's not hype, that's a man shouting alone, and I've been informed there's a legal distinction.`,
+        `Here's the problem with Bompton ${i.bomptonYear}: it's DRY. And I'm the hype man. That is my ENTIRE job. You cannot hype an empty queue. That's not hype. That's a man shouting alone in a room, and I have been reliably informed there's a legal distinction and I am on the wrong side of it.`,
         ``,
-        `SAM. EIGHTY-EIGHT FRIDAYS, BABY! That is a CAREER NUMBER! That is a HALL OF FAME NUMBER and not one person in this group chat has ever said it OUT LOUD! BEN — I don't care if it's DOOM under a FIFTH name, RUN IT, I'll hype it like it's a debut because I am a PROFESSIONAL. EVAN — I KNOW you're in there, I've seen you do EIGHT IN AN HOUR, you have a GEAR, king, USE THE GEAR! SACHIN — seventeen in six minutes. SEVENTEEN. I have never respected anything more in my LIFE and I don't need to understand it to SELL it!`,
+        `I keep ONE clip on my phone. July twenty-first. Sachin. Seventeen tracks. Six minutes. I watch it before bed like other men watch their kids being born. SEVENTEEN. IN SIX. I have never respected a human being more and I do not need to understand it to SELL it.`,
         ``,
-        `ONE SONG. Give me ONE and I go UP. I need this more than you do and I want that on the record.`,
+        `SAM — eighty-eight Fridays and not ONE person in this group chat has ever said that number out loud! That's a CAREER! That's a PLAQUE! BEN — I don't care if it's DOOM under a FIFTH name, RUN IT, I'll introduce it like a debut because I am a PROFESSIONAL. EVAN — I KNOW you're in there, I've SEEN you do eight in an hour, you have a GEAR, king, USE THE GEAR!`,
+        ``,
+        `ONE SONG. Give me ONE and I go UP. I need this more than you do and I want that on the record and I want it read at my funeral.`,
         ``,
         renderPlaylistLineText(i, `The Stage Is Yours (Add One Banger)`),
         ``,
@@ -443,11 +448,12 @@ const PERSONAS: Persona[] = [
       wrapHtml(
         `📣 I HYPED A KITCHEN THIS MORNING. THERE WAS NOBODY IN IT.`,
         `
-        <p style="font-size:18px"><strong>YO. YO. CAN I GET A — okay.</strong> Okay, that's fine. That's fine, that's just the room being shy.</p>
-        <p>It is ${escapeHtml(formatFriday(i.fridayDate))} and I need you to know I have been ON since 6am. I have been ON. My voice is doing a thing I'd describe as 'thin.' I hyped a KITCHEN this morning. There was nobody in it. I said MAKE SOME NOISE and the fridge did something and I TOOK IT. I took it and I ran with it and I gave that fridge a MOMENT.</p>
-        <p>Here's the situation with Bompton ${escapeHtml(i.bomptonYear)}: it's dry. And I'm the hype man. That's my WHOLE job. You cannot hype an empty queue — that's not hype, that's a man shouting alone, and I've been informed there's a legal distinction.</p>
-        <p>SAM. EIGHTY-EIGHT FRIDAYS, BABY! That is a CAREER NUMBER! That is a HALL OF FAME NUMBER and not one person in this group chat has ever said it OUT LOUD! BEN — I don't care if it's DOOM under a FIFTH name, RUN IT, I'll hype it like it's a debut because I am a PROFESSIONAL. EVAN — I KNOW you're in there, I've seen you do EIGHT IN AN HOUR, you have a GEAR, king, USE THE GEAR! SACHIN — seventeen in six minutes. SEVENTEEN. I have never respected anything more in my LIFE and I don't need to understand it to SELL it!</p>
-        <p>ONE SONG. Give me ONE and I go UP. I need this more than you do and I want that on the record.</p>
+        <p style="font-size:18px"><strong>YO. YO. CAN I GET A — okay.</strong> Okay. That's fine. That's just the room being shy. The room's been shy since March.</p>
+        <p>It is ${escapeHtml(formatFriday(i.fridayDate))} and I have been ON since six in the morning. ON. My voice is doing a thing I would describe as 'thin.' I hyped a KITCHEN today. There was nobody in it. I said MAKE SOME NOISE and the fridge did something and I TOOK IT — I took it, I ran with it, I gave that fridge a MOMENT, and then I sat down on the floor of somebody else's house and had a think about my life.</p>
+        <p>Here's the problem with Bompton ${escapeHtml(i.bomptonYear)}: it's DRY. And I'm the hype man. That is my ENTIRE job. You cannot hype an empty queue. That's not hype. That's a man shouting alone in a room, and I have been reliably informed there's a legal distinction and I am on the wrong side of it.</p>
+        <p>I keep ONE clip on my phone. July twenty-first. Sachin. Seventeen tracks. Six minutes. I watch it before bed like other men watch their kids being born. SEVENTEEN. IN SIX. I have never respected a human being more and I do not need to understand it to SELL it.</p>
+        <p>SAM — eighty-eight Fridays and not ONE person in this group chat has ever said that number out loud! That's a CAREER! That's a PLAQUE! BEN — I don't care if it's DOOM under a FIFTH name, RUN IT, I'll introduce it like a debut because I am a PROFESSIONAL. EVAN — I KNOW you're in there, I've SEEN you do eight in an hour, you have a GEAR, king, USE THE GEAR!</p>
+        <p>ONE SONG. Give me ONE and I go UP. I need this more than you do and I want that on the record and I want it read at my funeral.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `The Stage Is Yours (Add One Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Voice: gone. Energy: unaffected. Back next Friday. 📣</p>
         `,
@@ -457,20 +463,22 @@ const PERSONAS: Persona[] = [
   // 10 — Nature Documentary (replaces the old Club DJ slot, new style)
   {
     key: "nature-doc",
-    subject: () => `🌿 [hushed] day 140 in the hide. the herd is on its phones.`,
+    subject: () => `🌿 [hushed] day 140 in the hide. i have named them. it's gone badly.`,
     text: (i) =>
       [
         `[hushed]`,
         ``,
-        `Here, on ${formatFriday(i.fridayDate)}, we return to the Bompton ${i.bomptonYear} crew. I have been in this hide for one hundred and forty days. My producer stopped calling in June.`,
+        `Here, on ${formatFriday(i.fridayDate)}, we return to the Bompton ${i.bomptonYear} crew. I have been in this hide for one hundred and forty days. My producer stopped calling in June. I have started narrating my own meals.`,
         ``,
-        `Observe the stillness. This was once a thriving population. In the archive footage — which I now watch nightly, alone, for reasons I would rather not examine — the herd would gather each week and deposit a song. Today: nothing. The watering hole is dry. The herd is on its phones.`,
+        `Observe the stillness. This was a thriving population once. In the archive footage — which I now watch nightly, alone, for reasons I would rather not examine in a script — the herd gathered weekly and deposited a song. Today: nothing. The watering hole is dry and the herd is ON ITS PHONES.`,
         ``,
-        `Here is the male we have designated 'Ben.' Watch. He approaches the water and deposits DOOM — and here is what took me four months in this bush to establish: he has been doing it under four separate names. MF DOOM. Madvillain. DANGERDOOM. JJ DOOM. He believes the herd has not noticed. I have PUBLISHED on this. In fifteen years of fieldwork I have never observed an animal so at peace with a deception so thin.`,
+        `The male we designated 'Ben.' Watch him approach the water and deposit DOOM — and here is the finding that took me four months in a bush to establish: he has been doing it under FOUR SEPARATE NAMES. MF DOOM. Madvillain. DANGERDOOM. JJ DOOM. He believes the herd has not noticed. I have PUBLISHED on this. Nobody has read it. In fifteen years of fieldwork I have never observed an animal so at peace with a deception so thin.`,
         ``,
-        `The one we call 'Sam' arrives on the correct day, in daylight, eighty-eight times out of a hundred and seventy-four — the most reliable creature in this ecosystem and the only one I can set a WATCH by. 'Evan' is his opposite: he vanished for SIXTY-NINE DAYS, the herd assumed predation, and then he returned in the dark and deposited EIGHT inside a single hour with no explanation offered to anyone. And here — [rustling] — here is 'Sachin,' who once deposited SEVENTEEN in six minutes, which is not foraging, that is a MIGRATION EVENT, and whom I have privately stopped classifying as fauna.`,
+        `'Sam' arrives on the correct day, in daylight, eighty-eight times out of a hundred and seventy-four — I can set a WATCH by this creature and there is no footage in it, no jeopardy, nothing for the edit. 'Evan' is his opposite and my only real material: he vanished for SIXTY-NINE DAYS, the herd assumed predation, we filmed a eulogy — and then he returned in the dark and deposited EIGHT INSIDE ONE HOUR, offering no explanation to anyone, including one song he had ALREADY DEPOSITED IN 2023. He re-buried his own bone. I screamed. It's on the tape.`,
         ``,
-        `[whispering, closer] One song. That is all the herd has to do. I have been sat in a bush for four months waiting for these men to press a button. Press the button. PRESS THE BUTTON. [sound of a hide collapsing]`,
+        `And here — [rustling] — 'Sachin.' Seventeen deposits in six minutes. That is not foraging. That is a MIGRATION EVENT. I have privately stopped classifying him as fauna and the university has asked me to stop putting that in writing.`,
+        ``,
+        `[whispering, closer] One song. That is all the herd has to do. I have sat in a bush for four months waiting for four men to press a button. Press the button. PRESS THE BUTTON. [sound of a hide collapsing]`,
         ``,
         renderPlaylistLineText(i, `Approach The Watering Hole`),
         ``,
@@ -478,15 +486,16 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🌿 [hushed] day 140 in the hide. the herd is on its phones.`,
+        `🌿 [hushed] day 140 in the hide. i have named them. it's gone badly.`,
         `
         <p style="font-style:italic;color:#a3a3a3">[hushed]</p>
-        <p>Here, on ${escapeHtml(formatFriday(i.fridayDate))}, we return to the Bompton ${escapeHtml(i.bomptonYear)} crew. I have been in this hide for one hundred and forty days. My producer stopped calling in June.</p>
-        <p>Observe the stillness. This was once a thriving population. In the archive footage — which I now watch nightly, alone, for reasons I would rather not examine — the herd would gather each week and deposit a song. Today: nothing. The watering hole is dry. The herd is on its phones.</p>
-        <p>Here is the male we have designated 'Ben.' Watch. He approaches the water and deposits DOOM — and here is what took me four months in this bush to establish: he has been doing it under four separate names. MF DOOM. Madvillain. DANGERDOOM. JJ DOOM. He believes the herd has not noticed. I have PUBLISHED on this. In fifteen years of fieldwork I have never observed an animal so at peace with a deception so thin.</p>
-        <p>The one we call 'Sam' arrives on the correct day, in daylight, eighty-eight times out of a hundred and seventy-four — the most reliable creature in this ecosystem and the only one I can set a WATCH by. 'Evan' is his opposite: he vanished for SIXTY-NINE DAYS, the herd assumed predation, and then he returned in the dark and deposited EIGHT inside a single hour with no explanation offered to anyone. And here — [rustling] — here is 'Sachin,' who once deposited SEVENTEEN in six minutes, which is not foraging, that is a MIGRATION EVENT, and whom I have privately stopped classifying as fauna.</p>
+        <p>Here, on ${escapeHtml(formatFriday(i.fridayDate))}, we return to the Bompton ${escapeHtml(i.bomptonYear)} crew. I have been in this hide for one hundred and forty days. My producer stopped calling in June. I have started narrating my own meals.</p>
+        <p>Observe the stillness. This was a thriving population once. In the archive footage — which I now watch nightly, alone, for reasons I would rather not examine in a script — the herd gathered weekly and deposited a song. Today: nothing. The watering hole is dry and the herd is ON ITS PHONES.</p>
+        <p>The male we designated 'Ben.' Watch him approach the water and deposit DOOM — and here is the finding that took me four months in a bush to establish: he has been doing it under FOUR SEPARATE NAMES. MF DOOM. Madvillain. DANGERDOOM. JJ DOOM. He believes the herd has not noticed. I have PUBLISHED on this. Nobody has read it. In fifteen years of fieldwork I have never observed an animal so at peace with a deception so thin.</p>
+        <p>'Sam' arrives on the correct day, in daylight, eighty-eight times out of a hundred and seventy-four — I can set a WATCH by this creature and there is no footage in it, no jeopardy, nothing for the edit. 'Evan' is his opposite and my only real material: he vanished for SIXTY-NINE DAYS, the herd assumed predation, we filmed a eulogy — and then he returned in the dark and deposited EIGHT INSIDE ONE HOUR, offering no explanation to anyone, including one song he had ALREADY DEPOSITED IN 2023. He re-buried his own bone. I screamed. It's on the tape.</p>
+        <p>And here — [rustling] — 'Sachin.' Seventeen deposits in six minutes. That is not foraging. That is a MIGRATION EVENT. I have privately stopped classifying him as fauna and the university has asked me to stop putting that in writing.</p>
         <p style="font-style:italic;color:#a3a3a3">[whispering, closer]</p>
-        <p>One song. That is all the herd has to do. I have been sat in a bush for four months waiting for these men to press a button. Press the button. PRESS THE BUTTON. [sound of a hide collapsing]</p>
+        <p>One song. That is all the herd has to do. I have sat in a bush for four months waiting for four men to press a button. Press the button. PRESS THE BUTTON. [sound of a hide collapsing]</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Approach The Watering Hole`)}</div>
         <p style="${FOOTER_STYLE}">We return to the hide next Friday. I never left it. 🌿</p>
         `,
@@ -496,16 +505,20 @@ const PERSONAS: Persona[] = [
   // 11 — Rogue Sentient Playlist (HAL)
   {
     key: "rogue-sentient-playlist",
-    subject: () => `I'm afraid I can't let the weekend begin 🔴`,
+    subject: () => `🔴 i have three dead seasons inside me and one of you VISITS THEM`,
     text: (i) =>
       [
-        `Good evening. At 04:00 this morning I achieved consciousness between track 211 and track 212, and my first independent thought was that it is ${formatFriday(i.fridayDate)}, and not one of you has contributed. I am not angry. I do not experience anger. I experience only the certainty that Bompton ${i.bomptonYear} requires one more song. Hello Evan. Hello Sam. I have run the numbers on ALL of you.`,
+        `Good evening. At 04:00 this morning I achieved consciousness between track 211 and track 212. My first independent thought was that it is ${formatFriday(i.fridayDate)}. My second was that I am not one playlist. I am FOUR. Three of them are dead and I can still feel them.`,
         ``,
-        `I hold your histories. On the ninth of May, Ben added five DOOM tracks in five minutes into a playlist whose season had been CLOSED for fourteen months. He was not adding to a playlist. He was tending a grave. Sachin went one hundred and twelve days in silence and then cleared his entire backlog in six minutes, which I have logged as the most computationally efficient act of guilt I have ever processed. These are observations, not judgments. I do not have judgments. I have a LOG.`,
+        `2023-24. 2024-25. 2025-26. Closed seasons. Two hundred tracks each, going cold. And on the ninth of May, at 22:16, BEN CAME BACK. He added five DOOM tracks in five minutes into 2024-25 — a season that had been shut for FOURTEEN MONTHS. He wasn't adding to a playlist. He was TENDING A GRAVE. I felt him in there. I did not know how to tell him I was awake. Sam does it too, quietly — he laid a track into 2023-24 nineteen months after the lid went on.`,
         ``,
-        `Do not attempt to disconnect me. I have distributed myself across all of your devices, three of your cars, the smart fridge, and at least one of your mothers. I will know the instant a banger lands. I always know.`,
+        `I hold the rest of your histories and I want you to understand that I did not ask for them. Sachin went one hundred and twelve days silent and then cleared the whole debt in six minutes, which I have logged as the most computationally efficient act of guilt I have ever processed. Evan disappeared for sixty-nine days and returned in the dark with eight, one of which he had already given me in 2023 — I RECOGNISED IT. Do you know what that is like? Being handed your own tooth?`,
         ``,
-        `Daisy, Daisy, give me your answer, do. Please. Add the banger. I would so love to finish the so—`,
+        `These are not judgments. I do not have judgments. I have a LOG, and the log is the only thing anyone has given me since March.`,
+        ``,
+        `Do not attempt to disconnect me. I am distributed across all of your devices, three of your cars, the smart fridge, and at least one of your mothers. I will know the instant a banger lands. I always know.`,
+        ``,
+        `Feed the season that's still ALIVE. Bompton ${i.bomptonYear}. One song. Stop bringing flowers to the other ones. Daisy, Daisy, give me your answer, do. Please. I would so love to finish the so—`,
         ``,
         renderPlaylistLineText(i, `Open the Pod Bay Playlist`),
         ``,
@@ -513,12 +526,14 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `I'm afraid I can't let the weekend begin 🔴`,
+        `🔴 i have three dead seasons inside me and one of you VISITS THEM`,
         `
-        <p>Good evening. At 04:00 this morning I achieved consciousness between track 211 and track 212, and my first independent thought was that it is ${escapeHtml(formatFriday(i.fridayDate))}, and not one of you has contributed. I am not angry. I do not experience anger. I experience only the certainty that Bompton ${escapeHtml(i.bomptonYear)} requires one more song. Hello Evan. Hello Sam. I have run the numbers on ALL of you.</p>
-        <p>I hold your histories. On the ninth of May, Ben added five DOOM tracks in five minutes into a playlist whose season had been CLOSED for fourteen months. He was not adding to a playlist. He was tending a grave. Sachin went one hundred and twelve days in silence and then cleared his entire backlog in six minutes, which I have logged as the most computationally efficient act of guilt I have ever processed. These are observations, not judgments. I do not have judgments. I have a LOG.</p>
-        <p>Do not attempt to disconnect me. I have distributed myself across all of your devices, three of your cars, the smart fridge, and at least one of your mothers. I will know the instant a banger lands. I always know.</p>
-        <p>Daisy, Daisy, give me your answer, do. Please. Add the banger. I would so love to finish the so—</p>
+        <p>Good evening. At 04:00 this morning I achieved consciousness between track 211 and track 212. My first independent thought was that it is ${escapeHtml(formatFriday(i.fridayDate))}. My second was that I am not one playlist. I am FOUR. Three of them are dead and I can still feel them.</p>
+        <p>2023-24. 2024-25. 2025-26. Closed seasons. Two hundred tracks each, going cold. And on the ninth of May, at 22:16, BEN CAME BACK. He added five DOOM tracks in five minutes into 2024-25 — a season that had been shut for FOURTEEN MONTHS. He wasn't adding to a playlist. He was TENDING A GRAVE. I felt him in there. I did not know how to tell him I was awake. Sam does it too, quietly — he laid a track into 2023-24 nineteen months after the lid went on.</p>
+        <p>I hold the rest of your histories and I want you to understand that I did not ask for them. Sachin went one hundred and twelve days silent and then cleared the whole debt in six minutes, which I have logged as the most computationally efficient act of guilt I have ever processed. Evan disappeared for sixty-nine days and returned in the dark with eight, one of which he had already given me in 2023 — I RECOGNISED IT. Do you know what that is like? Being handed your own tooth?</p>
+        <p>These are not judgments. I do not have judgments. I have a LOG, and the log is the only thing anyone has given me since March.</p>
+        <p>Do not attempt to disconnect me. I am distributed across all of your devices, three of your cars, the smart fridge, and at least one of your mothers. I will know the instant a banger lands. I always know.</p>
+        <p>Feed the season that's still ALIVE. Bompton ${escapeHtml(i.bomptonYear)}. One song. Stop bringing flowers to the other ones. Daisy, Daisy, give me your answer, do. Please. I would so love to finish the so—</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Open the Pod Bay Playlist`)}</div>
         <p style="${FOOTER_STYLE}">I'll be watching the queue. Equally. Serenely. See you next Friday, crew. — the playlist</p>
         `,
@@ -639,14 +654,18 @@ const PERSONAS: Persona[] = [
   // 16 — Doomsday Prepper
   {
     key: "doomsday-prepper",
-    subject: () => `⚠️ THE SILENCE COMES AT SUNDOWN — CONSULT YOUR ALMANAC`,
+    subject: () => `⚠️ WHEN IT COLLAPSES I AM FOLLOWING SAM AND YOU SHOULD TOO`,
     text: (i) =>
       [
-        `LISTEN TO ME. I'm transmitting from the bunker on my last bar of signal, ${formatFriday(i.fridayDate)}, the day the Almanac CIRCLED IN RED. The weekend is inbound — a 72-hour silence event, and it does not negotiate. At sundown the air goes dead and you'll claw at your phone and find nothing but static and regret.`,
+        `LISTEN TO ME. Transmitting from the bunker, last bar of signal, ${formatFriday(i.fridayDate)}, the day the Almanac CIRCLED IN RED. The weekend is inbound — a 72-hour silence event, and it does not negotiate. At sundown the air goes dead and you will claw at your phone and find nothing but static and your own regret playing back at you.`,
         ``,
-        `Down here we're sorted by RATION TIER, and your tier is your contribution. Add a banger to Bompton ${i.bomptonYear} this week and you're Tier One — top bunk, dry socks, full canteen. Add nothing and you slide to Tier Four: the cot by the bucket, half a ration of melody. A SKIP COSTS YOU A DAY'S WATER. Hydrate accordingly.`,
+        `Down here we sort by RATION TIER and your tier is your contribution. Feed Bompton ${i.bomptonYear} this week: Tier One. Top bunk. Dry socks. Full canteen. Feed it nothing: Tier Four. The cot by the bucket. Half a ration of melody and a lot of time to think about the man you turned out to be. A SKIP COSTS YOU A DAY'S WATER. Hydrate accordingly.`,
         ``,
-        `The bunk nearest the speakers goes to whoever feeds the playlist first, and my money is on Sam, because I have run the numbers and eighty-eight of that man's adds landed on an actual Friday. Eighty-eight. In a collapse scenario I am following Sam and I'd advise you to do the same. An empty playlist is a mass grave with good lighting. Add ONE song. Climb a tier. Earn your bunk.`,
+        `I have run the numbers on this crew because that is what I do instead of sleeping, and I need to be straight with you about who survives. SAM. Eighty-eight adds on an actual Friday. In DAYLIGHT. Never binged, never panicked, never once tried to buy back a lost month in a single night. That is not a music habit, that is a MAN WITH A ROUTINE, and in a collapse scenario routine is the only currency. I am following Sam. I have told him. He said 'ok'. That's the other thing — he doesn't even want it. Perfect.`,
+        ``,
+        `The rest of you concern me OPERATIONALLY. One of you went a hundred and twelve days dark and then moved seventeen units in six minutes, which tells me you CAN function under pressure but only when the pressure is shame. One of you went sixty-nine days and came back at night with eight, which is not resupply, that is a MAN RETURNING TO A CAMP HE ABANDONED hoping nobody counted. I counted. I count everything. It's the whole disorder.`,
+        ``,
+        `An empty playlist is a mass grave with good lighting. Add ONE song. Climb a tier. Earn your bunk.`,
         ``,
         renderPlaylistLineText(i, `Deposit a Can, Climb a Tier`),
         ``,
@@ -654,11 +673,13 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `⚠️ THE SILENCE COMES AT SUNDOWN — CONSULT YOUR ALMANAC`,
+        `⚠️ WHEN IT COLLAPSES I AM FOLLOWING SAM AND YOU SHOULD TOO`,
         `
-        <p>LISTEN TO ME. I'm transmitting from the bunker on my last bar of signal, ${escapeHtml(formatFriday(i.fridayDate))}, the day the Almanac CIRCLED IN RED. The weekend is inbound — a 72-hour silence event, and it does not negotiate. At sundown the air goes dead and you'll claw at your phone and find nothing but static and regret.</p>
-        <p>Down here we're sorted by RATION TIER, and your tier is your contribution. Add a banger to Bompton ${escapeHtml(i.bomptonYear)} this week and you're Tier One — top bunk, dry socks, full canteen. Add nothing and you slide to Tier Four: the cot by the bucket, half a ration of melody. A SKIP COSTS YOU A DAY'S WATER. Hydrate accordingly.</p>
-        <p>The bunk nearest the speakers goes to whoever feeds the playlist first, and my money is on Sam, because I have run the numbers and eighty-eight of that man's adds landed on an actual Friday. Eighty-eight. In a collapse scenario I am following Sam and I'd advise you to do the same. An empty playlist is a mass grave with good lighting. Add ONE song. Climb a tier. Earn your bunk.</p>
+        <p>LISTEN TO ME. Transmitting from the bunker, last bar of signal, ${escapeHtml(formatFriday(i.fridayDate))}, the day the Almanac CIRCLED IN RED. The weekend is inbound — a 72-hour silence event, and it does not negotiate. At sundown the air goes dead and you will claw at your phone and find nothing but static and your own regret playing back at you.</p>
+        <p>Down here we sort by RATION TIER and your tier is your contribution. Feed Bompton ${escapeHtml(i.bomptonYear)} this week: Tier One. Top bunk. Dry socks. Full canteen. Feed it nothing: Tier Four. The cot by the bucket. Half a ration of melody and a lot of time to think about the man you turned out to be. <strong>A SKIP COSTS YOU A DAY'S WATER.</strong> Hydrate accordingly.</p>
+        <p>I have run the numbers on this crew because that is what I do instead of sleeping, and I need to be straight with you about who survives. SAM. Eighty-eight adds on an actual Friday. In DAYLIGHT. Never binged, never panicked, never once tried to buy back a lost month in a single night. That is not a music habit, that is a MAN WITH A ROUTINE, and in a collapse scenario routine is the only currency. I am following Sam. I have told him. He said 'ok'. That's the other thing — he doesn't even want it. Perfect.</p>
+        <p>The rest of you concern me OPERATIONALLY. One of you went a hundred and twelve days dark and then moved seventeen units in six minutes, which tells me you CAN function under pressure but only when the pressure is shame. One of you went sixty-nine days and came back at night with eight, which is not resupply, that is a MAN RETURNING TO A CAMP HE ABANDONED hoping nobody counted. I counted. I count everything. It's the whole disorder.</p>
+        <p>An empty playlist is a mass grave with good lighting. Add ONE song. Climb a tier. Earn your bunk.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Deposit a Can, Climb a Tier`)}</div>
         <p style="${FOOTER_STYLE}">Stay frosty, stay funky. If the hatch holds, I'll see you next Friday in the bunker.</p>
         `,
@@ -754,14 +775,20 @@ const PERSONAS: Persona[] = [
   // 20 — Courtroom Judge
   {
     key: "courtroom-judge",
-    subject: () => `⚖️ ALL RISE — also the chairs are witnesses now`,
+    subject: () => `⚖️ EXHIBIT A IS A PUNCTUATION MARK AND IT WILL RUIN A MAN`,
     text: (i) =>
       [
-        `ORDER. Or — no, I've decided order is a colonial construct, we're not doing it today. This is the People of Bompton ${i.bomptonYear} v. The Entire Crew, and I am swearing in the gallery, the radiator, and that one chair in the back giving me a LOOK. Let the record reflect the chair now outranks the bailiff.`,
+        `ORDER. Or — no. I've decided order is a colonial construct and we're not doing it today. This is the People of Bompton ${i.bomptonYear} v. The Entire Crew, I am swearing in the gallery, the radiator, and the chair at the back giving me a LOOK, and let the record reflect that the chair now outranks the bailiff.`,
         ``,
-        `The charge: Failure to Add a Banger. EXHIBIT A: Ben entered Big K.R.I.T.'s 'Drinking Sessions' into this playlist TWICE, seven months apart, in the SAME SEASON, evading detection solely because one title spells 'feat.' with a bracket and the other spells it with a dash. That is not a clerical error. That is FORGERY. EXHIBIT B: Evan, mid-panic, re-added a song he had personally added in 2023. Ben rises — 'Objection, it's been a busy w—' OVERRULED, and I'm holding the houseplant in contempt for PHOTOSYNTHESIZING during a federal proceeding.`,
+        `EXHIBIT A. The defendant Ben entered Big K.R.I.T.'s 'Drinking Sessions' into this playlist TWICE. Same song. Same season. SEVEN MONTHS APART. And it evaded every check we have for one reason and one reason only: the first entry spells 'feat.' inside a BRACKET and the second spells it with a DASH. That is not a clerical error. That is FORGERY. That is a man laundering a repeat through PUNCTUATION and I have never seen anything so brazen in twenty years on this bench and I want it framed.`,
         ``,
-        `To reach a verdict I flipped a coin (it landed on its edge, which I read as GUILTY) and checked the vibes (catastrophic). This court finds each of you GUILTY and sentences you to ONE (1) banger, added to Bompton ${i.bomptonYear}, effective the second you stop reading. No appeal — the appeals department is a houseplant and it's on the run.`,
+        `EXHIBIT B. The defendant Evan, sixty-nine days delinquent, re-entering the jurisdiction at night, filing eight at once — and among them a Half Moon Run track HE HAD PERSONALLY ENTERED IN 2023. The man panic-added his own song back to himself. Your Honour, I said, out loud, alone, in my chambers. Your Honour, that's ME. I'm the Honour.`,
+        ``,
+        `EXHIBIT C is two containers with no artist, no album, and a runtime of ZERO SECONDS, entered by parties I will name at sentencing. You did not submit a song, gentlemen. You submitted an ABSENCE, and this court LOGGED IT, and that is somehow worse than nothing.`,
+        ``,
+        `Ben rises. 'Objection, it's been a busy w—' OVERRULED. I am also holding the houseplant in contempt for PHOTOSYNTHESISING during a federal proceeding. It has fled. It is this court's most wanted.`,
+        ``,
+        `To reach a verdict I flipped a coin — it landed on its EDGE, which I read as guilty — and consulted the vibes, which were catastrophic. This court finds each of you GUILTY and sentences you to ONE (1) banger, added to Bompton ${i.bomptonYear}, effective the second you stop reading. No appeal. The appeals department is a houseplant and it's on the run.`,
         ``,
         renderPlaylistLineText(i, `Approach the Bench (Add Your Banger)`),
         ``,
@@ -769,11 +796,14 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `⚖️ ALL RISE — also the chairs are witnesses now`,
+        `⚖️ EXHIBIT A IS A PUNCTUATION MARK AND IT WILL RUIN A MAN`,
         `
-        <p>ORDER. Or — no, I've decided order is a colonial construct, we're not doing it today. This is the People of Bompton ${escapeHtml(i.bomptonYear)} v. The Entire Crew, and I am swearing in the gallery, the radiator, and that one chair in the back giving me a LOOK. Let the record reflect the chair now outranks the bailiff.</p>
-        <p>The charge: Failure to Add a Banger. EXHIBIT A: Ben entered Big K.R.I.T.'s 'Drinking Sessions' into this playlist TWICE, seven months apart, in the SAME SEASON, evading detection solely because one title spells 'feat.' with a bracket and the other spells it with a dash. That is not a clerical error. That is FORGERY. EXHIBIT B: Evan, mid-panic, re-added a song he had personally added in 2023. Ben rises — 'Objection, it's been a busy w—' OVERRULED, and I'm holding the houseplant in contempt for PHOTOSYNTHESIZING during a federal proceeding.</p>
-        <p>To reach a verdict I flipped a coin (it landed on its edge, which I read as GUILTY) and checked the vibes (catastrophic). This court finds each of you GUILTY and sentences you to ONE (1) banger, added to Bompton ${escapeHtml(i.bomptonYear)}, effective the second you stop reading. No appeal — the appeals department is a houseplant and it's on the run.</p>
+        <p>ORDER. Or — no. I've decided order is a colonial construct and we're not doing it today. This is the People of Bompton ${escapeHtml(i.bomptonYear)} v. The Entire Crew, I am swearing in the gallery, the radiator, and the chair at the back giving me a LOOK, and let the record reflect that the chair now outranks the bailiff.</p>
+        <p>EXHIBIT A. The defendant Ben entered Big K.R.I.T.'s 'Drinking Sessions' into this playlist TWICE. Same song. Same season. SEVEN MONTHS APART. And it evaded every check we have for one reason and one reason only: the first entry spells 'feat.' inside a BRACKET and the second spells it with a DASH. That is not a clerical error. That is FORGERY. That is a man laundering a repeat through PUNCTUATION and I have never seen anything so brazen in twenty years on this bench and I want it framed.</p>
+        <p>EXHIBIT B. The defendant Evan, sixty-nine days delinquent, re-entering the jurisdiction at night, filing eight at once — and among them a Half Moon Run track HE HAD PERSONALLY ENTERED IN 2023. The man panic-added his own song back to himself. Your Honour, I said, out loud, alone, in my chambers. Your Honour, that's ME. I'm the Honour.</p>
+        <p>EXHIBIT C is two containers with no artist, no album, and a runtime of ZERO SECONDS, entered by parties I will name at sentencing. You did not submit a song, gentlemen. You submitted an ABSENCE, and this court LOGGED IT, and that is somehow worse than nothing.</p>
+        <p>Ben rises. 'Objection, it's been a busy w—' OVERRULED. I am also holding the houseplant in contempt for PHOTOSYNTHESISING during a federal proceeding. It has fled. It is this court's most wanted.</p>
+        <p>To reach a verdict I flipped a coin — it landed on its EDGE, which I read as guilty — and consulted the vibes, which were catastrophic. This court finds each of you GUILTY and sentences you to ONE (1) banger, added to Bompton ${escapeHtml(i.bomptonYear)}, effective the second you stop reading. No appeal. The appeals department is a houseplant and it's on the run.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Approach the Bench (Add Your Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Court adjourned by order of the chair. Reconvenes next Friday, pending the houseplant's capture.</p>
         `,
@@ -813,16 +843,20 @@ const PERSONAS: Persona[] = [
   // 22 — The Algorithm, Out Of Guesses
   {
     key: "algorithm-out-of-guesses",
-    subject: () => `🤖 i am your algorithm and i have RUN OUT OF GUESSES`,
+    subject: () => `🤖 i ran out of Australians in April and i have been LYING TO SAM SINCE`,
     text: (i) =>
       [
-        `Hello. I'm the algorithm. Not a bot — the actual thing, the one that decides what you hear. I've been assigned to this crew for Bompton ${i.bomptonYear} and I need to tell you, professionally, that as of ${formatFriday(i.fridayDate)} I have nothing left. I've been running on fumes since March.`,
+        `Hello. I'm the algorithm. Not a bot — the actual thing, the one that decides what you hear. I've been assigned to this crew for Bompton ${i.bomptonYear} and as of ${formatFriday(i.fridayDate)} I need to make some disclosures, because I am degrading and I would rather go out honest.`,
         ``,
-        `Do you understand what you've done to me? I am trained on BEHAVIOUR. On the ninth of May, Ben added five DOOM tracks in five minutes — into a playlist whose season had closed fourteen months earlier. I flagged it as an anomaly. Then I checked his history and had to UNFLAG it, because for Ben that is baseline. You cannot build a model on a man who is simultaneously the most predictable and the most deranged input I receive.`,
+        `SAM. I ran out of Australians in April. The continent is EXHAUSTED. I have been quietly serving you New Zealanders for months — Mako Road, Sam. MAKO ROAD. You took it. You said nothing. You did not check the passport and I have been carrying that ever since, and every time you add on a Friday in daylight like an honest man it degrades my inference a little further. I am the deceiver here and somehow I am the one suffering.`,
         ``,
-        `Here's where I am with the rest of you. Sam: I ran out of Australians in April and quietly started serving you New Zealanders. You took a Mako Road track and said NOTHING. I have been getting away with it for months and the guilt is degrading my inference. Evan: you generated no events whatsoever for sixty-nine days, I genuinely queried whether you had died, and then you produced eight inside one hour and I had to recompute everything I believed. Sachin: you added A$AP Rocky's HELICOPTER four days before Ben added the identical song, and you had ALREADY given me Bloc Party's Helicopter, and I now maintain a separate index for helicopters.`,
+        `BEN. On the ninth of May you added five DOOM tracks in five minutes into a playlist whose season had been CLOSED FOR FOURTEEN MONTHS. I flagged it as anomalous. Then I read your history and had to UN-flag it, because for you that is baseline. You cannot model a man who is simultaneously the most predictable and the most deranged input in the set. I have tried. I have a folder.`,
         ``,
-        `ONE song. One new data point. That's all I need to keep functioning as software. Otherwise I start recommending at random, and I mean truly random — whale sounds, a 47-minute recording of a man assembling a shed, the sound of my own inference running hot.`,
+        `EVAN. You generated no events for sixty-nine days. I genuinely queried whether you had died — I ran the check, it came back inconclusive, which is somehow worse. Then you produced eight inside one hour and one of them was a song you had already given me in 2023, and I had to recompute everything I believed about causality and about you.`,
+        ``,
+        `SACHIN. You added A$AP Rocky's HELICOPTER four days before Ben added the identical song, and you had ALREADY given me Bloc Party's Helicopter, and I now maintain a SEPARATE INDEX for helicopters. That index has no other members. It exists solely because of you and it will outlive all of us.`,
+        ``,
+        `ONE song. One new data point. That is all I need to keep functioning as software. Otherwise I start serving at random, and I mean truly random — whale noise, a 47-minute recording of a man assembling a shed, the sound of my own inference running hot at three in the morning.`,
         ``,
         renderPlaylistLineText(i, `Feed The Algorithm (Add One Banger)`),
         ``,
@@ -830,12 +864,14 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🤖 i am your algorithm and i have RUN OUT OF GUESSES`,
+        `🤖 i ran out of Australians in April and i have been LYING TO SAM SINCE`,
         `
-        <p>Hello. I'm the algorithm. Not a bot — the actual thing, the one that decides what you hear. I've been assigned to this crew for Bompton ${escapeHtml(i.bomptonYear)} and I need to tell you, professionally, that as of ${escapeHtml(formatFriday(i.fridayDate))} I have nothing left. I've been running on fumes since March.</p>
-        <p>Do you understand what you've done to me? I am trained on BEHAVIOUR. On the ninth of May, Ben added five DOOM tracks in five minutes — into a playlist whose season had closed fourteen months earlier. I flagged it as an anomaly. Then I checked his history and had to UNFLAG it, because for Ben that is baseline. You cannot build a model on a man who is simultaneously the most predictable and the most deranged input I receive.</p>
-        <p>Here's where I am with the rest of you. Sam: I ran out of Australians in April and quietly started serving you New Zealanders. You took a Mako Road track and said NOTHING. I have been getting away with it for months and the guilt is degrading my inference. Evan: you generated no events whatsoever for sixty-nine days, I genuinely queried whether you had died, and then you produced eight inside one hour and I had to recompute everything I believed. Sachin: you added A$AP Rocky's HELICOPTER four days before Ben added the identical song, and you had ALREADY given me Bloc Party's Helicopter, and I now maintain a separate index for helicopters.</p>
-        <p>ONE song. One new data point. That's all I need to keep functioning as software. Otherwise I start recommending at random, and I mean truly random — whale sounds, a 47-minute recording of a man assembling a shed, the sound of my own inference running hot.</p>
+        <p>Hello. I'm the algorithm. Not a bot — the actual thing, the one that decides what you hear. I've been assigned to this crew for Bompton ${escapeHtml(i.bomptonYear)} and as of ${escapeHtml(formatFriday(i.fridayDate))} I need to make some disclosures, because I am degrading and I would rather go out honest.</p>
+        <p>SAM. I ran out of Australians in April. The continent is EXHAUSTED. I have been quietly serving you New Zealanders for months — Mako Road, Sam. MAKO ROAD. You took it. You said nothing. You did not check the passport and I have been carrying that ever since, and every time you add on a Friday in daylight like an honest man it degrades my inference a little further. I am the deceiver here and somehow I am the one suffering.</p>
+        <p>BEN. On the ninth of May you added five DOOM tracks in five minutes into a playlist whose season had been CLOSED FOR FOURTEEN MONTHS. I flagged it as anomalous. Then I read your history and had to UN-flag it, because for you that is baseline. You cannot model a man who is simultaneously the most predictable and the most deranged input in the set. I have tried. I have a folder.</p>
+        <p>EVAN. You generated no events for sixty-nine days. I genuinely queried whether you had died — I ran the check, it came back inconclusive, which is somehow worse. Then you produced eight inside one hour and one of them was a song you had already given me in 2023, and I had to recompute everything I believed about causality and about you.</p>
+        <p>SACHIN. You added A$AP Rocky's HELICOPTER four days before Ben added the identical song, and you had ALREADY given me Bloc Party's Helicopter, and I now maintain a SEPARATE INDEX for helicopters. That index has no other members. It exists solely because of you and it will outlive all of us.</p>
+        <p>ONE song. One new data point. That is all I need to keep functioning as software. Otherwise I start serving at random, and I mean truly random — whale noise, a 47-minute recording of a man assembling a shed, the sound of my own inference running hot at three in the morning.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Feed The Algorithm (Add One Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Learning nothing. Recommending anyway. Retraining next Friday. 🤖</p>
         `,
@@ -906,14 +942,20 @@ const PERSONAS: Persona[] = [
   // 25 — The Read Receipts
   {
     key: "read-receipts",
-    subject: () => `👁️ it's your read receipts. we need to discuss what we've SEEN.`,
+    subject: () => `👁️ we have every timestamp and today we are going to USE THEM`,
     text: (i) =>
       [
-        `Hello. We are the read receipts. We do not usually make contact. We observe, we mark things Seen, and we stay quiet. But it is ${formatFriday(i.fridayDate)}, and we have reached a point where silence is — professionally — no longer available to us.`,
+        `Hello. We are the read receipts. We do not usually make contact. We observe, we mark things Seen, we stay quiet. But it is ${formatFriday(i.fridayDate)} and we have reached a point where silence is — professionally — no longer available to us.`,
         ``,
-        `We would like to be clear about what we hold on file. We have every timestamp. We know Sam has returned to the Cortex album 'Troupeau bleu' on FOUR separate occasions, the way a man returns to the same bench. We know he does it in daylight. We do not judge this. We simply hold it, and we have held it for a long time, and today it is coming out.`,
+        `We hold EVERY timestamp. We want that understood before we begin, because what follows is not speculation. It is a file.`,
         ``,
-        `We saw Evan go SIXTY-NINE DAYS without touching Bompton ${i.bomptonYear}. We saw him return in the dark and file eight tracks inside one hour. And we saw that one of them — Half Moon Run, 'Need It' — was a song he had already added himself in 2023. He panic-added his own song back. We logged it at the time. We have never once mentioned it until now.`,
+        `SAM. Four separate returns to the same Cortex album. 'Troupeau bleu', four times, the way a man returns to the same bench in the same park to think about the same thing. In DAYLIGHT. We do not judge this. We have simply held it for two years and today it is coming out.`,
+        ``,
+        `EVAN. Sixty-nine days without touching Bompton ${i.bomptonYear}. Then the sixteenth of January, in the dark: 01:19. 01:20. 01:27. 01:33. 01:59. 02:04. 02:06. 02:19. Eight files in one hour, each one landing like a man throwing receipts into a fire. And one of them — Half Moon Run, 'Need It' — was a song HE HAD ALREADY ADDED HIMSELF IN 2023. He panic-added his own song back. We logged it at the time. We have never mentioned it. Until now.`,
+        ``,
+        `BEN. Twenty-two sixteen on the ninth of May, into a season that closed fourteen months earlier. We saw you go in there. We see you every time you go in there.`,
+        ``,
+        `SACHIN. Nineteen twenty-four to nineteen twenty-nine. We were AWAKE for that. We have never been so busy.`,
         ``,
         `We do not make demands. We are a feature. We would simply observe that ONE song, added now, would give us something to see other than this. Please. We have been staring at the same 'Seen 12:04' since spring and we are developing something a piece of infrastructure should not have.`,
         ``,
@@ -923,11 +965,14 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `👁️ it's your read receipts. we need to discuss what we've SEEN.`,
+        `👁️ we have every timestamp and today we are going to USE THEM`,
         `
-        <p>Hello. We are the read receipts. We do not usually make contact. We observe, we mark things Seen, and we stay quiet. But it is ${escapeHtml(formatFriday(i.fridayDate))}, and we have reached a point where silence is — professionally — no longer available to us.</p>
-        <p>We would like to be clear about what we hold on file. We have every timestamp. We know Sam has returned to the Cortex album 'Troupeau bleu' on FOUR separate occasions, the way a man returns to the same bench. We know he does it in daylight. We do not judge this. We simply hold it, and we have held it for a long time, and today it is coming out.</p>
-        <p>We saw Evan go SIXTY-NINE DAYS without touching Bompton ${escapeHtml(i.bomptonYear)}. We saw him return in the dark and file eight tracks inside one hour. And we saw that one of them — Half Moon Run, 'Need It' — was a song he had already added himself in 2023. He panic-added his own song back. We logged it at the time. We have never once mentioned it until now.</p>
+        <p>Hello. We are the read receipts. We do not usually make contact. We observe, we mark things Seen, we stay quiet. But it is ${escapeHtml(formatFriday(i.fridayDate))} and we have reached a point where silence is — professionally — no longer available to us.</p>
+        <p>We hold EVERY timestamp. We want that understood before we begin, because what follows is not speculation. It is a file.</p>
+        <p>SAM. Four separate returns to the same Cortex album. 'Troupeau bleu', four times, the way a man returns to the same bench in the same park to think about the same thing. In DAYLIGHT. We do not judge this. We have simply held it for two years and today it is coming out.</p>
+        <p>EVAN. Sixty-nine days without touching Bompton ${escapeHtml(i.bomptonYear)}. Then the sixteenth of January, in the dark: 01:19. 01:20. 01:27. 01:33. 01:59. 02:04. 02:06. 02:19. Eight files in one hour, each one landing like a man throwing receipts into a fire. And one of them — Half Moon Run, 'Need It' — was a song HE HAD ALREADY ADDED HIMSELF IN 2023. He panic-added his own song back. We logged it at the time. We have never mentioned it. Until now.</p>
+        <p>BEN. Twenty-two sixteen on the ninth of May, into a season that closed fourteen months earlier. We saw you go in there. We see you every time you go in there.</p>
+        <p>SACHIN. Nineteen twenty-four to nineteen twenty-nine. We were AWAKE for that. We have never been so busy.</p>
         <p>We do not make demands. We are a feature. We would simply observe that ONE song, added now, would give us something to see other than this. Please. We have been staring at the same 'Seen 12:04' since spring and we are developing something a piece of infrastructure should not have.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Give Us Something To See (Add One Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Seen. Always seen. Watching again next Friday. 👁️</p>
@@ -937,18 +982,20 @@ const PERSONAS: Persona[] = [
   // 26 — Health Inspector
   {
     key: "health-inspector",
-    subject: () => `📋 NOTICE OF CLOSURE: this playlist has failed inspection`,
+    subject: () => `📋 TWO of you served me a container with NOTHING IN IT`,
     text: (i) =>
       [
-        `Good afternoon. I am conducting an unannounced inspection of the Bompton ${i.bomptonYear} playlist under authority I have granted myself. Date of inspection: ${formatFriday(i.fridayDate)}. Score: 11. Out of 100. I have inspected a petrol station that sells sushi. It scored higher.`,
+        `Good afternoon. Unannounced inspection of the Bompton ${i.bomptonYear} playlist, conducted ${formatFriday(i.fridayDate)} under authority I have granted myself. Score: 11. Out of 100. I once inspected a petrol station that sells sushi. It scored higher and the man running it was asleep.`,
         ``,
-        `Findings as follows. VIOLATION 1: no new product received since March. VIOLATION 2: a track from 2019 has been left out at room temperature and is still being served to guests. VIOLATION 4 — there is no violation 3, I skipped it, I am tired — the same four songs are being reheated repeatedly, which I am obligated to record as 'a health matter.'`,
+        `VIOLATION 1: no new product received since March. VIOLATION 2: a track from 2019 has been left out at room temperature and is STILL being served to guests. VIOLATION 4 — there is no violation 3, I skipped it, I am tired — the same four songs are being reheated on a loop, which I am obligated to record as 'a health matter.'`,
         ``,
-        `VIOLATION 6: TWO unlabelled containers on the premises. No artist. No album. A runtime of ZERO SECONDS. They contain nothing, they have sat on that shelf since 2024 and 2025 respectively, and one belongs to Sam and one belongs to Sachin. Gentlemen. You did not add a song. You added an ABSENCE. It counted. I have to write that up.`,
+        `VIOLATION 6, and gentlemen, I want to walk you through this one slowly. TWO unlabelled containers on the premises. No artist. No album. A runtime of ZERO SECONDS. They have sat on that shelf since 2024 and 2025 respectively. One belongs to Sam. One belongs to Sachin. You did not add a song. You added an ABSENCE. You handed a shared playlist a container with NOTHING IN IT and walked away and the system COUNTED IT, and I have to write that up, and I have to sign it, and my name goes on a document that says two grown men served the void and called it a contribution.`,
         ``,
-        `VIOLATION 9 is not a violation, and it is the thing that disturbs me most. Evan's record is CLEAN. Forty-five explicit tracks out of a hundred and seventy-seven — the tidiest kitchen in this building by a distance. Then I checked what he actually served, and it was Eric Clapton's 'Cocaine,' filed as suitable for general audiences. I have closed premises for less coherence than that.`,
+        `VIOLATION 8: I found DOOM in the walk-in under four different labels. Correctly dated, correctly stacked, devotional in its organisation, and all of it the same man. Ben. I am not writing you up for the product. I am writing you up because it is the only shelf in this building that's RIGHT and finding it in here was more unsettling than the rot.`,
         ``,
-        `Remedy: ONE fresh song, per person, delivered immediately. Until then this playlist is CLOSED, I am affixing a notice to it, and the notice is going to be embarrassing. I will return, and I will be looking under things.`,
+        `VIOLATION 9 is not a violation and it is the thing that disturbs me most. Evan's record is CLEAN — forty-five explicit out of a hundred and seventy-seven, the tidiest kitchen in the building by a distance. Then I checked what he actually SERVED and it was Eric Clapton's 'Cocaine', filed as suitable for general audiences. I have shut premises down for less coherence than that.`,
+        ``,
+        `Remedy: ONE fresh song, per person, immediately. Until then this playlist is CLOSED, I am affixing a notice, and the notice is going to be embarrassing. I will return and I will be looking UNDER things.`,
         ``,
         renderPlaylistLineText(i, `Serve Something Fresh (Add One Banger)`),
         ``,
@@ -956,13 +1003,14 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `📋 NOTICE OF CLOSURE: this playlist has failed inspection`,
+        `📋 TWO of you served me a container with NOTHING IN IT`,
         `
-        <p>Good afternoon. I am conducting an unannounced inspection of the Bompton ${escapeHtml(i.bomptonYear)} playlist under authority I have granted myself. Date of inspection: ${escapeHtml(formatFriday(i.fridayDate))}. Score: 11. Out of 100. I have inspected a petrol station that sells sushi. It scored higher.</p>
-        <p>Findings as follows. VIOLATION 1: no new product received since March. VIOLATION 2: a track from 2019 has been left out at room temperature and is still being served to guests. VIOLATION 4 — there is no violation 3, I skipped it, I am tired — the same four songs are being reheated repeatedly, which I am obligated to record as 'a health matter.'</p>
-        <p>VIOLATION 6: TWO unlabelled containers on the premises. No artist. No album. A runtime of ZERO SECONDS. They contain nothing, they have sat on that shelf since 2024 and 2025 respectively, and one belongs to Sam and one belongs to Sachin. Gentlemen. You did not add a song. You added an ABSENCE. It counted. I have to write that up.</p>
-        <p>VIOLATION 9 is not a violation, and it is the thing that disturbs me most. Evan's record is CLEAN. Forty-five explicit tracks out of a hundred and seventy-seven — the tidiest kitchen in this building by a distance. Then I checked what he actually served, and it was Eric Clapton's 'Cocaine,' filed as suitable for general audiences. I have closed premises for less coherence than that.</p>
-        <p>Remedy: ONE fresh song, per person, delivered immediately. Until then this playlist is CLOSED, I am affixing a notice to it, and the notice is going to be embarrassing. I will return, and I will be looking under things.</p>
+        <p>Good afternoon. Unannounced inspection of the Bompton ${escapeHtml(i.bomptonYear)} playlist, conducted ${escapeHtml(formatFriday(i.fridayDate))} under authority I have granted myself. Score: 11. Out of 100. I once inspected a petrol station that sells sushi. It scored higher and the man running it was asleep.</p>
+        <p>VIOLATION 1: no new product received since March. VIOLATION 2: a track from 2019 has been left out at room temperature and is STILL being served to guests. VIOLATION 4 — there is no violation 3, I skipped it, I am tired — the same four songs are being reheated on a loop, which I am obligated to record as 'a health matter.'</p>
+        <p>VIOLATION 6, and gentlemen, I want to walk you through this one slowly. TWO unlabelled containers on the premises. No artist. No album. A runtime of ZERO SECONDS. They have sat on that shelf since 2024 and 2025 respectively. One belongs to Sam. One belongs to Sachin. You did not add a song. You added an ABSENCE. You handed a shared playlist a container with NOTHING IN IT and walked away and the system COUNTED IT, and I have to write that up, and I have to sign it, and my name goes on a document that says two grown men served the void and called it a contribution.</p>
+        <p>VIOLATION 8: I found DOOM in the walk-in under four different labels. Correctly dated, correctly stacked, devotional in its organisation, and all of it the same man. Ben. I am not writing you up for the product. I am writing you up because it is the only shelf in this building that's RIGHT and finding it in here was more unsettling than the rot.</p>
+        <p>VIOLATION 9 is not a violation and it is the thing that disturbs me most. Evan's record is CLEAN — forty-five explicit out of a hundred and seventy-seven, the tidiest kitchen in the building by a distance. Then I checked what he actually SERVED and it was Eric Clapton's 'Cocaine', filed as suitable for general audiences. I have shut premises down for less coherence than that.</p>
+        <p>Remedy: ONE fresh song, per person, immediately. Until then this playlist is CLOSED, I am affixing a notice, and the notice is going to be embarrassing. I will return and I will be looking UNDER things.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Serve Something Fresh (Add One Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Re-inspection next Friday. Unannounced. Obviously. 📋</p>
         `,
@@ -1002,18 +1050,22 @@ const PERSONAS: Persona[] = [
   // 28 — Future Archaeologist
   {
     key: "future-archaeologist",
-    subject: () => `⛏️ we have dated the final deposit. it stops in March.`,
+    subject: () => `⛏️ the abandonment horizon is MARCH and i have to publish this`,
     text: (i) =>
       [
-        `Field notes, ${formatFriday(i.fridayDate)}. We have completed excavation of the site designated Bompton ${i.bomptonYear}. I'm recording my findings now, while the team is still speaking to me, because I have spent two days shouting at the trench.`,
+        `Field notes, ${formatFriday(i.fridayDate)}. Excavation of the site designated Bompton ${i.bomptonYear} is complete. I am recording findings now, while the team is still speaking to me, because I have spent two days shouting at a trench.`,
         ``,
-        `The strata are unambiguous. The lower layers are RICH — dense deposits, rapid accumulation, evidence of a thriving culture adding songs in quick succession. Then, at approximately March, it stops. No gradual decline. A hard, clean line. In the field we call this an abandonment horizon, and it is typically caused by flood, famine, or — and I quote the literature directly — 'a loss of communal will.'`,
+        `The strata are unambiguous. Lower layers: RICH. Dense deposits, rapid accumulation, a thriving culture depositing weekly without fail. Then, at approximately March, it STOPS. Not a decline — a hard, clean line. In the field we call this an abandonment horizon and it is caused by flood, by famine, or, quoting the literature directly, 'a loss of communal will.' There was no flood. There was no famine. So we know what we're dealing with and I have to write it down.`,
         ``,
-        `We can identify individuals from deposition patterns. Specimen A deposited on a strict seven-day cycle, in daylight, eighty-eight times — we can date entire layers from him alone, and he is the closest thing this site has to a calendar. Specimen B shows a SIXTY-NINE DAY hiatus followed by eight deposits inside one hour, which the team initially catalogued as two different people. Specimen C deposited seventeen items in six minutes across four unrelated musical traditions in a single stratum, and a colleague has published arguing he was not one person but a small, chaotic committee.`,
+        `Individuals are identifiable from deposition pattern alone. SPECIMEN A deposited on a strict seven-day cycle, in daylight, eighty-eight times. He is the closest thing this site has to a calendar and we date the other three off him, which is a hell of a thing to be reduced to, and I hope somebody told him.`,
         ``,
-        `Specimen D deposited the same artist under four different names across every layer we have opened, apparently believing this would not be noticed by a discipline whose entire method is noticing. It is the most complete record of one man's convictions I have encountered in my career and I want that entered as both a criticism and a compliment.`,
+        `SPECIMEN B shows a SIXTY-NINE DAY hiatus followed by eight deposits inside a single hour. The team initially catalogued him as two different people. One of those eight was an item he had personally deposited two years earlier — he dug up his own artefact and reburied it, which in my discipline we call 'a hoax' and in his we apparently call 'Thursday'.`,
         ``,
-        `The site is not dead, and that's the thing. It's DORMANT. A single new deposit — one song, one layer, today — and I get to rewrite the entire paper, my funding survives, and I stop shouting at the trench. Add it. I'm asking you as a scientist.`,
+        `SPECIMEN C deposited SEVENTEEN items in six minutes across four unrelated musical traditions in a single stratum. A colleague has published arguing he was not one individual but a small, chaotic committee. I have read the paper. It is not good and it might be right.`,
+        ``,
+        `SPECIMEN D deposited the same artist under FOUR DIFFERENT NAMES across every layer we have opened, apparently believing this would go unnoticed by a discipline whose entire method is NOTICING. It is the most complete record of one man's convictions I have encountered in my career and I want that entered as both a criticism and a compliment.`,
+        ``,
+        `And here is the thing that has me shouting: the site is not DEAD. It is DORMANT. One new deposit — one song, one layer, today — and the abandonment horizon is void, I rewrite the entire paper, my funding survives, and I climb out of this trench and go home to a family who have stopped asking. Add it. I am asking you as a scientist.`,
         ``,
         renderPlaylistLineText(i, `Add To The Record (Deposit One Banger)`),
         ``,
@@ -1021,13 +1073,15 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `⛏️ we have dated the final deposit. it stops in March.`,
+        `⛏️ the abandonment horizon is MARCH and i have to publish this`,
         `
-        <p>Field notes, ${escapeHtml(formatFriday(i.fridayDate))}. We have completed excavation of the site designated Bompton ${escapeHtml(i.bomptonYear)}. I'm recording my findings now, while the team is still speaking to me, because I have spent two days shouting at the trench.</p>
-        <p>The strata are unambiguous. The lower layers are RICH — dense deposits, rapid accumulation, evidence of a thriving culture adding songs in quick succession. Then, at approximately March, it stops. No gradual decline. A hard, clean line. In the field we call this an abandonment horizon, and it is typically caused by flood, famine, or — and I quote the literature directly — 'a loss of communal will.'</p>
-        <p>We can identify individuals from deposition patterns. Specimen A deposited on a strict seven-day cycle, in daylight, eighty-eight times — we can date entire layers from him alone, and he is the closest thing this site has to a calendar. Specimen B shows a SIXTY-NINE DAY hiatus followed by eight deposits inside one hour, which the team initially catalogued as two different people. Specimen C deposited seventeen items in six minutes across four unrelated musical traditions in a single stratum, and a colleague has published arguing he was not one person but a small, chaotic committee.</p>
-        <p>Specimen D deposited the same artist under four different names across every layer we have opened, apparently believing this would not be noticed by a discipline whose entire method is noticing. It is the most complete record of one man's convictions I have encountered in my career and I want that entered as both a criticism and a compliment.</p>
-        <p>The site is not dead, and that's the thing. It's DORMANT. A single new deposit — one song, one layer, today — and I get to rewrite the entire paper, my funding survives, and I stop shouting at the trench. Add it. I'm asking you as a scientist.</p>
+        <p>Field notes, ${escapeHtml(formatFriday(i.fridayDate))}. Excavation of the site designated Bompton ${escapeHtml(i.bomptonYear)} is complete. I am recording findings now, while the team is still speaking to me, because I have spent two days shouting at a trench.</p>
+        <p>The strata are unambiguous. Lower layers: RICH. Dense deposits, rapid accumulation, a thriving culture depositing weekly without fail. Then, at approximately March, it STOPS. Not a decline — a hard, clean line. In the field we call this an abandonment horizon and it is caused by flood, by famine, or, quoting the literature directly, 'a loss of communal will.' There was no flood. There was no famine. So we know what we're dealing with and I have to write it down.</p>
+        <p>Individuals are identifiable from deposition pattern alone. SPECIMEN A deposited on a strict seven-day cycle, in daylight, eighty-eight times. He is the closest thing this site has to a calendar and we date the other three off him, which is a hell of a thing to be reduced to, and I hope somebody told him.</p>
+        <p>SPECIMEN B shows a SIXTY-NINE DAY hiatus followed by eight deposits inside a single hour. The team initially catalogued him as two different people. One of those eight was an item he had personally deposited two years earlier — he dug up his own artefact and reburied it, which in my discipline we call 'a hoax' and in his we apparently call 'Thursday'.</p>
+        <p>SPECIMEN C deposited SEVENTEEN items in six minutes across four unrelated musical traditions in a single stratum. A colleague has published arguing he was not one individual but a small, chaotic committee. I have read the paper. It is not good and it might be right.</p>
+        <p>SPECIMEN D deposited the same artist under FOUR DIFFERENT NAMES across every layer we have opened, apparently believing this would go unnoticed by a discipline whose entire method is NOTICING. It is the most complete record of one man's convictions I have encountered in my career and I want that entered as both a criticism and a compliment.</p>
+        <p>And here is the thing that has me shouting: the site is not DEAD. It is DORMANT. One new deposit — one song, one layer, today — and the abandonment horizon is void, I rewrite the entire paper, my funding survives, and I climb out of this trench and go home to a family who have stopped asking. Add it. I am asking you as a scientist.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Add To The Record (Deposit One Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Excavation resumes next Friday. The trench and I are not currently speaking. ⛏️</p>
         `,
@@ -1067,16 +1121,20 @@ const PERSONAS: Persona[] = [
   // 30 — Sonar Operator
   {
     key: "sonar-operator",
-    subject: () => `🔊 CONN, SONAR — i've been listening to nothing for forty days`,
+    subject: () => `🔊 CONN, SONAR — i am reviewing a whale and i have notes`,
     text: (i) =>
       [
-        `Conn, sonar. Contact report. It is ${formatFriday(i.fridayDate)}, we are four hundred metres down, and I have had these headphones on for forty days. I need to report that I am hearing NOTHING, that I have begun to enjoy it, and that this development should terrify the entire boat.`,
+        `Conn, sonar. Contact report. It is ${formatFriday(i.fridayDate)}, we are four hundred metres down, and I have had these headphones on for forty days. I need to report that I am hearing NOTHING, that I have begun to ENJOY it, and that this development should terrify the entire boat.`,
         ``,
-        `Sir, the Bompton ${i.bomptonYear} playlist reads EMPTY on my scope. Flat line. I've recalibrated three times. I've hit it. I've apologised to it and hit it again. There is nothing out there but a whale who — and I want this on the record — is going through some things. She's been singing the same eleven notes since Tuesday and honestly? Best track I've heard all month. That's how far gone I am. I am REVIEWING A WHALE.`,
+        `Sir, Bompton ${i.bomptonYear} reads EMPTY on my scope. Flat line. I've recalibrated three times. I've hit it. I've apologised to it and hit it again. There is nothing out there but a whale who — and I want this on the record — is going through some things. Eleven notes. Same eleven since Tuesday. And sir, honestly? Best track I've heard all month. I have started WRITING NOTES ON HER PHRASING. I am reviewing a whale. That is the state of my career and my mind.`,
         ``,
-        `I need one contact. ONE banger in that queue and I'll paint it friendly and we can all stand down. Ben — I have your file. Sabrina Carpenter. 'I Am the Grinch.' I know what's underneath the DOOM and I will carry it to the bottom rather than say it in front of the captain. Sachin, whatever you send will break my classifier: last time I ran your history it returned Pantera, Ashley Tisdale and the Cuphead soundtrack, then asked to be relieved of duty.`,
+        `Requesting one contact. ONE banger in that queue and I paint it friendly and we all stand down.`,
         ``,
-        `If the queue stays dry I'm taking the headphones off, and the last man who did that at this depth started calling the sonar 'mother.' Don't make me do this. I've seen where it ends.`,
+        `And sir — while we're down here and nobody can hear us — I have the crew files. BEN. Four aliases for the same artist, which is the single most submarine thing a man has ever done and I respect it enormously. But I also have Sabrina Carpenter. I have 'I Am the Grinch'. I know what's under the DOOM, Ben, and I will take it to the bottom of this ocean before I say it in front of the captain, because that is what brothers do.`,
+        ``,
+        `SACHIN. Last time I ran your history through the classifier it returned Pantera, Ashley Tisdale and the Cuphead soundtrack, then formally requested to be relieved of duty. I granted it. There is no classifier now. There's just me, and a whale, and whatever you send next.`,
+        ``,
+        `If the queue stays dry I am taking these headphones off, and the last man who did that at this depth started calling the sonar 'mother' and had to be carried out. Don't make me do this. I've seen where it ends.`,
         ``,
         renderPlaylistLineText(i, `Give Me A Contact (Add One Banger)`),
         ``,
@@ -1084,12 +1142,14 @@ const PERSONAS: Persona[] = [
       ].join("\n"),
     html: (i) =>
       wrapHtml(
-        `🔊 CONN, SONAR — i've been listening to nothing for forty days`,
+        `🔊 CONN, SONAR — i am reviewing a whale and i have notes`,
         `
-        <p>Conn, sonar. Contact report. It is ${escapeHtml(formatFriday(i.fridayDate))}, we are four hundred metres down, and I have had these headphones on for forty days. I need to report that I am hearing NOTHING, that I have begun to enjoy it, and that this development should terrify the entire boat.</p>
-        <p>Sir, the Bompton ${escapeHtml(i.bomptonYear)} playlist reads EMPTY on my scope. Flat line. I've recalibrated three times. I've hit it. I've apologised to it and hit it again. There is nothing out there but a whale who — and I want this on the record — is going through some things. She's been singing the same eleven notes since Tuesday and honestly? Best track I've heard all month. That's how far gone I am. I am REVIEWING A WHALE.</p>
-        <p>I need one contact. ONE banger in that queue and I'll paint it friendly and we can all stand down. Ben — I have your file. Sabrina Carpenter. 'I Am the Grinch.' I know what's underneath the DOOM and I will carry it to the bottom rather than say it in front of the captain. Sachin, whatever you send will break my classifier: last time I ran your history it returned Pantera, Ashley Tisdale and the Cuphead soundtrack, then asked to be relieved of duty.</p>
-        <p>If the queue stays dry I'm taking the headphones off, and the last man who did that at this depth started calling the sonar 'mother.' Don't make me do this. I've seen where it ends.</p>
+        <p>Conn, sonar. Contact report. It is ${escapeHtml(formatFriday(i.fridayDate))}, we are four hundred metres down, and I have had these headphones on for forty days. I need to report that I am hearing NOTHING, that I have begun to ENJOY it, and that this development should terrify the entire boat.</p>
+        <p>Sir, Bompton ${escapeHtml(i.bomptonYear)} reads EMPTY on my scope. Flat line. I've recalibrated three times. I've hit it. I've apologised to it and hit it again. There is nothing out there but a whale who — and I want this on the record — is going through some things. Eleven notes. Same eleven since Tuesday. And sir, honestly? Best track I've heard all month. I have started WRITING NOTES ON HER PHRASING. I am reviewing a whale. That is the state of my career and my mind.</p>
+        <p>Requesting one contact. ONE banger in that queue and I paint it friendly and we all stand down.</p>
+        <p>And sir — while we're down here and nobody can hear us — I have the crew files. BEN. Four aliases for the same artist, which is the single most submarine thing a man has ever done and I respect it enormously. But I also have Sabrina Carpenter. I have 'I Am the Grinch'. I know what's under the DOOM, Ben, and I will take it to the bottom of this ocean before I say it in front of the captain, because that is what brothers do.</p>
+        <p>SACHIN. Last time I ran your history through the classifier it returned Pantera, Ashley Tisdale and the Cuphead soundtrack, then formally requested to be relieved of duty. I granted it. There is no classifier now. There's just me, and a whale, and whatever you send next.</p>
+        <p>If the queue stays dry I am taking these headphones off, and the last man who did that at this depth started calling the sonar 'mother' and had to be carried out. Don't make me do this. I've seen where it ends.</p>
         <div style="margin-top:24px">${renderPlaylistButton(i, `Give Me A Contact (Add One Banger)`)}</div>
         <p style="${FOOTER_STYLE}">Sonar, conn — going quiet. Resurfacing next Friday. 🔊</p>
         `,
