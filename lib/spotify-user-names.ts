@@ -9,8 +9,8 @@
 
 const SPOTIFY_USER_DISPLAY_NAMES: Record<string, string> = {
   "ben.silver-ca": "Ben",
-  Sachin221: "Sachin",
-  Sam55Silver: "Sam",
+  sachin221: "Sachin",
+  sam55silver: "Sam",
   n8mrhp1paen9qp80qhdwv4oc2: "Evan",
 };
 
@@ -27,11 +27,28 @@ const CREW_DISPLAY_NAMES: Record<string, string> = {
   "Sachin Mohandas": "Sachin",
 };
 
+const SPOTIFY_USER_DISPLAY_NAMES_LOWER: Record<string, string> =
+  Object.fromEntries(
+    Object.entries(SPOTIFY_USER_DISPLAY_NAMES).map(([id, name]) => [
+      id.toLowerCase(),
+      name,
+    ]),
+  );
+
+// Matched case-insensitively on purpose. The map keys used to be capitalised
+// ("Sachin221" / "Sam55Silver") while the real Spotify ids are lower-case, so
+// two of the four crew members fell through to their raw id in every track
+// list and playlist grid in the app. Normalising on read means a casing slip
+// in the table above can't reintroduce that.
 export function displaySpotifyUserName(
   spotifyUserId: string | null | undefined,
 ): string {
   if (!spotifyUserId) return "—";
-  return SPOTIFY_USER_DISPLAY_NAMES[spotifyUserId] ?? spotifyUserId;
+  return (
+    SPOTIFY_USER_DISPLAY_NAMES[spotifyUserId] ??
+    SPOTIFY_USER_DISPLAY_NAMES_LOWER[spotifyUserId.toLowerCase()] ??
+    spotifyUserId
+  );
 }
 
 // Resolve a friendly display name for a crew member. Resolution order:

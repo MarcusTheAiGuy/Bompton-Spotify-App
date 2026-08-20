@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { InitListeningSnapshotButton } from "./troubleshooting-buttons";
-import { CrewDossierButton } from "./crew-dossier-button";
 
 export const dynamic = "force-dynamic";
 
@@ -51,21 +50,6 @@ export default async function TroubleshootingPage() {
           on the daily-sync cron.
         </p>
         <InitListeningSnapshotButton />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Crew dossier (temporary)</h2>
-        <p className="max-w-3xl text-sm text-spotify-subtext">
-          Read-only export of every Bompton playlist track grouped by who
-          added it, plus per-member outlier stats (longest/shortest track,
-          repeat albums, add day-of-week and hour, longest silence, duplicate
-          adds). Raw material for writing the Friday reminder personas against
-          what the crew actually added instead of the same few genre jokes.
-          Copy the output or download it as markdown.{" "}
-          <strong>Delete this section and its three files once the data is
-          pulled</strong> — see the header comment in <code>lib/crew-dossier.ts</code>.
-        </p>
-        <CrewDossierButton />
       </section>
     </section>
   );
