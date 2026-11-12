@@ -51,7 +51,7 @@ export function isMissingTableError(error: unknown): boolean {
   return /does not exist/i.test(message);
 }
 
-function utcMidnight(date: Date): Date {
+export function utcMidnight(date: Date): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
   );
@@ -256,12 +256,6 @@ const SNAPSHOT_SOURCES: SnapshotSource[] = [
 
 const SOURCE_BY_KIND = new Map(SNAPSHOT_SOURCES.map((s) => [s.kind, s]));
 
-// The trimmed projection a snapshot of `kind` stores, so a fresh Spotify
-// response can be read exactly like a stored snapshot row.
-export function projectSnapshot(kind: string, raw: unknown): SnapshotItem[] {
-  return SOURCE_BY_KIND.get(kind)?.project(raw) ?? [];
-}
-
 // Dashboard kinds that have a daily-snapshot source. The dashboard route
 // checks this before calling recordDailySnapshot with already-fetched data.
 export const SNAPSHOT_KINDS: ReadonlySet<string> = new Set(
@@ -344,6 +338,28 @@ export async function recordDailySnapshot(
   }
 }
 
+// Fetch one list from Spotify and bank it as today's snapshot, returning
+// the raw response and the projection that was stored. Spotify errors
+// propagate, so each caller keeps its own rule for when to stop.
+export async function captureSnapshot(
+  userId: string,
+  kind: string,
+): Promise<{ raw: unknown; items: SnapshotItem[]; snapshot: SnapshotResult }> {
+  const source = SOURCE_BY_KIND.get(kind);
+  if (!source) {
+    throw new Error(`No snapshot source registered for kind "${kind}".`);
+  }
+  const raw = await source.fetch(userId);
+  const snapshot = await recordDailySnapshot(userId, kind, raw);
+  let items: SnapshotItem[] = [];
+  try {
+    items = source.project(raw);
+  } catch {
+    // recordDailySnapshot has already logged and reported this.
+  }
+  return { raw, items, snapshot };
+}
+
 export type UserArchiveResult = {
   userId: string;
   recentPlays:
@@ -389,9 +405,8 @@ export async function captureUserListeningArchive(
 
   for (const source of SNAPSHOT_SOURCES) {
     try {
-      const raw = await source.fetch(userId);
-      const snap = await recordDailySnapshot(userId, source.kind, raw);
-      result.snapshots.push({ kind: source.kind, ...snap });
+      const { snapshot } = await captureSnapshot(userId, source.kind);
+      result.snapshots.push({ kind: source.kind, ...snapshot });
     } catch (error) {
       if (error instanceof SpotifyReauthRequiredError) {
         result.needsReauth = true;

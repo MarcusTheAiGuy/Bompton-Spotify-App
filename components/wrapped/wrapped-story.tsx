@@ -78,49 +78,25 @@ export function WrappedStory({
   const track = slide.tone === "dark" ? "bg-black/20" : "bg-white/30";
   const fill = slide.tone === "dark" ? "bg-black/80" : "bg-white";
 
+  // Layers, bottom to top: the tap zones, the shapes, the slide (which
+  // lets taps through except on its own links and buttons), then the
+  // progress bars and the close button.
   return (
     <div className="mx-auto flex w-full max-w-[420px] flex-col gap-4">
-      <div
-        className={`relative h-[calc(100dvh-8rem)] max-h-[760px] min-h-[540px] w-full select-none overflow-hidden rounded-3xl shadow-card [-webkit-touch-callout:none] ${slide.background} ${slide.tone === "dark" ? "text-black" : "text-white"}`}
+      <StoryFrame
+        className={`select-none [-webkit-touch-callout:none] ${slide.background} ${slide.tone === "dark" ? "text-black" : "text-white"}`}
       >
-        <div className="absolute inset-x-3 top-3 z-20 flex gap-1" aria-hidden>
-          {slides.map((s, i) => (
-            <div
-              key={s.id}
-              className={`h-1 flex-1 overflow-hidden rounded-full ${track}`}
-            >
-              {i < index ? <div className={`h-full w-full ${fill}`} /> : null}
-              {i === index ? (
-                <div
-                  key={`${s.id}-${index}`}
-                  className={`h-full w-full origin-left animate-wrapped-fill ${fill}`}
-                  style={{ animationPlayState: paused ? "paused" : "running" }}
-                  onAnimationEnd={() => go(1)}
-                />
-              ) : null}
-            </div>
-          ))}
-        </div>
-
-        <Link
-          href={dashboardHref}
-          aria-label="Close and go back to the dashboard"
-          className="absolute right-3 top-6 z-30 flex h-9 w-9 items-center justify-center rounded-full text-2xl leading-none opacity-80 transition hover:opacity-100"
-        >
-          ×
-        </Link>
-
         <button
           type="button"
           aria-label="Previous slide"
-          className="absolute inset-y-0 left-0 z-10 w-1/3 cursor-w-resize focus:outline-none"
+          className="absolute inset-y-0 left-0 w-1/3 cursor-w-resize focus:outline-none"
           onClick={tap(-1)}
           {...press}
         />
         <button
           type="button"
           aria-label="Next slide"
-          className="absolute inset-y-0 right-0 z-10 w-2/3 cursor-e-resize focus:outline-none"
+          className="absolute inset-y-0 right-0 w-2/3 cursor-e-resize focus:outline-none"
           onClick={tap(1)}
           {...press}
         />
@@ -134,14 +110,56 @@ export function WrappedStory({
         >
           {slide.content}
         </div>
-      </div>
-      {/* The empty slide shows this itself. */}
-      {guess.basis.liveError && hasData ? (
+
+        <div className="absolute inset-x-3 top-3 z-10 flex gap-1" aria-hidden>
+          {slides.map((s, i) => (
+            <div
+              key={s.id}
+              className={`h-1 flex-1 overflow-hidden rounded-full ${track}`}
+            >
+              {i < index ? <div className={`h-full w-full ${fill}`} /> : null}
+              {i === index ? (
+                <div
+                  className={`h-full w-full origin-left animate-wrapped-fill ${fill}`}
+                  style={{ animationPlayState: paused ? "paused" : "running" }}
+                  onAnimationEnd={() => go(1)}
+                />
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        <Link
+          href={dashboardHref}
+          aria-label="Close and go back to the dashboard"
+          className="absolute right-3 top-6 z-10 flex h-9 w-9 items-center justify-center rounded-full text-2xl leading-none opacity-80 transition hover:opacity-100"
+        >
+          ×
+        </Link>
+      </StoryFrame>
+      {guess.basis.liveError ? (
         <SpotifyErrorBanner
-          title="Spotify didn't answer just now, so this guess uses stored data only. Sign in again if it says the token is gone."
-          detail={guess.basis.liveError}
+          title={`Couldn't pull fresh top lists from Spotify, so this guess uses stored data only. ${guess.basis.liveError.title}.`}
+          detail={guess.basis.liveError.detail}
         />
       ) : null}
+    </div>
+  );
+}
+
+// The phone-sized card the story plays in; the loading screen uses it too.
+export function StoryFrame({
+  className,
+  children,
+}: {
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={`relative mx-auto h-[calc(100dvh-8rem)] max-h-[760px] min-h-[540px] w-full max-w-[420px] overflow-hidden rounded-3xl shadow-card ${className}`}
+    >
+      {children}
     </div>
   );
 }
@@ -155,7 +173,9 @@ function buildSlides(
   restart: () => void,
 ): Slide[] {
   const your = isSelf ? "Your" : `${name}'s`;
+  const yours = isSelf ? "your" : `${name}'s`;
   const you = isSelf ? "you" : name;
+  const notPlayed = `Top of ${yours} charts on the days we looked.`;
   const { topTracks, topArtists, topGenres, minutes, year } = guess;
   const slides: Slide[] = [];
 
@@ -205,27 +225,16 @@ function buildSlides(
           </Rise>
           <Rise delay={150}>
             <p className="text-base text-white/80">
-              We guess from the daily snapshots of{" "}
-              {isSelf ? "your" : `${name}'s`} top tracks and artists and the
-              plays we catch, and there are none from {year} yet. Open{" "}
-              {isSelf ? "your" : `${name}'s`} dashboard (sign in again if it
-              asks), then come back tomorrow.
+              We guess from the daily snapshots of {yours} top tracks and
+              artists and the plays we catch, and there are none from {year}{" "}
+              yet. Open {yours} dashboard (sign in again if it asks), then come
+              back tomorrow.
             </p>
           </Rise>
-          {guess.basis.liveError ? (
-            <Rise delay={300}>
-              <p className="break-words rounded-xl bg-white/10 p-3 font-mono text-xs text-white/80">
-                Spotify said: {guess.basis.liveError}
-              </p>
-            </Rise>
-          ) : null}
-          <Rise
-            delay={450}
-            className="pointer-events-auto relative z-20 self-start"
-          >
+          <Rise delay={300} className="self-start">
             <Link
               href={dashboardHref}
-              className="btn-spotify normal-case tracking-normal"
+              className="btn-spotify pointer-events-auto normal-case tracking-normal"
             >
               Back to the dashboard
             </Link>
@@ -295,8 +304,7 @@ function buildSlides(
           </ol>
           <Rise delay={900}>
             <p className="text-sm font-semibold opacity-80">
-              From the Last.fm tags on {isSelf ? "your" : `${name}'s`} top
-              artists.
+              From the Last.fm tags on {yours} top artists.
             </p>
           </Rise>
         </div>
@@ -330,8 +338,8 @@ function buildSlides(
           <Rise delay={500}>
             <p className="text-sm font-semibold opacity-80">
               {topArtist.plays > 0
-                ? `We caught ${plural(topArtist.plays, "play")} of them this year, ${plural(topArtist.minutes, "minute")} in all.`
-                : `Top of ${isSelf ? "your" : `${name}'s`} charts on the days we looked.`}
+                ? `We caught ${plural(topArtist.plays, "play")} of them this year, ${plural(topArtist.minutes ?? 0, "minute")} in all.`
+                : notPlayed}
             </p>
           </Rise>
         </div>
@@ -377,7 +385,7 @@ function buildSlides(
             <p className="text-sm font-semibold opacity-80">
               {topTrack.plays > 0
                 ? `Played at least ${plural(topTrack.plays, "time")} this year.`
-                : `Top of ${isSelf ? "your" : `${name}'s`} charts on the days we looked.`}
+                : notPlayed}
             </p>
           </Rise>
         </div>
@@ -470,7 +478,7 @@ function Summary({
           ) : null}
         </div>
       </Rise>
-      <Rise delay={300} className="relative z-20 mt-auto flex flex-col gap-3">
+      <Rise delay={300} className="mt-auto flex flex-col gap-3">
         <p className="text-xs text-white/60">
           {sources.length > 0
             ? `Guessed from ${sources.join(" and ")}`
@@ -593,9 +601,7 @@ function Art({
   );
 }
 
-// Fades its content up into place. The running animation makes it a
-// stacking context, so anything clickable inside needs `relative z-20`
-// on the Rise itself to sit above the tap zones.
+// Fades its content up into place.
 function Rise({
   children,
   delay = 0,

@@ -42,17 +42,18 @@ export default async function WrappedPage({
     );
   } catch (error) {
     if (isNextControlFlowError(error)) throw error;
+    const detail = captureErrorDetail(error);
     console.error("[wrapped-guess.failed]", {
       userId,
       viewer: session.user.id,
-      message: error instanceof Error ? error.message : String(error),
+      ...detail,
     });
     return (
       <section className="flex flex-col gap-6 py-6">
         <CrashCard
           title="Couldn't put the Wrapped guess together"
           subtitle="Caught while reading the listening archive (ListeningPlay / ListeningSnapshot) or pulling the current top lists from Spotify. Reload to retry; if it keeps failing, check the tables on /troubleshooting."
-          detail={captureErrorDetail(error)}
+          detail={detail}
         />
       </section>
     );
