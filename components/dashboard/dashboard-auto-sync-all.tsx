@@ -279,7 +279,7 @@ function hasErrors(state: State): boolean {
 function HiddenErrors({ children }: { children: ReactNode }) {
   return (
     <details className="group">
-      <summary className="btn-ghost cursor-pointer list-none border-red-500/40 text-red-200 hover:bg-red-500/10 [&::-webkit-details-marker]:hidden">
+      <summary className="btn-ghost cursor-pointer list-none border-red-500/40 text-center text-red-200 hover:bg-red-500/10 [&::-webkit-details-marker]:hidden">
         <span className="group-open:hidden">
           We ran into some errors, would you like to see them?
         </span>
