@@ -23,6 +23,22 @@ const config: Config = {
       boxShadow: {
         card: "0 8px 24px rgba(0,0,0,0.5)",
       },
+      // The Wrapped guess story: each slide's progress bar fills over
+      // seven seconds, then the slide advances.
+      keyframes: {
+        "wrapped-fill": {
+          from: { transform: "scaleX(0)" },
+          to: { transform: "scaleX(1)" },
+        },
+        "wrapped-rise": {
+          from: { opacity: "0", transform: "translateY(16px)" },
+          to: { opacity: "1", transform: "none" },
+        },
+      },
+      animation: {
+        "wrapped-fill": "wrapped-fill 7s linear forwards",
+        "wrapped-rise": "wrapped-rise 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both",
+      },
     },
   },
   plugins: [],
