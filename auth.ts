@@ -84,13 +84,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
-    // Auth.js stores Spotify's tokens on the Account row only the first time
-    // an account is linked; every later sign-in starts a session and drops
-    // the fresh tokens. So once getFreshAccessToken had discarded a dead
-    // refresh_token, signing in again never brought one back and the
-    // dashboard kept asking to reconnect. Save the new tokens on every
-    // sign-in. (A throw here is logged as [auth.error] and doesn't block
-    // the sign-in.)
+    // Auth.js writes Spotify's tokens to the Account row only when the account
+    // is first linked, so once getFreshAccessToken discarded a dead
+    // refresh_token, signing in again never restored it. Save them on every
+    // sign-in. (Auth.js logs a throw here as [auth.error]; sign-in goes on.)
     async signIn({ account }) {
       if (account?.provider !== "spotify") return;
       await prisma.account.update({

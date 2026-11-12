@@ -31,7 +31,7 @@ export class SpotifyRefreshFailedError extends Error {
     public body: string,
   ) {
     super(
-      `Spotify token refresh failed for user ${userId} (HTTP ${status}): ${body}. This looks transient (not an invalid_grant) — the stored refresh_token was kept, so a later request can retry. If it keeps happening, sign out and sign in again.`,
+      `Spotify token refresh failed for user ${userId} (HTTP ${status}): ${body}. This looks transient — the stored refresh_token was kept, so a later request can retry. If it keeps happening, sign out and sign in again.`,
     );
     this.name = "SpotifyRefreshFailedError";
   }
@@ -190,6 +190,8 @@ async function getFreshAccessTokenImpl(
     token_type?: string;
   };
 
+  // Unconditional on purpose: if a parallel refresh discarded the token that
+  // Spotify just rotated into this response, this write is what restores it.
   await prisma.account.update({
     where: { id: account.id },
     data: {
