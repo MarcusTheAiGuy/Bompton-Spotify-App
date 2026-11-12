@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { WrappedGuess, WrappedItem } from "@/lib/wrapped-guess";
+import { SpotifyErrorBanner } from "@/components/spotify/section-header";
 
 // A story of full-bleed slides in the style of Spotify Wrapped. Each slide
 // advances by itself when its bar at the top fills; tap the right of the
@@ -29,7 +30,13 @@ export function WrappedStory({
   const pressedAt = useRef(0);
   const held = useRef(false);
 
-  const slides = buildSlides(guess, name, isSelf, dashboardHref, () => setIndex(0));
+  const hasData =
+    guess.topTracks.length > 0 ||
+    guess.topArtists.length > 0 ||
+    guess.minutes !== null;
+  const slides = buildSlides(guess, name, isSelf, hasData, dashboardHref, () =>
+    setIndex(0),
+  );
   const last = slides.length - 1;
   const slide = slides[Math.min(index, last)];
   const go = (delta: number) =>
@@ -69,57 +76,69 @@ export function WrappedStory({
   const fill = slide.tone === "dark" ? "bg-black/80" : "bg-white";
 
   return (
-    <div
-      className={`relative mx-auto h-[min(78dvh,760px)] min-h-[560px] w-full max-w-[420px] select-none overflow-hidden rounded-3xl shadow-card ${slide.background} ${slide.tone === "dark" ? "text-black" : "text-white"}`}
-    >
-      <div className="absolute inset-x-3 top-3 z-20 flex gap-1" aria-hidden>
-        {slides.map((s, i) => (
-          <div key={s.id} className={`h-1 flex-1 overflow-hidden rounded-full ${track}`}>
-            {i < index ? <div className={`h-full w-full ${fill}`} /> : null}
-            {i === index ? (
-              <div
-                key={`${s.id}-${index}`}
-                className={`h-full w-full origin-left animate-wrapped-fill ${fill}`}
-                style={{ animationPlayState: paused ? "paused" : "running" }}
-                onAnimationEnd={() => go(1)}
-              />
-            ) : null}
-          </div>
-        ))}
-      </div>
-
-      <Link
-        href={dashboardHref}
-        aria-label="Close and go back to the dashboard"
-        className="absolute right-3 top-6 z-30 flex h-9 w-9 items-center justify-center rounded-full text-2xl leading-none opacity-80 transition hover:opacity-100"
-      >
-        ×
-      </Link>
-
-      <button
-        type="button"
-        aria-label="Previous slide"
-        className="absolute inset-y-0 left-0 z-10 w-1/3 cursor-w-resize focus:outline-none"
-        onClick={tap(-1)}
-        {...press}
-      />
-      <button
-        type="button"
-        aria-label="Next slide"
-        className="absolute inset-y-0 right-0 z-10 w-2/3 cursor-e-resize focus:outline-none"
-        onClick={tap(1)}
-        {...press}
-      />
-
-      <Shapes variant={index} tone={slide.tone} />
-
+    <div className="mx-auto flex w-full max-w-[420px] flex-col gap-4">
       <div
-        key={slide.id}
-        aria-live="polite"
-        className="pointer-events-none relative flex h-full flex-col px-7 pb-8 pt-14"
+        className={`relative h-[calc(100dvh-8rem)] max-h-[760px] min-h-[540px] w-full select-none overflow-hidden rounded-3xl shadow-card [-webkit-touch-callout:none] ${slide.background} ${slide.tone === "dark" ? "text-black" : "text-white"}`}
       >
-        {slide.content}
+        <div className="absolute inset-x-3 top-3 z-20 flex gap-1" aria-hidden>
+          {slides.map((s, i) => (
+            <div
+              key={s.id}
+              className={`h-1 flex-1 overflow-hidden rounded-full ${track}`}
+            >
+              {i < index ? <div className={`h-full w-full ${fill}`} /> : null}
+              {i === index ? (
+                <div
+                  key={`${s.id}-${index}`}
+                  className={`h-full w-full origin-left animate-wrapped-fill ${fill}`}
+                  style={{ animationPlayState: paused ? "paused" : "running" }}
+                  onAnimationEnd={() => go(1)}
+                />
+              ) : null}
+            </div>
+          ))}
+        </div>
+
+        <Link
+          href={dashboardHref}
+          aria-label="Close and go back to the dashboard"
+          className="absolute right-3 top-6 z-30 flex h-9 w-9 items-center justify-center rounded-full text-2xl leading-none opacity-80 transition hover:opacity-100"
+        >
+          ×
+        </Link>
+
+        <button
+          type="button"
+          aria-label="Previous slide"
+          className="absolute inset-y-0 left-0 z-10 w-1/3 cursor-w-resize focus:outline-none"
+          onClick={tap(-1)}
+          {...press}
+        />
+        <button
+          type="button"
+          aria-label="Next slide"
+          className="absolute inset-y-0 right-0 z-10 w-2/3 cursor-e-resize focus:outline-none"
+          onClick={tap(1)}
+          {...press}
+        />
+
+        <Shapes variant={index} tone={slide.tone} />
+
+        <div
+          key={slide.id}
+          aria-live="polite"
+          className="pointer-events-none relative flex h-full flex-col px-7 pb-8 pt-14"
+        >
+          {slide.content}
+        </div>
       </div>
+      {/* The empty slide shows this itself. */}
+      {guess.basis.liveError && hasData ? (
+        <SpotifyErrorBanner
+          title="Spotify didn't answer just now, so this guess uses stored data only. Sign in again if it says the token is gone."
+          detail={guess.basis.liveError}
+        />
+      ) : null}
     </div>
   );
 }
@@ -128,6 +147,7 @@ function buildSlides(
   guess: WrappedGuess,
   name: string,
   isSelf: boolean,
+  hasData: boolean,
   dashboardHref: string,
   restart: () => void,
 ): Slide[] {
@@ -143,7 +163,9 @@ function buildSlides(
     content: (
       <div className="my-auto flex flex-col gap-4">
         <Rise>
-          <p className="text-sm font-bold uppercase tracking-[0.2em]">Bompton guesses</p>
+          <p className="text-sm font-bold uppercase tracking-[0.2em]">
+            Bompton guesses
+          </p>
         </Rise>
         <Rise delay={150}>
           <h1 className="text-6xl font-black leading-[0.9] tracking-tighter">
@@ -166,7 +188,6 @@ function buildSlides(
     ),
   });
 
-  const hasData = topTracks.length > 0 || topArtists.length > 0 || minutes !== null;
   if (!hasData) {
     slides.push({
       id: "empty",
@@ -175,14 +196,17 @@ function buildSlides(
       content: (
         <div className="my-auto flex flex-col gap-4">
           <Rise>
-            <h2 className="text-4xl font-black tracking-tight">Not enough to go on yet</h2>
+            <h2 className="text-4xl font-black tracking-tight">
+              Not enough to go on yet
+            </h2>
           </Rise>
           <Rise delay={150}>
             <p className="text-base text-white/80">
-              We guess from the daily snapshots of {isSelf ? "your" : `${name}'s`} top
-              tracks and artists and the plays we catch, and there are none from{" "}
-              {year} yet. Open {isSelf ? "your" : `${name}'s`} dashboard (sign in again if
-              it asks), then come back tomorrow.
+              We guess from the daily snapshots of{" "}
+              {isSelf ? "your" : `${name}'s`} top tracks and artists and the
+              plays we catch, and there are none from {year} yet. Open{" "}
+              {isSelf ? "your" : `${name}'s`} dashboard (sign in again if it
+              asks), then come back tomorrow.
             </p>
           </Rise>
           {guess.basis.liveError ? (
@@ -192,8 +216,14 @@ function buildSlides(
               </p>
             </Rise>
           ) : null}
-          <Rise delay={450} className="pointer-events-auto relative z-20 self-start">
-            <Link href={dashboardHref} className="btn-spotify normal-case tracking-normal">
+          <Rise
+            delay={450}
+            className="pointer-events-auto relative z-20 self-start"
+          >
+            <Link
+              href={dashboardHref}
+              className="btn-spotify normal-case tracking-normal"
+            >
               Back to the dashboard
             </Link>
           </Rise>
@@ -228,8 +258,8 @@ function buildSlides(
               {minutes.extrapolated
                 ? `A guess: we caught ${plural(minutes.caught, "minute")} of plays since ${minutes.trackedSince} and kept that pace for the whole year.`
                 : `Counted from the ${plural(guess.basis.playsCaught, "play")} we caught this year.`}{" "}
-              Spotify only shows us the last 50 plays at a time, so the real number is
-              probably higher.
+              Spotify only shows us the last 50 plays at a time, so the real
+              number is probably higher.
             </p>
           </Rise>
         </div>
@@ -262,7 +292,8 @@ function buildSlides(
           </ol>
           <Rise delay={900}>
             <p className="text-sm font-semibold opacity-80">
-              From the Last.fm tags on {isSelf ? "your" : `${name}'s`} top artists.
+              From the Last.fm tags on {isSelf ? "your" : `${name}'s`} top
+              artists.
             </p>
           </Rise>
         </div>
@@ -282,7 +313,11 @@ function buildSlides(
             <p className="text-xl font-bold">{your} top artist</p>
           </Rise>
           <Rise delay={150}>
-            <Art item={topArtist} round className="mx-auto h-48 w-48 shadow-card" />
+            <Art
+              item={topArtist}
+              round
+              className="mx-auto h-48 w-48 shadow-card"
+            />
           </Rise>
           <Rise delay={350}>
             <h2 className="break-words text-5xl font-black leading-none tracking-tighter">
@@ -304,7 +339,9 @@ function buildSlides(
         id: "top-artists",
         background: "bg-[#2D46B9]",
         tone: "light",
-        content: <TopList title={`${your} top artists`} items={topArtists} round />,
+        content: (
+          <TopList title={`${your} top artists`} items={topArtists} round />
+        ),
       });
     }
   }
@@ -328,7 +365,9 @@ function buildSlides(
               {topTrack.name}
             </h2>
             {topTrack.subtitle ? (
-              <p className="mt-2 text-lg font-bold opacity-80">{topTrack.subtitle}</p>
+              <p className="mt-2 text-lg font-bold opacity-80">
+                {topTrack.subtitle}
+              </p>
             ) : null}
           </Rise>
           <Rise delay={500}>
@@ -384,7 +423,9 @@ function Summary({
     basis.snapshotDays > 0
       ? `${plural(basis.snapshotDays, "day")} of top-50 snapshots${basis.firstSnapshotDay ? ` since ${basis.firstSnapshotDay}` : ""}`
       : null,
-    basis.playsCaught > 0 ? `${plural(basis.playsCaught, "play")} caught this year` : null,
+    basis.playsCaught > 0
+      ? `${plural(basis.playsCaught, "play")} caught this year`
+      : null,
   ].filter(Boolean);
 
   return (
@@ -392,9 +433,14 @@ function Summary({
       <Rise>
         <div className="flex items-center gap-4 rounded-2xl bg-gradient-to-br from-[#1ED760] via-[#6B4EFF] to-[#F573A0] p-3">
           {topArtists[0] ? (
-            <Art item={topArtists[0]} className="h-20 w-20 shrink-0 shadow-card" />
+            <Art
+              item={topArtists[0]}
+              className="h-16 w-16 shrink-0 shadow-card"
+            />
           ) : null}
-          <p className="text-xl font-black leading-tight tracking-tight text-black">{title}</p>
+          <p className="text-lg font-black leading-tight tracking-tight text-black">
+            {title}
+          </p>
         </div>
       </Rise>
       <Rise delay={150}>
@@ -406,7 +452,9 @@ function Summary({
               <p className="text-xs font-bold uppercase tracking-widest text-white/60">
                 Minutes listened
               </p>
-              <p className="text-2xl font-black">{minutes.estimate.toLocaleString("en-US")}</p>
+              <p className="text-2xl font-black">
+                {minutes.estimate.toLocaleString("en-US")}
+              </p>
             </div>
           ) : null}
           {topGenres[0] ? (
@@ -421,12 +469,13 @@ function Summary({
       </Rise>
       <Rise delay={300} className="relative z-20 mt-auto flex flex-col gap-3">
         <p className="text-xs text-white/60">
-          {sources.length > 0 ? `Guessed from ${sources.join(" and ")}` : "Guessed"}
-          {basis.livePulled > 0 ? ", plus a fresh pull from Spotify just now" : ""}. The
-          real Wrapped counts every stream since 1 January.
-          {basis.liveError
-            ? ` Spotify didn't answer just now, so stored data stood in: ${basis.liveError}`
+          {sources.length > 0
+            ? `Guessed from ${sources.join(" and ")}`
+            : "Guessed"}
+          {basis.livePulled > 0
+            ? ", plus a fresh pull from Spotify just now"
             : ""}
+          . The real Wrapped counts every stream since 1 January.
         </p>
         <div className="pointer-events-auto flex flex-wrap gap-2">
           <button
@@ -445,11 +494,19 @@ function Summary({
   );
 }
 
-function SummaryList({ heading, items }: { heading: string; items: WrappedItem[] }) {
+function SummaryList({
+  heading,
+  items,
+}: {
+  heading: string;
+  items: WrappedItem[];
+}) {
   if (items.length === 0) return null;
   return (
     <div className="min-w-0">
-      <p className="text-xs font-bold uppercase tracking-widest text-white/60">{heading}</p>
+      <p className="text-xs font-bold uppercase tracking-widest text-white/60">
+        {heading}
+      </p>
       <ol className="mt-1 flex flex-col gap-0.5">
         {items.map((item, i) => (
           <li key={`${item.name}-${i}`} className="flex gap-2 font-bold">
@@ -561,9 +618,18 @@ function Rise({
 function Shapes({ variant, tone }: { variant: number; tone: Tone }) {
   const color = tone === "dark" ? "bg-black/10" : "bg-white/10";
   const layouts = [
-    ["-right-20 -top-16 h-64 w-64 rounded-full", "-bottom-24 -left-16 h-72 w-72 rotate-12 rounded-[4rem]"],
-    ["-left-24 top-10 h-60 w-60 rotate-45 rounded-[3rem]", "-bottom-20 -right-10 h-64 w-64 rounded-full"],
-    ["-right-16 bottom-24 h-56 w-56 rounded-full", "-left-20 -top-20 h-64 w-64 rotate-[20deg] rounded-[4rem]"],
+    [
+      "-right-20 -top-16 h-64 w-64 rounded-full",
+      "-bottom-24 -left-16 h-72 w-72 rotate-12 rounded-[4rem]",
+    ],
+    [
+      "-left-24 top-10 h-60 w-60 rotate-45 rounded-[3rem]",
+      "-bottom-20 -right-10 h-64 w-64 rounded-full",
+    ],
+    [
+      "-right-16 bottom-24 h-56 w-56 rounded-full",
+      "-left-20 -top-20 h-64 w-64 rotate-[20deg] rounded-[4rem]",
+    ],
   ];
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0">

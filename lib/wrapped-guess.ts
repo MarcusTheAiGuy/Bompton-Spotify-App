@@ -37,7 +37,11 @@ const RANGE_PARAM = {
 } as const;
 
 // Weight of each source in a score. They add up to 1.
-const RANGE_WEIGHT: Record<Range, number> = { short: 0.1, medium: 0.3, long: 0.4 };
+const RANGE_WEIGHT: Record<Range, number> = {
+  short: 0.1,
+  medium: 0.3,
+  long: 0.4,
+};
 const PLAY_WEIGHT = 0.2;
 const LIST_LENGTH = 50;
 
@@ -147,7 +151,12 @@ function dayLabel(date: Date): string {
   });
 }
 
-type SnapshotEntry = { rank?: unknown; id?: unknown; name?: unknown; artists?: unknown };
+type SnapshotEntry = {
+  rank?: unknown;
+  id?: unknown;
+  name?: unknown;
+  artists?: unknown;
+};
 
 function asEntries(data: unknown): SnapshotEntry[] {
   return Array.isArray(data) ? (data as SnapshotEntry[]) : [];
@@ -155,8 +164,13 @@ function asEntries(data: unknown): SnapshotEntry[] {
 
 // The same projection the archive stores, so a live list and a stored
 // snapshot read alike.
-function entriesFromLive(what: ListKind["what"], raw: unknown): SnapshotEntry[] {
-  const items = (raw as SpotifyPaged<SpotifyTrack | SpotifyArtist> | undefined)?.items ?? [];
+function entriesFromLive(
+  what: ListKind["what"],
+  raw: unknown,
+): SnapshotEntry[] {
+  const items =
+    (raw as SpotifyPaged<SpotifyTrack | SpotifyArtist> | undefined)?.items ??
+    [];
   return items.map((item, index) => ({
     rank: index + 1,
     id: item.id,
@@ -249,21 +263,28 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   const lastCapturedAt = new Map<string, number>();
   for (const snap of snapshots) {
     const at = snap.capturedAt.getTime();
-    if (at > (lastCapturedAt.get(snap.kind) ?? 0)) lastCapturedAt.set(snap.kind, at);
+    if (at > (lastCapturedAt.get(snap.kind) ?? 0))
+      lastCapturedAt.set(snap.kind, at);
   }
   const live = await pullStaleLists(userId, lastCapturedAt);
 
   // One list per (kind, day). A live pull replaces today's snapshot, which
   // it has just overwritten in the database anyway.
   const todayKey = now.toISOString().slice(0, 10);
-  const listsByKindDay = new Map<string, { list: ListKind; entries: SnapshotEntry[] }>();
+  const listsByKindDay = new Map<
+    string,
+    { list: ListKind; entries: SnapshotEntry[] }
+  >();
   const snapshotDays = new Set<string>();
   for (const snap of snapshots) {
     const list = LIST_KINDS.find((l) => l.kind === snap.kind);
     if (!list) continue;
     const dayKey = snap.day.toISOString().slice(0, 10);
     snapshotDays.add(dayKey);
-    listsByKindDay.set(`${snap.kind}|${dayKey}`, { list, entries: asEntries(snap.data) });
+    listsByKindDay.set(`${snap.kind}|${dayKey}`, {
+      list,
+      entries: asEntries(snap.data),
+    });
   }
   for (const list of LIST_KINDS) {
     const raw = live.raw.get(list.kind);
@@ -276,14 +297,22 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   }
 
   // Images and links: the live pull first, then the dashboard's cache.
-  const trackArt = new Map<string, { image: string | null; url: string | null }>();
-  const artistArt = new Map<string, { image: string | null; url: string | null }>();
+  const trackArt = new Map<
+    string,
+    { image: string | null; url: string | null }
+  >();
+  const artistArt = new Map<
+    string,
+    { image: string | null; url: string | null }
+  >();
   const rawSources: [string, unknown][] = [
     ...live.raw.entries(),
     ...cachedResponses.map((row): [string, unknown] => [row.kind, row.data]),
   ];
   for (const [kind, raw] of rawSources) {
-    const items = (raw as SpotifyPaged<SpotifyTrack | SpotifyArtist> | undefined)?.items;
+    const items = (
+      raw as SpotifyPaged<SpotifyTrack | SpotifyArtist> | undefined
+    )?.items;
     if (!Array.isArray(items)) continue;
     for (const item of items) {
       if (!item?.id) continue;
@@ -333,7 +362,8 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
         ranked.entries.push({ key: id, rank });
       } else {
         const key = artistKey(name);
-        if (!artists.has(key)) artists.set(key, { name, subtitle: null, spotifyId: id });
+        if (!artists.has(key))
+          artists.set(key, { name, subtitle: null, spotifyId: id });
         ranked.entries.push({ key, rank });
       }
     }
@@ -349,7 +379,10 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   for (const play of plays) {
     caughtMs += play.trackDurationMs;
     if (!firstPlay || play.playedAt < firstPlay) firstPlay = play.playedAt;
-    trackPlays.set(play.trackSpotifyId, (trackPlays.get(play.trackSpotifyId) ?? 0) + 1);
+    trackPlays.set(
+      play.trackSpotifyId,
+      (trackPlays.get(play.trackSpotifyId) ?? 0) + 1,
+    );
     trackMs.set(
       play.trackSpotifyId,
       (trackMs.get(play.trackSpotifyId) ?? 0) + play.trackDurationMs,
@@ -366,11 +399,19 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
     artistPlays.set(key, (artistPlays.get(key) ?? 0) + 1);
     artistMs.set(key, (artistMs.get(key) ?? 0) + play.trackDurationMs);
     if (!artists.has(key)) {
-      artists.set(key, { name: play.trackArtist, subtitle: null, spotifyId: null });
+      artists.set(key, {
+        name: play.trackArtist,
+        subtitle: null,
+        spotifyId: null,
+      });
     }
   }
 
-  const rankedKeys = (lists: RankedList[], counts: Map<string, number>, limit: number) =>
+  const rankedKeys = (
+    lists: RankedList[],
+    counts: Map<string, number>,
+    limit: number,
+  ) =>
     [...guessScores(lists, counts).entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit)
@@ -382,16 +423,22 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
 
   // Songs that never showed up in a top list can still have art: the
   // Bompton playlists store it.
-  const missingArt = topTrackKeys.map((t) => t.key).filter((id) => !trackArt.get(id)?.image);
+  const missingArt = topTrackKeys
+    .map((t) => t.key)
+    .filter((id) => !trackArt.get(id)?.image);
   if (missingArt.length > 0) {
     const rows = await prisma.playlistTrack
       .findMany({
-        where: { trackSpotifyId: { in: missingArt }, albumImageUrl: { not: null } },
+        where: {
+          trackSpotifyId: { in: missingArt },
+          albumImageUrl: { not: null },
+        },
         select: { trackSpotifyId: true, albumImageUrl: true },
       })
       .catch(emptyIfMissingTable<never>);
     for (const row of rows) {
-      if (!row.trackSpotifyId || trackArt.get(row.trackSpotifyId)?.image) continue;
+      if (!row.trackSpotifyId || trackArt.get(row.trackSpotifyId)?.image)
+        continue;
       trackArt.set(row.trackSpotifyId, {
         image: row.albumImageUrl,
         url: `https://open.spotify.com/track/${row.trackSpotifyId}`,
@@ -406,35 +453,44 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
       name: track.name,
       subtitle: track.subtitle,
       imageUrl: trackArt.get(key)?.image ?? null,
-      spotifyUrl: trackArt.get(key)?.url ?? `https://open.spotify.com/track/${key}`,
+      spotifyUrl:
+        trackArt.get(key)?.url ?? `https://open.spotify.com/track/${key}`,
       plays: trackPlays.get(key) ?? 0,
       minutes: minutesOf(trackMs.get(key) ?? 0),
     };
   });
-  const topArtists: WrappedItem[] = artistRanking.slice(0, TOP_N).map(({ key }) => {
-    const artist = artists.get(key)!;
-    return {
-      name: artist.name,
-      subtitle: null,
-      imageUrl: artistArt.get(key)?.image ?? null,
-      spotifyUrl:
-        artistArt.get(key)?.url ??
-        (artist.spotifyId ? `https://open.spotify.com/artist/${artist.spotifyId}` : null),
-      plays: artistPlays.get(key) ?? 0,
-      minutes: minutesOf(artistMs.get(key) ?? 0),
-    };
-  });
+  const topArtists: WrappedItem[] = artistRanking
+    .slice(0, TOP_N)
+    .map(({ key }) => {
+      const artist = artists.get(key)!;
+      return {
+        name: artist.name,
+        subtitle: null,
+        imageUrl: artistArt.get(key)?.image ?? null,
+        spotifyUrl:
+          artistArt.get(key)?.url ??
+          (artist.spotifyId
+            ? `https://open.spotify.com/artist/${artist.spotifyId}`
+            : null),
+        plays: artistPlays.get(key) ?? 0,
+        minutes: minutesOf(artistMs.get(key) ?? 0),
+      };
+    });
 
   // Genres: the Last.fm tags the genre tracker already caches per
   // artist, weighted by each artist's score. Only tags that map to a
   // genre family count, which drops tags like "british" or "seen live".
   const withIds = artistRanking.flatMap(({ key, score }) => {
     const artist = artists.get(key)!;
-    return artist.spotifyId ? [{ id: artist.spotifyId, name: artist.name, score }] : [];
+    return artist.spotifyId
+      ? [{ id: artist.spotifyId, name: artist.name, score }]
+      : [];
   });
   const genreWeights = new Map<string, number>();
   if (withIds.length > 0) {
-    const lookup = await getArtistGenresForIds(userId, withIds, { fetchBudget: 5 });
+    const lookup = await getArtistGenresForIds(userId, withIds, {
+      fetchBudget: 5,
+    });
     for (const artist of withIds) {
       for (const tag of lookup.artists.get(artist.id)?.genres ?? []) {
         if (!umbrellaOf(tag)) continue;
@@ -456,8 +512,14 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
       firstPlay.getUTCMonth(),
       firstPlay.getUTCDate(),
     );
-    const daysTracked = Math.max(1, Math.ceil((now.getTime() - firstDay) / DAY_MS));
-    const daysSoFar = Math.max(1, Math.ceil((now.getTime() - yearStart.getTime()) / DAY_MS));
+    const daysTracked = Math.max(
+      1,
+      Math.ceil((now.getTime() - firstDay) / DAY_MS),
+    );
+    const daysSoFar = Math.max(
+      1,
+      Math.ceil((now.getTime() - yearStart.getTime()) / DAY_MS),
+    );
     const caught = minutesOf(caughtMs);
     minutes = {
       caught,
@@ -476,7 +538,9 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
     minutes,
     basis: {
       snapshotDays: snapshotDays.size,
-      firstSnapshotDay: sortedDays[0] ? dayLabel(new Date(sortedDays[0])) : null,
+      firstSnapshotDay: sortedDays[0]
+        ? dayLabel(new Date(sortedDays[0]))
+        : null,
       playsCaught: plays.length,
       livePulled: live.raw.size,
       liveError: live.error,
@@ -489,6 +553,10 @@ function titleCase(tag: string): string {
   if (tag === "r&b") return "R&B";
   return tag
     .split(" ")
-    .map((word, i) => (i > 0 && word === "and" ? word : word.charAt(0).toUpperCase() + word.slice(1)))
+    .map((word, i) =>
+      i > 0 && word === "and"
+        ? word
+        : word.charAt(0).toUpperCase() + word.slice(1),
+    )
     .join(" ");
 }

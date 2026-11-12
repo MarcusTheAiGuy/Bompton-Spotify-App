@@ -31,7 +31,7 @@ export default async function WrappedPage({
 
     const guess = await buildWrappedGuess(user.id);
     return (
-      <section className="py-2">
+      <section className="-mt-6">
         <WrappedStory
           guess={guess}
           name={displayCrewName(user)}
