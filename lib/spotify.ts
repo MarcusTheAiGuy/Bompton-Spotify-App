@@ -95,7 +95,10 @@ export async function getFreshAccessToken(userId: string): Promise<string> {
 
 const inFlightRefresh = new Map<string, Promise<string>>();
 
-async function getFreshAccessTokenImpl(userId: string): Promise<string> {
+async function getFreshAccessTokenImpl(
+  userId: string,
+  retried = false,
+): Promise<string> {
   const account = await prisma.account.findFirst({
     where: { userId, provider: "spotify" },
   });
@@ -151,10 +154,19 @@ async function getFreshAccessTokenImpl(userId: string): Promise<string> {
       // the whole token triplet so no future request (dashboard render
       // or daily cron) retries this dead token — then signal that the
       // user must reauthorize. Retrying invalid_grant never succeeds.
-      await prisma.account.update({
-        where: { id: account.id },
+      //
+      // Discard only the token Spotify just rejected. If the row holds a
+      // different one now, another request (on another server instance,
+      // which the in-process dedupe above can't see) or a fresh sign-in
+      // replaced it while this refresh was in flight: keep that and use it.
+      const { count } = await prisma.account.updateMany({
+        where: { id: account.id, refresh_token: account.refresh_token },
         data: { access_token: null, refresh_token: null, expires_at: null },
       });
+      if (count === 0) {
+        if (!retried) return getFreshAccessTokenImpl(userId, true);
+        throw new SpotifyRefreshFailedError(userId, response.status, text);
+      }
       console.warn("[spotify.refresh] invalid_grant — discarded token", {
         userId,
         accountId: account.id,
