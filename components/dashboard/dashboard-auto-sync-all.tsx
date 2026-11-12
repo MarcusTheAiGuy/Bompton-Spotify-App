@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 
 type SyncOutcome = {
@@ -233,7 +233,7 @@ export function DashboardAutoSyncAll() {
 // one broken token fails every playlist link, and the list used to fill the
 // dashboard on every visit. So the card's errors sit behind one button, and
 // opening it shows each one in full, as CLAUDE.md asks.
-function HiddenErrors({ boxes }: { boxes: ReactNode[] }) {
+function HiddenErrors({ boxes }: { boxes: ReactElement[] }) {
   if (boxes.length === 0) return null;
   return (
     <details className="group/errors">
@@ -250,7 +250,7 @@ function HiddenErrors({ boxes }: { boxes: ReactNode[] }) {
 
 // One box per kind of error. Each box and its condition live only here, so
 // the button shows exactly when there is something behind it.
-function errorBoxes(state: State): ReactNode[] {
+function errorBoxes(state: State): ReactElement[] {
   if (state.status === "failed") {
     return [
       <div
@@ -268,8 +268,7 @@ function errorBoxes(state: State): ReactNode[] {
 
   const failed = state.syncResult.outcomes.filter((o) => o.status === "error");
   const lateAdd = state.lateAdd;
-  const lateAddOutcomes: LateAddOutcome[] =
-    "error" in lateAdd ? [] : lateAdd.outcomes;
+  const lateAddOutcomes = "error" in lateAdd ? [] : lateAdd.outcomes;
   const noEmail = lateAddOutcomes.filter(
     (o) => o.status === "skipped-no-email",
   );
@@ -350,7 +349,7 @@ function errorBoxes(state: State): ReactNode[] {
         </ul>
       </div>
     ),
-  ].filter(Boolean);
+  ].filter((box) => box !== false);
 }
 
 function SyncSummary({ result }: { result: SyncResponse }) {
