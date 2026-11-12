@@ -46,12 +46,12 @@ import {
 // every linked account, and snapshots are also taken opportunistically
 // on dashboard visits via recordDailySnapshot().
 
-function isMissingTableError(error: unknown): boolean {
+export function isMissingTableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /does not exist/i.test(message);
 }
 
-function utcMidnight(date: Date): Date {
+export function utcMidnight(date: Date): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
   );
@@ -338,6 +338,28 @@ export async function recordDailySnapshot(
   }
 }
 
+// Fetch one list from Spotify and bank it as today's snapshot, returning
+// the raw response and the projection that was stored. Spotify errors
+// propagate, so each caller keeps its own rule for when to stop.
+export async function captureSnapshot(
+  userId: string,
+  kind: string,
+): Promise<{ raw: unknown; items: SnapshotItem[]; snapshot: SnapshotResult }> {
+  const source = SOURCE_BY_KIND.get(kind);
+  if (!source) {
+    throw new Error(`No snapshot source registered for kind "${kind}".`);
+  }
+  const raw = await source.fetch(userId);
+  const snapshot = await recordDailySnapshot(userId, kind, raw);
+  let items: SnapshotItem[] = [];
+  try {
+    items = source.project(raw);
+  } catch {
+    // recordDailySnapshot has already logged and reported this.
+  }
+  return { raw, items, snapshot };
+}
+
 export type UserArchiveResult = {
   userId: string;
   recentPlays:
@@ -383,9 +405,8 @@ export async function captureUserListeningArchive(
 
   for (const source of SNAPSHOT_SOURCES) {
     try {
-      const raw = await source.fetch(userId);
-      const snap = await recordDailySnapshot(userId, source.kind, raw);
-      result.snapshots.push({ kind: source.kind, ...snap });
+      const { snapshot } = await captureSnapshot(userId, source.kind);
+      result.snapshots.push({ kind: source.kind, ...snapshot });
     } catch (error) {
       if (error instanceof SpotifyReauthRequiredError) {
         result.needsReauth = true;

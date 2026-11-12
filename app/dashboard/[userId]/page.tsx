@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -208,6 +209,12 @@ function ProfileHeader({
           {profile?.product ? ` · ${profile.product}` : ""}
         </p>
       </div>
+      <Link
+        href={`/dashboard/${viewedUser.id}/wrapped`}
+        className="btn-spotify self-start normal-case tracking-normal sm:ml-auto sm:self-center"
+      >
+        Guess Spotify Wrapped
+      </Link>
     </header>
   );
 }
