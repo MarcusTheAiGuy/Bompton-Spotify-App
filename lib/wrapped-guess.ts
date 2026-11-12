@@ -49,6 +49,9 @@ const LIST_LENGTH = 50;
 const FRESH_MS = 6 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
 const WEEK_MS = 7 * DAY_MS;
+// Fewer days of caught plays than this are shown as caught, not stretched
+// over the whole year.
+const MIN_DAYS_TO_EXTRAPOLATE = 14;
 const TOP_N = 5;
 
 type ListKind = { kind: string; what: "tracks" | "artists"; range: Range };
@@ -90,6 +93,9 @@ export type WrappedGuess = {
     livePulled: number;
     // Why the live pull stopped, described the way the dashboard does.
     liveError: DescribedError | null;
+    // What else made the guess thinner, each with its fix: a missing
+    // table, or genres that couldn't be looked up.
+    notes: string[];
   };
 };
 
@@ -131,13 +137,6 @@ function guessScores(
     bump(scores, key, (PLAY_WEIGHT * count) / maxPlays);
   }
   return scores;
-}
-
-// A table that hasn't been created yet reads as empty; anything else
-// is a real failure and propagates to the page's crash card.
-function emptyIfMissingTable(error: unknown): never[] {
-  if (isMissingTableError(error)) return [];
-  throw error;
 }
 
 function dayLabel(date: Date): string {
@@ -205,6 +204,20 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   const daysSince = (from: Date) =>
     Math.max(1, Math.ceil((now.getTime() - from.getTime()) / DAY_MS));
 
+  // A table that hasn't been created yet reads as empty, and says so on
+  // the page and in the log; anything else is a real failure and
+  // propagates to the page's crash card.
+  const notes: string[] = [];
+  const emptyIfMissing =
+    (table: string) =>
+    (error: unknown): never[] => {
+      if (!isMissingTableError(error)) throw error;
+      const note = `The ${table} table is missing, so the guess goes without it. Initialize it from /troubleshooting, or run \`npm run db:push\`.`;
+      console.warn(`[wrapped-guess] ${note}`, { userId });
+      notes.push(note);
+      return [];
+    };
+
   // The snapshot reads and the live pull run alongside the plays read; the
   // pull only needs to know when each list was last captured. One
   // snapshot per list per week is plenty for a year-long average and
@@ -214,9 +227,15 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
     const index = await prisma.listeningSnapshot
       .findMany({
         where: { userId, kind: { in: kinds }, day: { gte: yearStart } },
-        select: { id: true, kind: true, day: true, capturedAt: true },
+        select: {
+          id: true,
+          kind: true,
+          day: true,
+          capturedAt: true,
+          itemCount: true,
+        },
       })
-      .catch(emptyIfMissingTable);
+      .catch(emptyIfMissing("ListeningSnapshot"));
     const lastCapturedAt = new Map<string, number>();
     const weekly = new Map<string, { id: string; day: Date }>();
     for (const snap of index) {
@@ -224,6 +243,8 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
         snap.kind,
         Math.max(snap.capturedAt.getTime(), lastCapturedAt.get(snap.kind) ?? 0),
       );
+      // A blank capture must not stand in for a week of good ones.
+      if (snap.itemCount === 0) continue;
       const key = `${snap.kind}|${weekOf(snap.day)}`;
       const kept = weekly.get(key);
       if (!kept || snap.day > kept.day) weekly.set(key, snap);
@@ -240,21 +261,21 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
     return { index, snapshots, live };
   })();
 
-  const [plays, { index: snapshotIndex, snapshots, live }] = await Promise.all([
-    prisma.listeningPlay
-      .findMany({
-        where: { userId, playedAt: { gte: yearStart } },
-        select: {
-          trackSpotifyId: true,
-          trackName: true,
-          trackArtist: true,
-          trackDurationMs: true,
-          playedAt: true,
-        },
-      })
-      .catch(emptyIfMissingTable),
-    snapshotsAndPull,
-  ]);
+  // Plays are counted per song in the database: a heavy listener catches
+  // tens of thousands a year.
+  const [playGroups, { index: snapshotIndex, snapshots, live }] =
+    await Promise.all([
+      prisma.listeningPlay
+        .groupBy({
+          by: ["trackSpotifyId", "trackName", "trackArtist"],
+          where: { userId, playedAt: { gte: yearStart } },
+          _count: { _all: true },
+          _sum: { trackDurationMs: true },
+          _min: { playedAt: true },
+        })
+        .catch(emptyIfMissing("ListeningPlay")),
+      snapshotsAndPull,
+    ]);
 
   // One list per (kind, week). A live pull stands in for this week's
   // snapshot: it is the newest look at the same list.
@@ -280,7 +301,9 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   }
   // What the summary reports: every day the archive covers, sampled or not.
   const snapshotDays = new Set(
-    snapshotIndex.map((snap) => snap.day.toISOString().slice(0, 10)),
+    snapshotIndex
+      .filter((snap) => snap.itemCount > 0)
+      .map((snap) => snap.day.toISOString().slice(0, 10)),
   );
   if (live.lists.size > 0) snapshotDays.add(now.toISOString().slice(0, 10));
 
@@ -317,24 +340,29 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   const trackPlays = new Map<string, number>();
   const artistPlays = new Map<string, number>();
   const artistMs = new Map<string, number>();
+  let playsCaught = 0;
   let caughtMs = 0;
   let firstPlay: Date | null = null;
-  for (const play of plays) {
-    caughtMs += play.trackDurationMs;
-    if (!firstPlay || play.playedAt < firstPlay) firstPlay = play.playedAt;
-    bump(trackPlays, play.trackSpotifyId);
-    if (!tracks.has(play.trackSpotifyId)) {
-      tracks.set(play.trackSpotifyId, {
-        name: play.trackName,
-        subtitle: play.trackArtist || null,
+  for (const group of playGroups) {
+    const count = group._count._all;
+    const ms = group._sum.trackDurationMs ?? 0;
+    const first = group._min.playedAt;
+    playsCaught += count;
+    caughtMs += ms;
+    if (first && (!firstPlay || first < firstPlay)) firstPlay = first;
+    bump(trackPlays, group.trackSpotifyId, count);
+    if (!tracks.has(group.trackSpotifyId)) {
+      tracks.set(group.trackSpotifyId, {
+        name: group.trackName,
+        subtitle: group.trackArtist || null,
       });
     }
-    const key = artistKey(play.trackArtist);
+    const key = artistKey(group.trackArtist);
     if (!key) continue;
-    bump(artistPlays, key);
-    bump(artistMs, key, play.trackDurationMs);
+    bump(artistPlays, key, count);
+    bump(artistMs, key, ms);
     if (!artists.has(key)) {
-      artists.set(key, { name: play.trackArtist, spotifyId: null });
+      artists.set(key, { name: group.trackArtist, spotifyId: null });
     }
   }
 
@@ -395,7 +423,7 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
             where: { userId, kind: { in: kinds } },
             select: { kind: true, data: true },
           })
-          .catch(emptyIfMissingTable)
+          .catch(emptyIfMissing("CachedSpotifyResponse"))
       : [],
     tracksLackingArt.length > 0
       ? prisma.playlistTrack
@@ -406,7 +434,7 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
             },
             select: { trackSpotifyId: true, albumImageUrl: true },
           })
-          .catch(emptyIfMissingTable)
+          .catch(emptyIfMissing("PlaylistTrack"))
       : [],
     withIds.length > 0
       ? getArtistGenresForIds(userId, withIds, { fetchBudget: 5 })
@@ -429,6 +457,22 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
     .sort((a, b) => b[1] - a[1])
     .slice(0, TOP_N)
     .map(([tag]) => titleCase(tag));
+  if (topGenres.length === 0 && genreLookup) {
+    const skipped = "so top genres are left out";
+    if (genreLookup.tableMissing) {
+      notes.push(
+        `The Artist table is missing, ${skipped}. Initialize it from /troubleshooting, or run \`npm run db:push\`.`,
+      );
+    } else if (!genreLookup.apiKeyConfigured) {
+      notes.push(
+        `LASTFM_API_KEY isn't set, ${skipped}. Register a free key at https://www.last.fm/api/account/create and add it in Vercel.`,
+      );
+    } else if (genreLookup.fetchError) {
+      notes.push(
+        `Last.fm failed (${genreLookup.fetchError.message}), ${skipped}. Reload to retry.`,
+      );
+    }
+  }
 
   const minutesOf = (ms: number) => Math.round(ms / 60_000);
   const topTracks: WrappedItem[] = topTrackKeys.map((key) => ({
@@ -445,17 +489,22 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   }));
 
   // Minutes: what we caught, spread over the days since our first catch
-  // and stretched to the whole year so far.
+  // and stretched to the whole year so far, once there are enough days to
+  // stretch.
   let minutes: WrappedGuess["minutes"] = null;
   if (firstPlay && caughtMs > 0) {
     const daysTracked = daysSince(utcMidnight(firstPlay));
     const daysSoFar = daysSince(yearStart);
     const caught = minutesOf(caughtMs);
+    const extrapolated =
+      daysTracked >= MIN_DAYS_TO_EXTRAPOLATE && daysTracked < daysSoFar;
     minutes = {
       caught,
-      estimate: Math.round((caught * daysSoFar) / daysTracked),
+      estimate: extrapolated
+        ? Math.round((caught * daysSoFar) / daysTracked)
+        : caught,
       trackedSince: dayLabel(firstPlay),
-      extrapolated: daysTracked < daysSoFar,
+      extrapolated,
     };
   }
 
@@ -469,9 +518,10 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
     basis: {
       snapshotDays: snapshotDays.size,
       firstSnapshotDay: firstDay ? dayLabel(new Date(firstDay)) : null,
-      playsCaught: plays.length,
+      playsCaught,
       livePulled: live.lists.size,
       liveError: live.error,
+      notes,
     },
   };
 }

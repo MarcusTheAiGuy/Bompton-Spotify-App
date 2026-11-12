@@ -103,12 +103,11 @@ export function WrappedStory({
 
         <Shapes variant={index} tone={slide.tone} />
 
-        <div
-          key={slide.id}
-          aria-live="polite"
-          className="pointer-events-none relative flex h-full flex-col px-7 pb-8 pt-14"
-        >
-          {slide.content}
+        {/* The live region stays mounted so each new slide is announced. */}
+        <div aria-live="polite" className="pointer-events-none relative h-full">
+          <div key={slide.id} className="flex h-full flex-col px-7 pb-8 pt-14">
+            {slide.content}
+          </div>
         </div>
 
         <div className="absolute inset-x-3 top-3 z-10 flex gap-1" aria-hidden>
@@ -141,6 +140,13 @@ export function WrappedStory({
         <SpotifyErrorBanner
           title={`Couldn't pull fresh top lists from Spotify, so this guess uses stored data only. ${guess.basis.liveError.title}.`}
           detail={guess.basis.liveError.detail}
+        />
+      ) : null}
+      {guess.basis.notes.length > 0 ? (
+        <SpotifyErrorBanner
+          tone="muted"
+          title="Parts of this guess are missing"
+          detail={guess.basis.notes.join("\n\n")}
         />
       ) : null}
     </div>
@@ -254,7 +260,9 @@ function buildSlides(
         <div className="my-auto flex flex-col gap-3">
           <Rise>
             <p className="text-xl font-bold">
-              This year {you} listened for about
+              {minutes.extrapolated
+                ? `This year ${you} listened for about`
+                : `Since ${minutes.trackedSince} ${you} listened for at least`}
             </p>
           </Rise>
           <Rise delay={200}>
@@ -269,7 +277,7 @@ function buildSlides(
             <p className="mt-4 text-sm font-semibold opacity-80">
               {minutes.extrapolated
                 ? `A guess: we caught ${plural(minutes.caught, "minute")} of plays since ${minutes.trackedSince} and kept that pace for the whole year.`
-                : `Counted from the ${plural(guess.basis.playsCaught, "play")} we caught this year.`}{" "}
+                : `Counted from the ${plural(guess.basis.playsCaught, "play")} we caught since ${minutes.trackedSince}.`}{" "}
               Spotify only shows us the last 50 plays at a time, so the real
               number is probably higher.
             </p>
