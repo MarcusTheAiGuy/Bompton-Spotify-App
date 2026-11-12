@@ -162,6 +162,12 @@ async function getFreshAccessTokenImpl(
         data: { access_token: null, refresh_token: null, expires_at: null },
       });
       if (count === 0) {
+        console.warn("[spotify.refresh] invalid_grant on a replaced token", {
+          userId,
+          accountId: account.id,
+          retried,
+          body: text.slice(0, 300),
+        });
         if (!retried) return getFreshAccessTokenImpl(userId, true);
         throw new SpotifyRefreshFailedError(userId, response.status, text);
       }
