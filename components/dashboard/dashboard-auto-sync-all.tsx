@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 type SyncOutcome = {
@@ -218,35 +218,79 @@ export function DashboardAutoSyncAll() {
       {state.status === "done" ? (
         <>
           <SyncSummary result={state.syncResult} />
-          {"error" in state.lateAdd ? (
-            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              <p className="font-semibold">
-                Late-add check failed: {state.lateAdd.error.title}
-              </p>
-              <p className="mt-1 whitespace-pre-wrap">
-                {state.lateAdd.error.detail}
-              </p>
-            </div>
-          ) : (
+          {"error" in state.lateAdd ? null : (
             <LateAddSummary result={state.lateAdd} />
           )}
         </>
       ) : null}
 
-      {state.status === "failed" ? (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-          <p className="font-semibold">
-            Crew sync request failed: {state.title}
-          </p>
-          <p className="mt-1 whitespace-pre-wrap">{state.detail}</p>
-        </div>
+      {hasErrors(state) ? (
+        <HiddenErrors>
+          {state.status === "done" ? (
+            <>
+              <SyncErrors result={state.syncResult} />
+              {"error" in state.lateAdd ? (
+                <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  <p className="font-semibold">
+                    Late-add check failed: {state.lateAdd.error.title}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap">
+                    {state.lateAdd.error.detail}
+                  </p>
+                </div>
+              ) : (
+                <LateAddErrors result={state.lateAdd} />
+              )}
+            </>
+          ) : null}
+
+          {state.status === "failed" ? (
+            <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+              <p className="font-semibold">
+                Crew sync request failed: {state.title}
+              </p>
+              <p className="mt-1 whitespace-pre-wrap">{state.detail}</p>
+            </div>
+          ) : null}
+        </HiddenErrors>
       ) : null}
     </section>
   );
 }
 
+// True when the card has any error to show: a failed request, a link that
+// failed to sync, or a late-add email that could not go out.
+function hasErrors(state: State): boolean {
+  if (state.status === "failed") return true;
+  if (state.status !== "done") return false;
+  if (state.syncResult.outcomes.some((o) => o.status === "error")) return true;
+  if ("error" in state.lateAdd) return true;
+  return state.lateAdd.outcomes.some(
+    (o) =>
+      o.status === "send-error" ||
+      o.status === "config-error" ||
+      o.status === "skipped-no-email",
+  );
+}
+
+// Errors stay folded behind one button so a run of failures (one per
+// playlist link when a token breaks) doesn't fill the dashboard. Opening
+// it shows every error in full.
+function HiddenErrors({ children }: { children: ReactNode }) {
+  return (
+    <details className="group">
+      <summary className="btn-ghost cursor-pointer list-none border-red-500/40 text-red-200 hover:bg-red-500/10 [&::-webkit-details-marker]:hidden">
+        <span className="group-open:hidden">
+          We ran into some errors, would you like to see them?
+        </span>
+        <span className="hidden group-open:inline">Hide the errors</span>
+      </summary>
+      <div className="mt-2 flex flex-col gap-2">{children}</div>
+    </details>
+  );
+}
+
 function SyncSummary({ result }: { result: SyncResponse }) {
-  const failed = result.outcomes.filter((o) => o.status === "error");
   const synced = result.outcomes.filter((o) => o.status === "synced");
 
   return (
@@ -280,27 +324,32 @@ function SyncSummary({ result }: { result: SyncResponse }) {
           </ul>
         </details>
       ) : null}
+    </div>
+  );
+}
 
-      {failed.length > 0 ? (
-        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-          <p className="font-semibold">
-            {failed.length} link{failed.length === 1 ? "" : "s"} failed to sync:
-          </p>
-          <ul className="mt-1 flex flex-col gap-1">
-            {failed.map((o) => (
-              <li
-                key={`${o.userId}-${o.playlistId}`}
-                className="whitespace-pre-wrap"
-              >
-                <strong>{o.userLabel}</strong> ·{" "}
-                {o.playlistName ?? o.playlistId}: {o.error?.name}
-                {o.error?.code ? ` (${o.error.code})` : ""} —{" "}
-                {o.error?.message ?? "unknown error"}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+function SyncErrors({ result }: { result: SyncResponse }) {
+  const failed = result.outcomes.filter((o) => o.status === "error");
+  if (failed.length === 0) return null;
+
+  return (
+    <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+      <p className="font-semibold">
+        {failed.length} link{failed.length === 1 ? "" : "s"} failed to sync:
+      </p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {failed.map((o) => (
+          <li
+            key={`${o.userId}-${o.playlistId}`}
+            className="whitespace-pre-wrap"
+          >
+            <strong>{o.userLabel}</strong> ·{" "}
+            {o.playlistName ?? o.playlistId}: {o.error?.name}
+            {o.error?.code ? ` (${o.error.code})` : ""} —{" "}
+            {o.error?.message ?? "unknown error"}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -309,12 +358,6 @@ function LateAddSummary({ result }: { result: LateAddResponse }) {
   const emailed = result.outcomes.filter((o) => o.status === "emailed");
   const cooldown = result.outcomes.filter(
     (o) => o.status === "skipped-cooldown",
-  );
-  const errored = result.outcomes.filter(
-    (o) => o.status === "send-error" || o.status === "config-error",
-  );
-  const noEmail = result.outcomes.filter(
-    (o) => o.status === "skipped-no-email",
   );
 
   if (result.offenderCount === 0) {
@@ -379,7 +422,20 @@ function LateAddSummary({ result }: { result: LateAddResponse }) {
           </ul>
         </details>
       ) : null}
+    </div>
+  );
+}
 
+function LateAddErrors({ result }: { result: LateAddResponse }) {
+  const errored = result.outcomes.filter(
+    (o) => o.status === "send-error" || o.status === "config-error",
+  );
+  const noEmail = result.outcomes.filter(
+    (o) => o.status === "skipped-no-email",
+  );
+
+  return (
+    <>
       {noEmail.length > 0 ? (
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
           <p className="font-semibold">
@@ -413,6 +469,6 @@ function LateAddSummary({ result }: { result: LateAddResponse }) {
           </ul>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }
