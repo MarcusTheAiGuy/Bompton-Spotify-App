@@ -150,15 +150,13 @@ async function getFreshAccessTokenImpl(
   if (!response.ok) {
     if (isInvalidGrant(response.status, text)) {
       // The refresh_token is permanently dead (expired under the
-      // July-2026 six-month rule, or revoked). Discard it FIRST — clear
-      // the whole token triplet so no future request (dashboard render
-      // or daily cron) retries this dead token — then signal that the
-      // user must reauthorize. Retrying invalid_grant never succeeds.
-      //
-      // Discard only the token Spotify just rejected. If the row holds a
-      // different one now, another request (on another server instance,
-      // which the in-process dedupe above can't see) or a fresh sign-in
-      // replaced it while this refresh was in flight: keep that and use it.
+      // July-2026 six-month rule, or revoked), and retrying it never
+      // succeeds. Discard it FIRST — clear the whole token triplet so no
+      // future request (dashboard render or daily cron) retries it — then
+      // signal that the user must reauthorize. But only if the row still
+      // holds it: a different token means another request (on another
+      // server instance, which the in-process dedupe above can't see) or a
+      // fresh sign-in replaced it mid-flight, so retry once with that one.
       const { count } = await prisma.account.updateMany({
         where: { id: account.id, refresh_token: account.refresh_token },
         data: { access_token: null, refresh_token: null, expires_at: null },
@@ -190,8 +188,8 @@ async function getFreshAccessTokenImpl(
     token_type?: string;
   };
 
-  // Unconditional on purpose: if a parallel refresh discarded the token that
-  // Spotify just rotated into this response, this write is what restores it.
+  // Unconditional on purpose: a parallel refresh's invalid_grant may have
+  // just cleared this row, and this write puts the rotated token back.
   await prisma.account.update({
     where: { id: account.id },
     data: {
