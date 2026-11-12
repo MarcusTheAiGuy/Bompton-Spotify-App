@@ -53,6 +53,9 @@ export function WrappedStory({
 
   const press = {
     onPointerDown: () => {
+      // A long press the browser swallowed (no click) must not eat the
+      // next tap, so every press starts out as a tap.
+      held.current = false;
       pressedAt.current = Date.now();
       setPaused(true);
     },

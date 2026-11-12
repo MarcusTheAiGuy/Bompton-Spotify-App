@@ -46,7 +46,7 @@ import {
 // every linked account, and snapshots are also taken opportunistically
 // on dashboard visits via recordDailySnapshot().
 
-function isMissingTableError(error: unknown): boolean {
+export function isMissingTableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return /does not exist/i.test(message);
 }
@@ -255,6 +255,12 @@ const SNAPSHOT_SOURCES: SnapshotSource[] = [
 ];
 
 const SOURCE_BY_KIND = new Map(SNAPSHOT_SOURCES.map((s) => [s.kind, s]));
+
+// The trimmed projection a snapshot of `kind` stores, so a fresh Spotify
+// response can be read exactly like a stored snapshot row.
+export function projectSnapshot(kind: string, raw: unknown): SnapshotItem[] {
+  return SOURCE_BY_KIND.get(kind)?.project(raw) ?? [];
+}
 
 // Dashboard kinds that have a daily-snapshot source. The dashboard route
 // checks this before calling recordDailySnapshot with already-fetched data.

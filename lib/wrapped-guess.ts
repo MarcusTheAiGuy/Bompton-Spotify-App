@@ -1,13 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { getArtistGenresForIds } from "@/lib/artist-genres";
 import { umbrellaOf } from "@/lib/genre-taxonomy";
-import { recordDailySnapshot } from "@/lib/listening-archive";
+import {
+  isMissingTableError,
+  projectSnapshot,
+  recordDailySnapshot,
+} from "@/lib/listening-archive";
 import {
   getTopArtists,
   getTopTracks,
   pickImage,
-  SpotifyAccountMissingError,
-  SpotifyReauthRequiredError,
   type SpotifyArtist,
   type SpotifyPaged,
   type SpotifyTrack,
@@ -19,9 +21,9 @@ import {
 //
 // Spotify ranks Wrapped by streams over the year. We can't see those, so
 // each song or artist earns points from three sources:
-//   - every daily snapshot of the top-50 lists this year, per range, with
-//     the long range (about a year) counting most and the short range
-//     (about four weeks) least, averaged over the days we have, so
+//   - the snapshots of the top-50 lists this year (one a week), per range,
+//     with the long range (about a year) counting most and the short range
+//     (about four weeks) least, averaged over the weeks we have, so
 //     something that topped the charts in the spring still counts;
 //   - the plays we caught this year (ListeningPlay), relative to the most
 //     played song or artist;
@@ -45,10 +47,12 @@ const RANGE_WEIGHT: Record<Range, number> = {
 const PLAY_WEIGHT = 0.2;
 const LIST_LENGTH = 50;
 
-// Skip the live pull for a list snapshotted within this window, so
-// reopening the page doesn't call Spotify six times each visit.
-const FRESH_MS = 60 * 60_000;
+// Skip the live pull for a list snapshotted within this window: a few
+// hours make no difference to a year's guess, and the dashboard and the
+// daily cron snapshot the lists anyway.
+const FRESH_MS = 6 * 60 * 60_000;
 const DAY_MS = 24 * 60 * 60_000;
+const WEEK_MS = 7 * DAY_MS;
 const TOP_N = 5;
 
 type ListKind = { kind: string; what: "tracks" | "artists"; range: Range };
@@ -94,15 +98,16 @@ export type WrappedGuess = {
   };
 };
 
-// One ranked list: a day's snapshot of one top list, or the live pull.
+// One ranked list: a snapshot of one top list, or the live pull.
 export type RankedList = {
   range: Range;
   entries: { key: string; rank: number }[];
 };
 
 // The score behind the guess. Each range's points are averaged over that
-// range's lists, so a range we have one day of counts as much as a range
-// we have a hundred days of.
+// range's lists, so a range we have one week of counts as much as a range
+// we have forty weeks of. An empty list (a failed or blank snapshot) is
+// left out rather than averaged in as a zero.
 export function guessScores(
   lists: RankedList[],
   playCounts: Map<string, number>,
@@ -112,7 +117,9 @@ export function guessScores(
     scores.set(key, (scores.get(key) ?? 0) + points);
 
   for (const range of RANGES) {
-    const ofRange = lists.filter((list) => list.range === range);
+    const ofRange = lists.filter(
+      (list) => list.range === range && list.entries.length > 0,
+    );
     for (const list of ofRange) {
       for (const { key, rank } of list.entries) {
         const points = Math.max(0, (LIST_LENGTH + 1 - rank) / LIST_LENGTH);
@@ -129,11 +136,6 @@ export function guessScores(
     }
   }
   return scores;
-}
-
-function isMissingTableError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /does not exist/i.test(message);
 }
 
 // A table that hasn't been created yet reads as empty; anything else
@@ -162,26 +164,6 @@ function asEntries(data: unknown): SnapshotEntry[] {
   return Array.isArray(data) ? (data as SnapshotEntry[]) : [];
 }
 
-// The same projection the archive stores, so a live list and a stored
-// snapshot read alike.
-function entriesFromLive(
-  what: ListKind["what"],
-  raw: unknown,
-): SnapshotEntry[] {
-  const items =
-    (raw as SpotifyPaged<SpotifyTrack | SpotifyArtist> | undefined)?.items ??
-    [];
-  return items.map((item, index) => ({
-    rank: index + 1,
-    id: item.id,
-    name: item.name,
-    artists:
-      what === "tracks"
-        ? ((item as SpotifyTrack).artists ?? []).map((a) => a.name).join(", ")
-        : undefined,
-  }));
-}
-
 type Candidate = {
   name: string;
   subtitle: string | null;
@@ -193,8 +175,10 @@ function artistKey(name: string): string {
 }
 
 // Pull the current top lists that weren't snapshotted within FRESH_MS,
-// banking each as today's snapshot like a dashboard visit does. A dead
-// token stops the pull: every further call would fail the same way.
+// banking each as today's snapshot like a dashboard visit does. The first
+// failure stops the pull: a dead token or a rate limit (which spotifyFetch
+// already waited out once) would hit every further call the same way, and
+// the stored lists stand in.
 async function pullStaleLists(
   userId: string,
   lastCapturedAt: Map<string, number>,
@@ -212,13 +196,8 @@ async function pullStaleLists(
       await recordDailySnapshot(userId, list.kind, data);
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : String(caught);
-      error ??= `${list.kind}: ${message}`;
-      if (
-        caught instanceof SpotifyReauthRequiredError ||
-        caught instanceof SpotifyAccountMissingError
-      ) {
-        break;
-      }
+      error = `${list.kind}: ${message}`;
+      break;
     }
   }
   return { raw, error };
@@ -230,7 +209,7 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   const yearStart = new Date(Date.UTC(year, 0, 1));
   const kinds = LIST_KINDS.map((l) => l.kind);
 
-  const [plays, snapshots, cachedResponses] = await Promise.all([
+  const [plays, snapshotIndex, cachedResponses] = await Promise.all([
     prisma.listeningPlay
       .findMany({
         where: { userId, playedAt: { gte: yearStart } },
@@ -246,7 +225,7 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
     prisma.listeningSnapshot
       .findMany({
         where: { userId, kind: { in: kinds }, day: { gte: yearStart } },
-        select: { kind: true, day: true, capturedAt: true, data: true },
+        select: { id: true, kind: true, day: true, capturedAt: true },
       })
       .catch(emptyIfMissingTable<never>),
     // The dashboard's cache of raw Spotify responses: the only stored
@@ -260,28 +239,41 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
       .catch(emptyIfMissingTable<never>),
   ]);
 
+  // One snapshot per list per week is plenty for a year-long average, and
+  // keeps each visit's read small as the archive grows: the latest of
+  // each week, read in full only for those.
+  const weekOf = (date: Date) =>
+    Math.floor((date.getTime() - yearStart.getTime()) / WEEK_MS);
   const lastCapturedAt = new Map<string, number>();
-  for (const snap of snapshots) {
+  const weekly = new Map<string, { id: string; day: Date }>();
+  for (const snap of snapshotIndex) {
     const at = snap.capturedAt.getTime();
-    if (at > (lastCapturedAt.get(snap.kind) ?? 0))
+    if (at > (lastCapturedAt.get(snap.kind) ?? 0)) {
       lastCapturedAt.set(snap.kind, at);
+    }
+    const key = `${snap.kind}|${weekOf(snap.day)}`;
+    const kept = weekly.get(key);
+    if (!kept || snap.day > kept.day) weekly.set(key, snap);
   }
+  const snapshots =
+    weekly.size === 0
+      ? []
+      : await prisma.listeningSnapshot.findMany({
+          where: { id: { in: [...weekly.values()].map((s) => s.id) } },
+          select: { kind: true, day: true, data: true },
+        });
   const live = await pullStaleLists(userId, lastCapturedAt);
 
-  // One list per (kind, day). A live pull replaces today's snapshot, which
-  // it has just overwritten in the database anyway.
-  const todayKey = now.toISOString().slice(0, 10);
-  const listsByKindDay = new Map<
+  // One list per (kind, week). A live pull stands in for this week's
+  // snapshot: it is the newest look at the same list.
+  const listsByKindWeek = new Map<
     string,
     { list: ListKind; entries: SnapshotEntry[] }
   >();
-  const snapshotDays = new Set<string>();
   for (const snap of snapshots) {
     const list = LIST_KINDS.find((l) => l.kind === snap.kind);
     if (!list) continue;
-    const dayKey = snap.day.toISOString().slice(0, 10);
-    snapshotDays.add(dayKey);
-    listsByKindDay.set(`${snap.kind}|${dayKey}`, {
+    listsByKindWeek.set(`${snap.kind}|${weekOf(snap.day)}`, {
       list,
       entries: asEntries(snap.data),
     });
@@ -289,12 +281,16 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   for (const list of LIST_KINDS) {
     const raw = live.raw.get(list.kind);
     if (raw === undefined) continue;
-    snapshotDays.add(todayKey);
-    listsByKindDay.set(`${list.kind}|${todayKey}`, {
+    listsByKindWeek.set(`${list.kind}|${weekOf(now)}`, {
       list,
-      entries: entriesFromLive(list.what, raw),
+      entries: asEntries(projectSnapshot(list.kind, raw)),
     });
   }
+  // What the summary reports: every day the archive covers, sampled or not.
+  const snapshotDays = new Set(
+    snapshotIndex.map((snap) => snap.day.toISOString().slice(0, 10)),
+  );
+  if (live.raw.size > 0) snapshotDays.add(now.toISOString().slice(0, 10));
 
   // Images and links: the live pull first, then the dashboard's cache.
   const trackArt = new Map<
@@ -343,7 +339,7 @@ export async function buildWrappedGuess(userId: string): Promise<WrappedGuess> {
   const artists = new Map<string, Candidate>();
   const trackLists: RankedList[] = [];
   const artistLists: RankedList[] = [];
-  for (const { list, entries } of listsByKindDay.values()) {
+  for (const { list, entries } of listsByKindWeek.values()) {
     const ranked: RankedList = { range: list.range, entries: [] };
     for (const entry of entries) {
       const id = typeof entry.id === "string" ? entry.id : null;
