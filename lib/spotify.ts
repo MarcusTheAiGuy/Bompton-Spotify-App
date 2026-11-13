@@ -31,7 +31,7 @@ export class SpotifyRefreshFailedError extends Error {
     public body: string,
   ) {
     super(
-      `Spotify token refresh failed for user ${userId} (HTTP ${status}): ${body}. This looks transient (not an invalid_grant) — the stored refresh_token was kept, so a later request can retry. If it keeps happening, sign out and sign in again.`,
+      `Spotify token refresh failed for user ${userId} (HTTP ${status}): ${body}. This looks transient — the stored refresh_token was kept, so a later request can retry. If it keeps happening, sign out and sign in again.`,
     );
     this.name = "SpotifyRefreshFailedError";
   }
@@ -95,7 +95,10 @@ export async function getFreshAccessToken(userId: string): Promise<string> {
 
 const inFlightRefresh = new Map<string, Promise<string>>();
 
-async function getFreshAccessTokenImpl(userId: string): Promise<string> {
+async function getFreshAccessTokenImpl(
+  userId: string,
+  retried = false,
+): Promise<string> {
   const account = await prisma.account.findFirst({
     where: { userId, provider: "spotify" },
   });
@@ -147,14 +150,27 @@ async function getFreshAccessTokenImpl(userId: string): Promise<string> {
   if (!response.ok) {
     if (isInvalidGrant(response.status, text)) {
       // The refresh_token is permanently dead (expired under the
-      // July-2026 six-month rule, or revoked). Discard it FIRST — clear
-      // the whole token triplet so no future request (dashboard render
-      // or daily cron) retries this dead token — then signal that the
-      // user must reauthorize. Retrying invalid_grant never succeeds.
-      await prisma.account.update({
-        where: { id: account.id },
+      // July-2026 six-month rule, or revoked), and retrying it never
+      // succeeds. Discard it FIRST — clear the whole token triplet so no
+      // future request (dashboard render or daily cron) retries it — then
+      // signal that the user must reauthorize. But only if the row still
+      // holds it: a different token means another request (on another
+      // server instance, which the in-process dedupe above can't see) or a
+      // fresh sign-in replaced it mid-flight, so retry once with that one.
+      const { count } = await prisma.account.updateMany({
+        where: { id: account.id, refresh_token: account.refresh_token },
         data: { access_token: null, refresh_token: null, expires_at: null },
       });
+      if (count === 0) {
+        console.warn("[spotify.refresh] invalid_grant on a replaced token", {
+          userId,
+          accountId: account.id,
+          retried,
+          body: text.slice(0, 300),
+        });
+        if (!retried) return getFreshAccessTokenImpl(userId, true);
+        throw new SpotifyRefreshFailedError(userId, response.status, text);
+      }
       console.warn("[spotify.refresh] invalid_grant — discarded token", {
         userId,
         accountId: account.id,
@@ -178,6 +194,8 @@ async function getFreshAccessTokenImpl(userId: string): Promise<string> {
     token_type?: string;
   };
 
+  // Unconditional on purpose: a parallel refresh's invalid_grant may have
+  // just cleared this row, and this write puts the rotated token back.
   await prisma.account.update({
     where: { id: account.id },
     data: {
