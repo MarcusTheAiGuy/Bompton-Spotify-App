@@ -28,6 +28,12 @@ import type { SpotifyArtistRef } from "@/lib/spotify";
 const STALE_AFTER_MS = 60 * 24 * 60 * 60 * 1000;
 const FETCH_GAP_MS = 250;
 const DEFAULT_FETCH_BUDGET = 30;
+// Hard wall-clock caps so a slow or hung Last.fm can't stall the
+// /bompton-playlist render (which made the nav link look dead: a client
+// navigation shows nothing until the server finishes). Whatever doesn't
+// fit is left stale and picked up by the next render.
+const PER_FETCH_TIMEOUT_MS = 4_000;
+const TOTAL_FETCH_DEADLINE_MS = 6_000;
 
 export type ArtistGenres = { name: string; genres: string[] };
 
@@ -206,13 +212,24 @@ export async function getArtistGenresForIds(
   }
 
   const toFetch = stale.slice(0, fetchBudget);
-  const fetchBudgetRemaining = Math.max(0, stale.length - toFetch.length);
+  let fetchBudgetRemaining = Math.max(0, stale.length - toFetch.length);
+  const deadline = Date.now() + TOTAL_FETCH_DEADLINE_MS;
 
   for (let i = 0; i < toFetch.length; i += 1) {
+    if (Date.now() >= deadline) {
+      const skipped = toFetch.length - i;
+      fetchBudgetRemaining += skipped;
+      console.warn(
+        `[artist-genres] Hit the ${TOTAL_FETCH_DEADLINE_MS}ms Last.fm deadline after ${batchesAttempted} lookups; ${skipped} artists deferred to the next render.`,
+      );
+      break;
+    }
     const { id, name } = toFetch[i];
     batchesAttempted += 1;
     try {
-      const lookup = await getArtistTags(name);
+      const lookup = await getArtistTags(name, {
+        signal: AbortSignal.timeout(PER_FETCH_TIMEOUT_MS),
+      });
       const tagNames = lookup.tags.map((t) => t.name);
       result.set(id, { name, genres: tagNames });
       try {
@@ -281,11 +298,15 @@ export async function getArtistGenresForIds(
         // platform-side outages. 29 is rate limit. All transient
         // — break this render and retry next time without writing
         // a misleading empty cache row.
+        // Status 0 = network error or our PER_FETCH_TIMEOUT_MS abort —
+        // also transient, so same treatment (don't cache empty genres).
         if (
+          error.status === 0 ||
           error.lastfmCode === 11 ||
           error.lastfmCode === 16 ||
           error.lastfmCode === 29
         ) {
+          fetchBudgetRemaining += toFetch.length - i - 1;
           break;
         }
         // Everything else (code 6 not-found, code 8 operation

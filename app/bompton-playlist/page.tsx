@@ -19,6 +19,7 @@ import { BomptonAutoSync } from "@/components/bompton/bompton-auto-sync";
 import { FridayLeaderboard } from "@/components/bompton/friday-leaderboard";
 import { PlaylistStatsSummary } from "@/components/bompton/playlist-stats-summary";
 import { PlaylistSearch } from "@/components/bompton/playlist-search";
+import { RuleViolationsWarning } from "@/components/bompton/rule-violations-warning";
 import { RepeatedSongsWarning } from "@/components/bompton/repeated-songs-warning";
 import { SongCountWarning } from "@/components/bompton/song-count-warning";
 import { buildBomptonStats, findRepeatedTracks } from "@/lib/bompton-stats";
@@ -130,17 +131,25 @@ export default async function BomptonPlaylistPage() {
         </div>
       ) : null}
 
-      <RepeatedSongsWarning repeats={repeats} />
+      <RuleViolationsWarning
+        violationCount={
+          repeats.length +
+          stats.pastSeasonCountViolations.length +
+          stats.currentSeasonCountViolations.length
+        }
+      >
+        <RepeatedSongsWarning repeats={repeats} />
 
-      <SongCountWarning
-        violations={stats.pastSeasonCountViolations}
-        variant="past"
-      />
+        <SongCountWarning
+          violations={stats.pastSeasonCountViolations}
+          variant="past"
+        />
 
-      <SongCountWarning
-        violations={stats.currentSeasonCountViolations}
-        variant="current"
-      />
+        <SongCountWarning
+          violations={stats.currentSeasonCountViolations}
+          variant="current"
+        />
+      </RuleViolationsWarning>
 
       <PlaylistSearch index={stats.searchIndex} />
 
