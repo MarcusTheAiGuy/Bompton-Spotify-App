@@ -1455,7 +1455,7 @@ const PERSONAS: Persona[] = [
             Ben: [
               `**On the nose:** big, serious rap. You can smell the liner notes.`,
               `**On the palate:** it holds up. Kendrick, Ka, McKinley Dixon.`,
-              `**The finish:** and there it is. Phil Collins, from the Brother Bear soundtrack, and a dance remix of 'Spooky, Scary Skeletons'. Both were among his fifty most-played songs when we looked in November.`,
+              `**The finish:** and there it is. Phil Collins, from the Brother Bear soundtrack, and a dance remix of 'Spooky, Scary Skeletons'. Both were among his fifty most-played songs when we looked in November 2026.`,
             ],
             Sam: [
               `**On the nose:** campfire.`,
