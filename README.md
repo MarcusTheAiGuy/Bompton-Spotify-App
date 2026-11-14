@@ -100,6 +100,27 @@ Spotify itself doesn't offer, we archive as much as we can each day.
 - New table: run `npm run db:push`, or click **Initialize ListeningSnapshot
   table** on `/troubleshooting` in prod.
 
+## Reminder emails
+Two emails go out through Resend, each rotating through a list of personas:
+
+- **Friday reminder** (`lib/friday-reminder-email.ts`) — crew-wide, every
+  Friday at 15:00 UTC.
+- **Late-add roast** (`lib/late-add-email.ts`) — to anyone more than 3 days
+  behind on the current season, CC'ing the rest of the crew, at most once
+  every 24 hours.
+
+A persona that has never been sent goes out before any that has, so a batch
+appended to either list is next in line; after that it's whichever persona
+has waited longest (`lib/persona-rotation.ts`). `/troubleshooting` lists
+what's up next for both.
+
+To write new personas against what the crew actually listens to, press
+**Create export link** on `/troubleshooting`. It gives a 24-hour link to a
+JSON export (`lib/crew-export.ts`) of every Bompton add, each member's
+archived plays and Spotify snapshots, and the emails sent so far. Facts
+already mined, and which persona has used each, are tracked in
+`docs/crew-lore.md`.
+
 ## Deployment
 Push to `main` → Vercel auto-deploys. Preview deploys are created for each PR.
 

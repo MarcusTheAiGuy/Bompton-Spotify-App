@@ -11,14 +11,17 @@ them so the next batch reaches for something fresh.
 
 ## How to regenerate this
 
-The one-off export tooling (`/api/crew-dossier` + a `/troubleshooting` button) was
-deleted after this pull — it was never meant to live in prod. To refresh, re-add a
-read-only script that reads `Playlist` + `PlaylistTrack` from Neon, attributes each
-row via the `SPOTIFY_USER_DISPLAY_NAMES` map in `lib/spotify-user-names.ts`, and
-aggregates: per-member counts, longest/shortest track, repeat artists and albums,
-add day-of-week and hour, biggest single-day binge, longest silence, duplicate adds.
-The outliers are the useful part; plain "top artist" aggregates are not funnier than
-what we already had.
+Sign in, open `/troubleshooting`, press **Create export link** under "Crew data
+export", and give the link to whoever is writing the personas. It works without a
+session for 24 hours and returns one JSON file: every Bompton add with its timestamp,
+each member's archived plays and daily Spotify snapshots (top tracks and artists,
+saved library, playlists, followed artists), and the reminder emails sent so far.
+`lib/crew-export.ts` documents the shape.
+
+The export is raw rows, not stats, so the aggregating is yours to do: per-member
+counts, longest/shortest track, repeat artists and albums, add day-of-week and hour,
+longest silence, duplicate adds. The outliers are the useful part; plain "top artist"
+aggregates are not funnier than what we already had.
 
 ## ⚠️ Timezone trap
 

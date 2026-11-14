@@ -1,6 +1,18 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { InitListeningSnapshotButton } from "./troubleshooting-buttons";
+import { CREW_TIME_ZONE, loadCrew } from "@/lib/crew";
+import { FRIDAY_REMINDER_PERSONA_KEYS } from "@/lib/friday-reminder-email";
+import { LATE_ADD_PERSONA_KEYS } from "@/lib/late-add-email";
+import {
+  loadFridayPersonaHistory,
+  loadLateAddPersonaHistory,
+  rotationQueue,
+  type QueuedPersona,
+} from "@/lib/persona-rotation";
+import {
+  CrewExportLinkButton,
+  InitListeningSnapshotButton,
+} from "./troubleshooting-buttons";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +31,59 @@ export const dynamic = "force-dynamic";
 // utilities should land here. Anything user-facing for normal usage belongs
 // on /dashboard or /bompton-playlist instead.
 
+// How many upcoming personas to list per email. Enough to see a freshly
+// added batch sitting at the front of the queue.
+const UP_NEXT_COUNT = 8;
+
+type EmailRotation = { email: string; queue: QueuedPersona[] };
+
+async function loadEmailRotations(): Promise<
+  { ok: true; rotations: EmailRotation[] } | { ok: false; error: string }
+> {
+  try {
+    const crew = await loadCrew();
+    const [friday, lateAdd] = await Promise.all([
+      loadFridayPersonaHistory(),
+      loadLateAddPersonaHistory(crew),
+    ]);
+    return {
+      ok: true,
+      rotations: [
+        {
+          email: "Friday reminder",
+          queue: rotationQueue(FRIDAY_REMINDER_PERSONA_KEYS, friday),
+        },
+        {
+          email: "Late-add roast",
+          queue: rotationQueue(LATE_ADD_PERSONA_KEYS, lateAdd),
+        },
+      ],
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    console.error("[troubleshooting.email-rotation.failed]", { message });
+    return {
+      ok: false,
+      error: `Couldn't read the send history — ${message}. If it says a table "does not exist", FridayReminderNotification or LateAddNotification was never initialized in this database; otherwise check DATABASE_URL.`,
+    };
+  }
+}
+
+function formatSentDate(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: CREW_TIME_ZONE,
+  });
+}
+
 export default async function TroubleshootingPage() {
   const session = await auth();
   if (!session?.user) redirect("/");
+
+  const emailRotations = await loadEmailRotations();
 
   return (
     <section className="flex flex-col gap-10 py-6">
@@ -50,6 +112,64 @@ export default async function TroubleshootingPage() {
           on the daily-sync cron.
         </p>
         <InitListeningSnapshotButton />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Email rotation</h2>
+        <p className="max-w-3xl text-sm text-spotify-subtext">
+          Which persona each email sends next. One that has never been sent
+          goes ahead of any that has, so a newly added batch is used straight
+          away; after that it&apos;s whichever has waited longest. A Friday
+          with a pinned one-off sends that instead and the queue waits a week.
+        </p>
+        {emailRotations.ok ? (
+          <div className="grid gap-6 sm:grid-cols-2">
+            {emailRotations.rotations.map(({ email, queue }) => {
+              const neverSent = queue.filter((p) => p.lastSentAt === null);
+              return (
+                <div key={email} className="flex flex-col gap-2">
+                  <h3 className="text-sm font-semibold">{email}</h3>
+                  <p className="text-xs text-spotify-subtext">
+                    {queue.length} personas ·{" "}
+                    {neverSent.length === 0
+                      ? "all sent at least once, so every send is now a repeat"
+                      : `${neverSent.length} never sent`}
+                  </p>
+                  <ol className="list-decimal pl-5 text-sm">
+                    {queue.slice(0, UP_NEXT_COUNT).map((p) => (
+                      <li key={p.key}>
+                        <code>{p.key}</code>{" "}
+                        <span className="text-xs text-spotify-subtext">
+                          {p.lastSentAt === null
+                            ? "never sent"
+                            : `last sent ${formatSentDate(p.lastSentAt)}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="whitespace-pre-wrap text-xs text-red-300">
+            {emailRotations.error}
+          </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold">Crew data export</h2>
+        <p className="max-w-3xl text-sm text-spotify-subtext">
+          Everything the app has on the crew&apos;s listening as one JSON
+          file: every Bompton add, each member&apos;s archived plays and daily
+          Spotify snapshots (top tracks and artists, saved library, playlists),
+          and the reminder emails sent so far. It&apos;s the source material
+          for writing new reminder personas. No emails or tokens are included.
+          The link works without signing in for 24 hours, so it can be pasted
+          to whoever is writing them.
+        </p>
+        <CrewExportLinkButton />
       </section>
     </section>
   );

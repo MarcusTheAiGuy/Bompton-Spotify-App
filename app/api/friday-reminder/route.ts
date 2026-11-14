@@ -5,12 +5,17 @@ import { CURRENT_BOMPTON_YEAR } from "@/lib/bompton";
 import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import {
-  FRIDAY_REMINDER_PERSONA_COUNT,
+  FRIDAY_REMINDER_PERSONA_KEYS,
   FridayReminderEmailConfigError,
   FridayReminderEmailSendError,
   scheduledPersonaFor,
   sendFridayReminderEmail,
 } from "@/lib/friday-reminder-email";
+import {
+  loadFridayPersonaHistory,
+  nextPersonaIndex,
+  type PersonaHistory,
+} from "@/lib/persona-rotation";
 
 export const dynamic = "force-dynamic";
 
@@ -28,9 +33,9 @@ export const dynamic = "force-dynamic";
 // a manual click after the cron ran, won't double-blast the crew. Failed
 // sends do NOT count, so a transient Resend error can be retried.
 //
-// Persona rotation: index = count of prior successful sends % persona count.
-// Failed sends don't burn a slot, so the next successful send reuses the
-// same persona rather than skipping one.
+// Persona rotation: see lib/persona-rotation.ts. Personas that have never
+// been sent go first, then whichever has waited longest. Only successful
+// sends count, so a failed send is retried with the same persona.
 export async function POST(request: NextRequest) {
   return handle(request);
 }
@@ -113,22 +118,20 @@ async function handle(request: NextRequest) {
     ? `https://open.spotify.com/playlist/${currentSeason.playlist.id}`
     : null;
 
-  // Per-week dedupe + rotation cursor, both read from the table. Handle the
+  // Per-week dedupe + persona history, both read from the table. Handle the
   // "table not initialized" case with a user-actionable message pointing at
   // the /troubleshooting init button (this project uses db push, not
   // migrations, so a new table needs a one-shot DDL pass in prod).
   let alreadySentThisWeek: { sentAt: Date; personaKey: string } | null;
-  let rotationCursor: number;
+  let personaHistory: PersonaHistory;
   try {
-    [alreadySentThisWeek, rotationCursor] = await Promise.all([
+    [alreadySentThisWeek, personaHistory] = await Promise.all([
       prisma.fridayReminderNotification.findFirst({
         where: { weekOf: fridayDate, resendId: { not: null } },
         select: { sentAt: true, personaKey: true },
         orderBy: { sentAt: "desc" },
       }),
-      prisma.fridayReminderNotification.count({
-        where: { resendId: { not: null } },
-      }),
+      loadFridayPersonaHistory(),
     ]);
   } catch (error) {
     const name = error instanceof Error ? error.name : "PrismaError";
@@ -166,11 +169,15 @@ async function handle(request: NextRequest) {
     });
   }
 
+  const personaIndex = nextPersonaIndex(
+    FRIDAY_REMINDER_PERSONA_KEYS,
+    personaHistory,
+  );
+
   if (dryRun) {
     // A scheduled one-off pinned to this Friday overrides the rotation; report
     // it so an operator can confirm the right email is queued for the week.
     const scheduled = scheduledPersonaFor(fridayDate);
-    const personaIndex = rotationCursor % FRIDAY_REMINDER_PERSONA_COUNT;
     return NextResponse.json({
       ok: true,
       status: "skipped-dry-run",
@@ -178,12 +185,12 @@ async function handle(request: NextRequest) {
       bomptonYear: CURRENT_BOMPTON_YEAR,
       scheduledPersonaKey: scheduled?.key ?? null,
       personaIndex,
+      personaKey: FRIDAY_REMINDER_PERSONA_KEYS[personaIndex],
       recipients,
       playlistUrl,
     });
   }
 
-  const personaIndex = rotationCursor % FRIDAY_REMINDER_PERSONA_COUNT;
   try {
     const result = await sendFridayReminderEmail({
       recipients,

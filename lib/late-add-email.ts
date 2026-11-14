@@ -32,9 +32,8 @@ export type LateAddEmailInput = {
   standings: { member: CrewMember; missedCount: number }[];
   bomptonYear: string;
   playlistUrl: string | null;
-  // Index into PERSONAS for the round-robin roast rotation. The caller
-  // (route) tracks the global cursor; we just modulo into the list so
-  // the input can never go out of bounds even if the caller forgets.
+  // Index into PERSONAS, chosen by the caller (see lib/persona-rotation.ts).
+  // We modulo into the list so it can never go out of bounds.
   personaIndex: number;
 };
 
@@ -120,10 +119,10 @@ export async function sendLateAddEmail(
 }
 
 // ---------------------------------------------------------------------------
-// Persona registry. Round-robin rotation, advanced once per successful send
-// by the route. Append new entries to the end of PERSONAS to extend the
-// rotation — historical sends will still resolve by ordinal position
-// because we never delete or reorder.
+// Persona registry. Which one goes out next is decided in
+// lib/persona-rotation.ts: a persona that has never been sent goes before any
+// that has, in the order they appear here, and after that it's whichever has
+// waited longest. So a batch appended to the end is used straight away.
 //
 // House style: this one goes TO the offender and CCs the whole crew, so it is
 // a public shaming and should read like one — crass, personal, no mercy. Much
@@ -138,9 +137,17 @@ export async function sendLateAddEmail(
 // mined facts; pull from there rather than inventing new ones.
 // ---------------------------------------------------------------------------
 
+// All a subject line may read. LateAddNotification stores these three next to
+// the subject it sent, which is what lets lateAddPersonaKeysForSubject work
+// out afterwards which persona a row used.
+type SubjectInput = Pick<
+  LateAddEmailInput,
+  "offender" | "weeksBehind" | "bomptonYear"
+>;
+
 type Persona = {
   key: string;
-  subject: (i: LateAddEmailInput) => string;
+  subject: (i: SubjectInput) => string;
   text: (i: LateAddEmailInput) => string;
   html: (i: LateAddEmailInput) => string;
 };
@@ -964,9 +971,23 @@ const PERSONAS: Persona[] = [
   },
 ];
 
-// Public so the route can use it to seed the rotation cursor without
-// importing the array directly.
-export const LATE_ADD_PERSONA_COUNT = PERSONAS.length;
+// Public so the rotation can pick from the list without importing the array.
+export const LATE_ADD_PERSONA_KEYS: readonly string[] = PERSONAS.map(
+  (p) => p.key,
+);
+
+// Which persona sent an email with this subject line, given what it was sent
+// with. Empty when no current persona produces it. More than one only if two
+// personas share a subject line; the rotation then counts both as sent, so a
+// duplicate can't leave one of them looking unsent forever.
+export function lateAddPersonaKeysForSubject(
+  subject: string,
+  sentWith: SubjectInput,
+): string[] {
+  return PERSONAS.filter((p) => p.subject(sentWith) === subject).map(
+    (p) => p.key,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Shared rendering helpers used by personas.
