@@ -1002,10 +1002,10 @@ const PERSONAS: Persona[] = [
     headline: () => `The app can see what you actually listen to`,
     body: (i) => [
       `It's ${formatFriday(i.fridayDate)}. Before anybody adds this week's song, a reminder that the app doesn't only log what you add. It logs what you play. I've been reading.`,
-      `**Evan.** Between July and mid-November the app logged 784 of your plays. 275 of them were Phoebe Bridgers. That's more than one in three. At that point it isn't a favourite artist, it's a carbon monoxide leak.`,
-      `**Ben.** You've added DOOM to this playlist, under one name or another, thirteen times. When I checked Spotify's own all-time ranking for you, DOOM was twelfth. Taylor Swift was sixth. Zach Bryan was fourth. Songs by either of them that you've ever added: none.`,
-      `**Sachin.** Twenty-one plays of 'Be Good to Me' by Ashley Tisdale between July and September, one of them at 4:48 on a Saturday morning. I'm not judging the song. I'm asking what the plan was.`,
-      `**Sam.** Thirty-nine plays of Noah Kahan between June and November. Noah Kahan songs you've put on this playlist in four seasons: zero. You've been living a double life in a flannel shirt.`,
+      `**Evan.** Between July and mid-November 2026 the app logged 784 of your plays. 275 of them were Phoebe Bridgers. That's more than one in three. At that point it isn't a favourite artist, it's a carbon monoxide leak.`,
+      `**Ben.** You've added DOOM to this playlist, under one name or another, thirteen times. When I checked Spotify's own all-time ranking for you, DOOM was twelfth. Taylor Swift was sixth. Zach Bryan was fourth. Songs by either of them that you had ever added: none.`,
+      `**Sachin.** Twenty-one plays of 'Be Good to Me' by Ashley Tisdale between July and September 2026, one of them at 4:48 on a Saturday morning. I'm not judging the song. I'm asking what the plan was.`,
+      `**Sam.** Thirty-nine plays of Noah Kahan between June and November 2026. Noah Kahan songs you've put on this playlist in four seasons: zero. You've been living a double life in a flannel shirt.`,
       `So here's this week's challenge. Add the one you actually listen to. We already know.`,
       { button: "Confess" },
       {
@@ -1051,11 +1051,11 @@ const PERSONAS: Persona[] = [
       `Morning, punters. Here's the board for ${formatFriday(i.fridayDate)}.`,
       {
         list: [
-          `**Sam to be late: 12/1.** By mid-November his songs this season had arrived a combined 19 days late. Evan has been later than that with a single song.`,
-          `**Ben to add within half an hour of this email: 5/2.** It happened four times between May and November. He'll tell you he was about to anyway.`,
-          `**Evan to add today: 2/1 against.** Of his first 33 songs this season, eleven arrived on the Friday they were due. The smart money is on Saturday night.`,
-          `**Sachin to add today: 5/2 against.** Ten of his first 35 arrived on the Friday they were due. When he does land one, nobody is more surprised than Sachin.`,
-          `**All four of you on the same Friday: 34/1.** In the first 35 weeks of the season it happened once. The 22nd of May. I've had the date framed.`,
+          `**Sam to be late: 12/1.** By mid-November 2026 his songs for the season had arrived a combined 19 days late. Evan has been later than that with a single song.`,
+          `**Ben to add within half an hour of this email: 5/2.** It happened four times between May and November 2026. He'll tell you he was about to anyway.`,
+          `**Evan to add today: 2/1 against.** Of his first 33 songs of 2026–27, eleven arrived on the Friday they were due. The smart money is on Saturday night.`,
+          `**Sachin to add today: 5/2 against.** Of his first 35 songs of 2026–27, ten arrived on the Friday they were due. When he does land one, nobody is more surprised than Sachin.`,
+          `**All four of you on the same Friday: 34/1.** In the first 35 weeks of 2026–27 it happened once. The 22nd of May. I've had the date framed.`,
           `**Somebody adding a song that's already on the playlist: evens.** It keeps happening. You know who you are. Actually, you don't. That's the problem.`,
         ],
       },
@@ -1102,10 +1102,10 @@ const PERSONAS: Persona[] = [
     headline: () => `Study finds nobody listens to the playlist`,
     body: () => [
       `Bad news, lads. I've been through the listening logs, and I can now confirm what we've all suspected. **Nobody plays the songs on this playlist except the man who added them.**`,
-      `The findings, as of mid-November:`,
+      `The findings, as of mid-November 2026:`,
       {
         list: [
-          `**Evan** had played none of the 35 songs Sachin added this season. Not one, in 784 logged plays.`,
+          `**Evan** had played none of the 35 songs Sachin had added that season. Not one, in 784 logged plays.`,
           `**Ben** added 'White Flag' by Vince Staples in June. Evan had added the same song seventeen days earlier. Ben didn't know, because Ben hadn't listened.`,
           `**Sam** had played two of Evan's songs and two of Sachin's. All season. That isn't listening. That's a misclick.`,
           `**Sachin** is the exception. He'd played twelve of Ben's songs, fourteen of Evan's and eleven of Sam's. He's the only one of you doing the reading. He has also had more late-add emails than Ben and Sam put together, so it turns out we've been shouting at the one man in the room who was paying attention.`,

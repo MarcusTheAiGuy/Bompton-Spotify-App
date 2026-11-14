@@ -1083,9 +1083,9 @@ const PERSONAS: Persona[] = [
               `Evan's idea of a banger is a woman whispering over one guitar about a town she had to leave.`,
             ],
             Sachin: [
-              `His taste isn't eclectic, it's a ransom note. This season alone he's given us Lamb of God, Rihanna, Shakira and Stromae, and I don't believe he remembers adding any of them.`,
+              `His taste isn't eclectic, it's a ransom note. In the 2026–27 season alone he's given us Lamb of God, Rihanna, Shakira and Stromae, and I don't believe he remembers adding any of them.`,
               `He's a BLACKPINK completist with a hole in the collection. He's added the group, Lisa twice, Jennie and Rosé. Jisoo is still waiting by the phone. She should get comfortable. She's dealing with Sachin.`,
-              `In October he played 'Rather Be' by Clean Bandit thirteen times in ten days. That song came out in 2014. He's late to things that have already happened.`,
+              `In October 2026 he played 'Rather Be' by Clean Bandit thirteen times in ten days. That song came out in 2014. He's late to things that have already happened.`,
             ],
             Ben: [
               `Ben has a playlist called 'Haloween'. One L. He has another called 'Apocoliptic'. This is the man who wants to talk to you about lyricism.`,
@@ -1155,7 +1155,7 @@ const PERSONAS: Persona[] = [
         {
           Evan: [
             { heading: "Your most-played song" },
-            `'Kill Me' by Phoebe Bridgers. Twenty-seven plays between August and November, and those are only the ones the app caught. Twenty-seven plays for her. Not eleven seconds for us.`,
+            `'Kill Me' by Phoebe Bridgers. Twenty-seven plays between August and November 2026, and those are only the ones the app caught. Twenty-seven plays for her. Not eleven seconds for us.`,
             { heading: "Your peak hours" },
             `Eight o'clock to midnight. Nearly half of everything you've ever added to this playlist turned up in that window. You don't add music so much as remember it at bedtime.`,
             { heading: "Your listening personality" },
@@ -1163,15 +1163,15 @@ const PERSONAS: Persona[] = [
           ],
           Sachin: [
             { heading: "Your most-played song" },
-            `'Pillow Fight' by Tinashe. Thirty-eight plays in under a month this autumn. You did add it to the playlist, to be fair. It was the only song you'd heard.`,
+            `'Pillow Fight' by Tinashe. Thirty-eight plays in under a month, in October 2026. You did add it to the playlist, to be fair. It was the only song you'd heard.`,
             { heading: "Your peak hours" },
-            `The small ones. Between May and November the app logged you playing music after midnight on 63 different nights. Whatever's keeping you up, it isn't guilt.`,
+            `The small ones. Between May and November 2026 the app logged you playing music after midnight on 63 different nights. Whatever's keeping you up, it isn't guilt.`,
             { heading: "Your listening personality" },
             `**The Raccoon.** Nocturnal, eats anything, gone by morning.`,
           ],
           Ben: [
             { heading: "Your most-played artist" },
-            `Jessie Ware. Not DOOM. Not Kendrick. Of everything the app logged you playing this spring and summer, one song in ten was Jessie Ware, and you added three songs off the same album of hers in eight weeks. One more and you may as well post us the CD.`,
+            `Jessie Ware. Not DOOM. Not Kendrick. Of everything the app logged you playing in the spring and summer of 2026, one song in ten was Jessie Ware, and you added three songs off the same album of hers in eight weeks. One more and you may as well post us the CD.`,
             { heading: "Your peak hours" },
             `The weekend. Nearly half of what the app has logged you playing happened on a Saturday or a Sunday. Monday to Friday you apparently sit in silence, like a monk with opinions.`,
             { heading: "Your listening personality" },
@@ -1179,9 +1179,9 @@ const PERSONAS: Persona[] = [
           ],
           Sam: [
             { heading: "Your most-played artist" },
-            `Geese. Ninety-five plays, one of them at three o'clock on a Sunday morning in August. Ben put Geese on this playlist in July 2023. You got round to them in January 2026, which until now was the latest you'd ever been for anything.`,
+            `Geese. Ninety-five plays between June and November 2026, one of them at three o'clock on a Sunday morning. Ben put Geese on this playlist in July 2023. You got round to them in January 2026, which until now was the latest you'd ever been for anything.`,
             { heading: "Your peak hours" },
-            `Friday, nine to three. Twenty-seven of your first thirty-five songs this season arrived on the day itself, most of them before lunch. You add music the way other people file expenses.`,
+            `Friday, nine to three. Twenty-seven of your first thirty-five songs of 2026–27 arrived on the day itself, most of them before lunch. You add music the way other people file expenses.`,
             { heading: "Your listening personality" },
             `**The Timesheet.** Reliable, punctual and now, somehow, overdue.`,
           ],
@@ -1253,10 +1253,10 @@ const PERSONAS: Persona[] = [
         forOffender(
           i,
           {
-            Evan: `Friends say they have seen this before. "In October we emailed him six times in eleven days," said one. "Six. He added on the twelfth day, on a Saturday night, and carried on like he'd been away at war."`,
-            Sachin: `Friends say they have seen this before. "In September and October he was a song behind for thirty-eight days straight," said one. "The app logged him playing 628 songs in that time. He wasn't busy. He was right there."`,
+            Evan: `Friends say they have seen this before. "In October 2026 we emailed him six times in eleven days," said one. "Six. He added on the twelfth day, on a Saturday night, and carried on like he'd been away at war."`,
+            Sachin: `Friends say they have seen this before. "In the autumn of 2026 he was a song behind for thirty-eight days straight," said one. "The app logged him playing 628 songs in that time. He wasn't busy. He was right there."`,
             Ben: `Friends were unmoved. "He always folds," said one. "The first time we sent him one of these he added three minutes later. The third time, five minutes. He isn't a man. He's a doorbell."`,
-            Sam: `Friends were shaken. "It happened twice in August," said one, staring at the floor. "Both times he added the next morning at about ten, like a man who'd slept beautifully. He didn't even have the decency to panic."`,
+            Sam: `Friends were shaken. "It happened twice in August 2026," said one, staring at the floor. "Both times he added the next morning at about ten, like a man who'd slept beautifully. He didn't even have the decency to panic."`,
           },
           `Friends declined to comment, on the grounds that they were busy adding songs.`,
         ),
@@ -1310,10 +1310,10 @@ const PERSONAS: Persona[] = [
         forOffender(
           i,
           {
-            Evan: `**Stop 15. 'Fiero GT', 2026.** Fifty-one seconds long. The shortest work in the collection, handed in one April as a whole week's contribution. Please don't lean on the glass. There's very little behind it.`,
+            Evan: `**Stop 15. 'Fiero GT', 2026.** Fifty-one seconds long. The shortest work in the collection, handed in that April as a whole week's contribution. Please don't lean on the glass. There's very little behind it.`,
             Sachin: `**Stop 15. 'Tanglewood', 2025, and 'Tanglewood', 2026.** The same song, hung twice, a year apart. Experts believe the artist forgot he had already made it. The first version dates from a period of considerable panic.`,
             Ben: `**Stop 15. 'No Gold Teeth' (June 2026) and 'No Gold Teeth' (October 2026).** A diptych. The same song, added to the same playlist twice, fifteen weeks apart. It's the third season in four in which the artist has handed in a work he had already handed in.`,
-            Sam: `**Stop 15. 'That's Life' (after Ben), 2026.** A Frank Sinatra number, added one September. Visitors may recognise it. Ben exhibited the identical piece six months earlier. The curators have labelled it, gently, "school of Ben".`,
+            Sam: `**Stop 15. 'That's Life' (after Ben), 2026.** A Frank Sinatra number, added that September. Visitors may recognise it. Ben exhibited the identical piece six months earlier. The curators have labelled it, gently, "school of Ben".`,
           },
           null,
         ),
@@ -1488,10 +1488,10 @@ const PERSONAS: Persona[] = [
         forOffender(
           i,
           {
-            Evan: `We love Evan. Evan is a romantic. On Halloween he added a song called 'Halloween'. That is the size of surprise this man deals in, and it's still more than he's managed this week.`,
+            Evan: `We love Evan. Evan is a romantic. On Halloween 2026 he added a song called 'Halloween'. That is the size of surprise this man deals in, and it's still more than he's managed this week.`,
             Sachin: `We love Sachin. Sachin keeps different hours from the rest of us. Across four seasons, 39 of his songs have turned up between midnight and five in the morning. So the party started at seven, and we'll see him at about two.`,
-            Ben: `We love Ben. Ben likes to get ahead. One Thursday in October he added three songs in a single minute, paying for the next three Fridays up front, like rent. So he probably thinks he's already been to this party.`,
-            Sam: `We love Sam. Sam is never late. Ten times since May he'd added his song before the Friday reminder had even gone out. So if Sam isn't here, the only explanation is that Sam is dead, and this is a wake. Somebody get the good whisky.`,
+            Ben: `We love Ben. Ben likes to get ahead. One Thursday in October 2026 he added three songs in a single minute, paying for the next three Fridays up front, like rent. So he probably thinks he's already been to this party.`,
+            Sam: `We love Sam. Sam is never late. Ten times between May and November 2026 he'd added his song before the Friday reminder had even gone out. So if Sam isn't here, the only explanation is that Sam is dead, and this is a wake. Somebody get the good whisky.`,
           },
           `We love ${name}. We don't know him very well yet. This isn't helping.`,
         ),
@@ -1521,7 +1521,7 @@ const PERSONAS: Persona[] = [
           i,
           {
             Evan: guide,
-            Sachin: `And this is the embarrassing part, Sachin, because the app has logged you playing FromSoftware boss music for fun. One Saturday in September it was 'Heolstor the Nightlord', five times in a day, the first at seven minutes past four in the morning. You'll square up to a Nightlord to relax, and a three-minute pop song has you face down on the floor.`,
+            Sachin: `And this is the embarrassing part, Sachin, because the app has logged you playing FromSoftware boss music for fun. One Saturday in September 2026 it was 'Heolstor the Nightlord', five times in a day, the first at seven minutes past four in the morning. You'll square up to a Nightlord to relax, and a three-minute pop song has you face down on the floor.`,
             Ben: guide,
             Sam: guide,
           },
@@ -1553,10 +1553,10 @@ const PERSONAS: Persona[] = [
         forOffender(
           i,
           {
-            Evan: `Investigators have one clue. On a Tuesday morning in late September the app logged him playing the same Tyler, The Creator song six times in eleven minutes. Never to the end. Just starting it, over and over. Detectives call this "pacing".`,
-            Sachin: `Investigators have one clue. At 1:43 on a Friday morning in October he added a song from a video game soundtrack. Later that same morning the app logged him playing it eight times in a row. Neighbours describe him as "awake".`,
-            Ben: `Investigators have one clue. At five past midnight one Saturday in May, the app logged him playing the Cuphead soundtrack. Not the good bits. The tutorial music. A grown man, after midnight, listening to the tutorial.`,
-            Sam: `Investigators have one clue. In July he added a song Evan had put on the playlist more than two years earlier, then played it fourteen times in four weeks. He has never mentioned Evan. Evan has never been thanked.`,
+            Evan: `Investigators have one clue. On a Tuesday morning in September 2026 the app logged him playing the same Tyler, The Creator song six times in eleven minutes. Never to the end. Just starting it, over and over. Detectives call this "pacing".`,
+            Sachin: `Investigators have one clue. At 1:43 on a Friday morning in October 2026 he added a song from a video game soundtrack. Later that same morning the app logged him playing it eight times in a row. Neighbours describe him as "awake".`,
+            Ben: `Investigators have one clue. At five past midnight one Saturday in May 2026, the app logged him playing the Cuphead soundtrack. Not the good bits. The tutorial music. A grown man, after midnight, listening to the tutorial.`,
+            Sam: `Investigators have one clue. In July 2026 he added a song Evan had put on the playlist more than two years earlier, then played it fourteen times in four weeks. He has never mentioned Evan. Evan has never been thanked.`,
           },
           `Investigators have no clues. He's new. That's what makes it so chilling.`,
         ),
@@ -1586,7 +1586,7 @@ const PERSONAS: Persona[] = [
           i,
           {
             Evan: `**4. The Evan Clause.** Vanishing for weeks and then adding three songs in nine minutes on a Saturday night is a payment plan, not participation. You've pulled some version of this four times since October 2025.`,
-            Sachin: `**4. The Sachin Clause.** Adding a song one minute after one of these emails arrives, as you did on 11 August and again on 27 October, isn't initiative. It proves you had the song ready and were waiting to be asked.`,
+            Sachin: `**4. The Sachin Clause.** Adding a song one minute after one of these emails arrives, as you did on 11 August 2026 and again on 27 October, isn't initiative. It proves you had the song ready and were waiting to be asked.`,
             Ben: `**4. The Ben Clause.** An album is not a subscription. You've added five songs off the same Tyler Childers record. That's the limit, and you're at it.`,
             Sam: `**4. The Sam Clause.** A spotless record is not a savings account. Being on time for most of the year doesn't buy you this week.`,
           },
@@ -1659,12 +1659,12 @@ const PERSONAS: Persona[] = [
           i,
           {
             Evan: [
-              `**Q: Is it true that back in October, on the day of your fifth email in nine days, he played Phoebe Bridgers seventeen times?**`,
+              `**Q: Is it true that in October 2026, on the day of your fifth email in nine days, he played Phoebe Bridgers seventeen times?**`,
               `I've seen the footage. Seventeen. All her. Not one song added. I asked him about it and he said he was "in a place". I said so's the playlist, son. It's on your phone.`,
             ],
             Sachin: [
               `**Q: He seems to add whatever he's had on repeat that week. Is that a tactic?**`,
-              `It's not a tactic. In August he played one Shakira song six times in a day and added it that afternoon. That's not scouting. That's a man forwarding us his own stuck record.`,
+              `It's not a tactic. In August 2026 he played one Shakira song six times in a day and added it that afternoon. That's not scouting. That's a man forwarding us his own stuck record.`,
             ],
             Ben: [
               `**Q: There are reports he has one playlist called 'Breakfast' and another called 'Beer For Breakfast'.**`,
@@ -1768,7 +1768,7 @@ const PERSONAS: Persona[] = [
               {
                 Evan: `Check what's already on the playlist before adding to it. The current holder added 'Image' by Magdalena Bay in October 2026. Sam had added it in 2024.`,
                 Sachin: `Have heard more than one song in any given week`,
-                Ben: `Listen to somebody else's songs now and then. By mid-November the current holder had played his own adds 46 times this season, and Sachin's twice.`,
+                Ben: `Listen to somebody else's songs now and then. By mid-November 2026 the current holder had played his own adds from that season 46 times, and Sachin's twice.`,
                 Sam: `Not be Sam. We can't go through this twice. We thought he was the safe one.`,
               },
               `Last longer than the current holder`,
