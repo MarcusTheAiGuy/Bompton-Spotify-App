@@ -110,6 +110,11 @@ export function count(
   return `${NUMBER_WORDS[n] ?? n} ${n === 1 ? singular : plural}`;
 }
 
+// "Two Fridays", for a count that opens a sentence.
+export function capitalise(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 // "1st", "2nd", "13th", "22nd".
 export function ordinal(n: number): string {
   const lastTwo = n % 100;

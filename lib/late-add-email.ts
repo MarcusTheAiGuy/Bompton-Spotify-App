@@ -1,5 +1,11 @@
 import { CREW_TIME_ZONE, type CrewMember } from "@/lib/bompton";
-import { count, ordinal, renderBlocks, type Block } from "@/lib/email-blocks";
+import {
+  capitalise,
+  count,
+  ordinal,
+  renderBlocks,
+  type Block,
+} from "@/lib/email-blocks";
 import { displayCrewName } from "@/lib/spotify-user-names";
 
 const RESEND_API = "https://api.resend.com/emails";
@@ -1549,7 +1555,7 @@ const PERSONAS: Persona[] = [
       return [
         `[sombre piano]`,
         `It was a Friday like any other. ${innocent ? `${innocent} added ${innocent.includes(" and ") ? "their songs" : "a song"}.` : `Songs were added.`} One man did not.`,
-        `I'm your host, and this is **Missing Fridays**, the podcast about men who said "I'll do it later." This episode: **${name}**. ${count(i.weeksBehind, "Friday")}. No song. No note.`,
+        `I'm your host, and this is **Missing Fridays**, the podcast about men who said "I'll do it later." This episode: **${name}**. ${capitalise(count(i.weeksBehind, "Friday"))}. No song. No note.`,
         forOffender(
           i,
           {
