@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { CURRENT_BOMPTON_YEAR, type CrewMember } from "@/lib/bompton";
 import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
+import type { SpotifyPlaylistTrack } from "@/lib/spotify";
 import { loadCrew } from "@/lib/crew";
 import { findLateAdders } from "@/lib/late-add-detection";
 import {
@@ -8,6 +9,7 @@ import {
   LateAddEmailConfigError,
   LateAddEmailSendError,
   sendLateAddEmail,
+  type LateAddEmailInput,
 } from "@/lib/late-add-email";
 import {
   loadLateAddPersonaHistory,
@@ -35,6 +37,112 @@ export type RunLateAddNotificationsResult = {
   status: number;
   body: Record<string, unknown>;
 };
+
+type OffenderActivity = Pick<
+  LateAddEmailInput,
+  "roastNumber" | "lastAdd" | "listening"
+>;
+
+// What the offender has been up to, for the personas that quote it (see
+// LateAddEmailInput). Read fresh for each send so it is true on the day.
+// Whatever can't be read comes back null and is logged — the roast still
+// goes out, just without that detail.
+async function loadOffenderActivity(
+  offender: CrewMember,
+  oldestMissedFriday: Date,
+  seasonTracks: SpotifyPlaylistTrack[],
+  callerId: string,
+): Promise<OffenderActivity> {
+  // Their latest add that still has a title (a song Spotify has since pulled
+  // comes back blank).
+  let lastAdd: OffenderActivity["lastAdd"] = null;
+  for (const item of seasonTracks) {
+    if (!item.track?.name || item.added_by?.id !== offender.spotifyUserId) {
+      continue;
+    }
+    const addedAt = new Date(item.added_at);
+    if (Number.isNaN(addedAt.getTime())) continue;
+    if (!lastAdd || addedAt > lastAdd.addedAt) {
+      lastAdd = {
+        title: item.track.name,
+        artist: item.track.artists?.[0]?.name ?? "",
+        addedAt,
+      };
+    }
+  }
+
+  let roastNumber: OffenderActivity["roastNumber"] = null;
+  try {
+    const earlier = await prisma.lateAddNotification.count({
+      where: {
+        userId: offender.id,
+        bomptonYear: CURRENT_BOMPTON_YEAR,
+        resendId: { not: null },
+      },
+    });
+    roastNumber = earlier + 1;
+  } catch (error) {
+    console.error("[late-add-notifications.roast-count.failed]", {
+      callerId,
+      userId: offender.id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  let listening: OffenderActivity["listening"] = null;
+  try {
+    const plays = await prisma.listeningPlay.findMany({
+      where: { userId: offender.id, playedAt: { gte: oldestMissedFriday } },
+      select: { trackName: true, trackArtist: true, playedAt: true },
+      orderBy: { playedAt: "asc" },
+    });
+    const last = plays[plays.length - 1];
+    if (last) {
+      const artists = new Map<string, { name: string; plays: number }>();
+      const tracks = new Map<
+        string,
+        { title: string; artist: string; plays: number }
+      >();
+      for (const play of plays) {
+        const artist = artists.get(play.trackArtist) ?? {
+          name: play.trackArtist,
+          plays: 0,
+        };
+        artist.plays += 1;
+        artists.set(play.trackArtist, artist);
+        const trackKey = JSON.stringify([play.trackArtist, play.trackName]);
+        const track = tracks.get(trackKey) ?? {
+          title: play.trackName,
+          artist: play.trackArtist,
+          plays: 0,
+        };
+        track.plays += 1;
+        tracks.set(trackKey, track);
+      }
+      const mostPlayed = <T extends { plays: number }>(all: Iterable<T>): T =>
+        [...all].sort((a, b) => b.plays - a.plays)[0];
+      listening = {
+        plays: plays.length,
+        topArtist: mostPlayed(artists.values()),
+        topTrack: mostPlayed(tracks.values()),
+        lastPlayed: {
+          title: last.trackName,
+          artist: last.trackArtist,
+          at: last.playedAt,
+        },
+      };
+    }
+  } catch (error) {
+    console.error("[late-add-notifications.listening.failed]", {
+      callerId,
+      userId: offender.id,
+      since: oldestMissedFriday.toISOString(),
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return { roastNumber, lastAdd, listening };
+}
 
 export async function runLateAddNotifications({
   thresholdDays = 3,
@@ -216,6 +324,12 @@ export async function runLateAddNotifications({
     }
 
     try {
+      const activity = await loadOffenderActivity(
+        offender.member,
+        offender.missedFridays[0],
+        currentSeason?.tracks ?? [],
+        callerId,
+      );
       const result = await sendLateAddEmail({
         offender: offender.member,
         offenderEmail: email,
@@ -226,6 +340,7 @@ export async function runLateAddNotifications({
         bomptonYear: CURRENT_BOMPTON_YEAR,
         playlistUrl,
         personaIndex,
+        ...activity,
       });
       personaHistory.set(personaKey, Date.now());
       try {

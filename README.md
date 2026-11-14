@@ -114,12 +114,18 @@ appended to either list is next in line; after that it's whichever persona
 has waited longest (`lib/persona-rotation.ts`). `/troubleshooting` lists
 what's up next for both.
 
+Some personas quote what is true on the day: who owes what, how many roasts
+somebody has had this season, what they've been playing since the Friday
+they missed. Those are read when the email is sent and passed in alongside
+the rest of the input.
+
 To write new personas against what the crew actually listens to, press
 **Create export link** on `/troubleshooting`. It gives a 24-hour link to a
 JSON export (`lib/crew-export.ts`) of every Bompton add, each member's
-archived plays and Spotify snapshots, and the emails sent so far. Facts
-already mined, and which persona has used each, are tracked in
-`docs/crew-lore.md`.
+archived plays and Spotify snapshots, and the emails sent so far.
+`docs/crew-lore.md` holds the facts already mined, which persona has used
+each, and the rules for using them. New personas are written once, as blocks
+(`lib/email-blocks.ts`), and rendered into both the text and HTML parts.
 
 ## Deployment
 Push to `main` → Vercel auto-deploys. Preview deploys are created for each PR.

@@ -1,4 +1,5 @@
-import type { CrewMember } from "@/lib/bompton";
+import { CREW_TIME_ZONE, type CrewMember } from "@/lib/bompton";
+import { count, ordinal, renderBlocks, type Block } from "@/lib/email-blocks";
 import { displayCrewName } from "@/lib/spotify-user-names";
 
 const RESEND_API = "https://api.resend.com/emails";
@@ -35,7 +36,52 @@ export type LateAddEmailInput = {
   // Index into PERSONAS, chosen by the caller (see lib/persona-rotation.ts).
   // We modulo into the list so it can never go out of bounds.
   personaIndex: number;
+
+  // What the offender has been up to, read when the email is sent so it is
+  // true on the day. Each is null when it couldn't be read; a persona that
+  // uses one has to say something sensible without it.
+
+  // Roast emails the offender has had this season, counting this one.
+  roastNumber: number | null;
+  // The offender's most recent add this season. Null if they have none.
+  lastAdd: { title: string; artist: string; addedAt: Date } | null;
+  // What the app has logged the offender playing since the first Friday they
+  // still owe. Null when it has logged nothing, which is either true or
+  // means their Spotify connection has lapsed. The log only ever holds part
+  // of what someone played, so every count here is "at least".
+  listening: OffenderListening | null;
 };
+
+export type OffenderListening = {
+  plays: number;
+  topArtist: { name: string; plays: number };
+  topTrack: { title: string; artist: string; plays: number };
+  lastPlayed: { title: string; artist: string; at: Date };
+};
+
+export type RenderedLateAddEmail = {
+  personaKey: string;
+  subject: string;
+  text: string;
+  html: string;
+};
+
+// The email the chosen persona writes for this input, without sending it.
+export function renderLateAddEmail(
+  input: LateAddEmailInput,
+): RenderedLateAddEmail {
+  const persona =
+    PERSONAS[
+      ((input.personaIndex % PERSONAS.length) + PERSONAS.length) %
+        PERSONAS.length
+    ];
+  return {
+    personaKey: persona.key,
+    subject: persona.subject(input),
+    text: persona.text(input),
+    html: persona.html(input),
+  };
+}
 
 export type LateAddEmailResult = {
   ok: boolean;
@@ -71,10 +117,7 @@ export async function sendLateAddEmail(
     .map((m) => m.email)
     .filter((e): e is string => typeof e === "string" && e.length > 0);
 
-  const persona = PERSONAS[((input.personaIndex % PERSONAS.length) + PERSONAS.length) % PERSONAS.length];
-  const subject = persona.subject(input);
-  const text = persona.text(input);
-  const html = persona.html(input);
+  const { personaKey, subject, text, html } = renderLateAddEmail(input);
 
   const response = await fetch(RESEND_API, {
     method: "POST",
@@ -114,7 +157,7 @@ export async function sendLateAddEmail(
     resendId: data.id ?? null,
     subject,
     ccEmails,
-    personaKey: persona.key,
+    personaKey,
   };
 }
 
@@ -128,13 +171,16 @@ export async function sendLateAddEmail(
 // a public shaming and should read like one — crass, personal, no mercy. Much
 // harder than the Friday reminders, which are crew-wide and celebratory.
 //
-// A persona can't know WHICH crew member it's roasting (the rotation is
-// global, the offender is whoever fell behind), so per-person facts don't
-// work here. What does work is the shared archive as a measuring stick —
-// Sachin's seventeen tracks in six minutes, Sam's eighty-eight Fridays, the
-// two zero-second ghost tracks. Those land on any recipient because they are
-// the standard the recipient is failing to meet. docs/crew-lore.md holds the
-// mined facts; pull from there rather than inventing new ones.
+// Every persona knows who it is roasting (`i.offender`), so the best material
+// is about that person: `forOffender` picks the line written for them, and
+// `roastNumber` / `lastAdd` / `listening` say what they've done lately.
+// docs/crew-lore.md holds what the app knows about each of them, which
+// persona has used what, and the rules the first batches broke: use a fact
+// once rather than in every email, and get its meaning right. A pile of songs
+// added at once is somebody paying off weeks of neglect, never a feat.
+//
+// New personas go through `written`, which takes the body once as blocks
+// instead of as separate text and HTML.
 // ---------------------------------------------------------------------------
 
 // All a subject line may read. LateAddNotification stores these three next to
@@ -969,6 +1015,803 @@ const PERSONAS: Persona[] = [
       );
     },
   },
+
+  // -------------------------------------------------------------------------
+  // November 2026 batch. Written against the crew export of 2026-11-14, with
+  // a line for each crew member wherever the roast gets personal.
+  // docs/crew-lore.md lists which fact each of these uses. Anything that
+  // could go stale is either dated ("in October", "between July and
+  // November") or read live when the email is sent.
+  // -------------------------------------------------------------------------
+
+  // 19 — Private Eye. Quotes what the offender has played since falling behind.
+  written({
+    key: "private-eye",
+    subject: (i) => `🕵️ we had ${displayCrewName(i.offender)} followed`,
+    headline: (i) => `Case file: ${displayCrewName(i.offender)}`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const since = formatFridayShort(i.missedFridays[0]);
+      const heard = i.listening;
+      return [
+        `**Client:** the lads. **Subject:** ${name}. **Reason for surveillance:** ${count(i.weeksBehind, "Friday")} owed and a suspicious silence.`,
+        heard
+          ? `I've had eyes on the subject's Spotify since ${since}. He has not been idle.`
+          : `I've had eyes on the subject's Spotify since ${since}, and I've got nothing. Not one song on the log.`,
+        heard && {
+          list: [
+            `Songs played since then: at least ${heard.plays}. My equipment only catches some of them, so the real number is worse.`,
+            heard.topArtist.name && heard.topArtist.plays >= 2
+              ? `Most played: ${heard.topArtist.name}, ${heard.topArtist.plays} times.`
+              : null,
+            heard.topTrack.plays >= 3
+              ? `The one he keeps going back to: '${heard.topTrack.title}', ${heard.topTrack.plays} times.`
+              : null,
+            `Last seen: ${formatDayAndTime(heard.lastPlayed.at)}, listening to '${heard.lastPlayed.title}'${heard.lastPlayed.artist ? ` by ${heard.lastPlayed.artist}` : ""}.`,
+            `Songs still owed to the Bompton playlist: ${i.weeksBehind}.`,
+          ].filter((line): line is string => line !== null),
+        },
+        heard
+          ? `So he's alive, he's got signal and his thumbs work. In my trade we call that "no excuse".`
+          : `Two possibilities. One: he has given up music altogether, which would at least be a reason. Two: his Spotify has come unhooked from the app and he hasn't noticed. If it's the second, ${name}, sign in to the app again. Then add a song. Same sitting.`,
+        `My invoice is attached. It's ${count(i.weeksBehind, "song")}.`,
+        { button: "Pay the detective" },
+        {
+          footer:
+            "Surveillance continues every 24 hours. The van is outside. The van has always been outside.",
+        },
+      ];
+    },
+  }),
+
+  // 20 — Roast Night. Three jokes per crew member, no costume.
+  written({
+    key: "roast-night",
+    subject: (i) => `🎤 tonight: the roast of ${displayCrewName(i.offender)}`,
+    headline: (i) => `The roast of ${displayCrewName(i.offender)}`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `Good evening, and welcome to the roast of **${name}**, a man who is ${count(i.weeksBehind, "Friday")} behind on a job that takes eleven seconds.`,
+        `House rules. Everything said tonight is true, because the app keeps receipts. And he can end it whenever he likes.`,
+        ...forOffender(
+          i,
+          {
+            Evan: [
+              `He's been missing so often we've looked into milk cartons. In October 2025 he resurfaced after twenty-three days away, and the first song he added was Pink Floyd's 'Wish You Were Here'. Evan. That was our line.`,
+              `He has added Freddie Gibbs to this playlist four times and The Alchemist four times. Number of times the app has caught him actually playing either one: zero. He doesn't listen to rap. He submits it, like a sick note.`,
+              `Evan's idea of a banger is a woman whispering over one guitar about a town she had to leave.`,
+            ],
+            Sachin: [
+              `His taste isn't eclectic, it's a ransom note. This season alone he's given us Lamb of God, Rihanna, Shakira and Stromae, and I don't believe he remembers adding any of them.`,
+              `He's a BLACKPINK completist with a hole in the collection. He's added the group, Lisa twice, Jennie and Rosé. Jisoo is still waiting by the phone. She should get comfortable. She's dealing with Sachin.`,
+              `In October he played 'Rather Be' by Clean Bandit thirteen times in ten days. That song came out in 2014. He's late to things that have already happened.`,
+            ],
+            Ben: [
+              `Ben has a playlist called 'Haloween'. One L. He has another called 'Apocoliptic'. This is the man who wants to talk to you about lyricism.`,
+              `He also has one called 'My playlist #35', and there's nothing on it. Thirty-five playlists in, he made an empty one. Which, this week, is a theme.`,
+              `The app once logged him playing 'Talk Dirty' by Jason Derulo at twenty-five past midnight. We're not saying anything. We're just reading it out.`,
+            ],
+            Sam: [
+              `Sam. SAM. Our rock. Our one working clock. Roasting Sam for lateness is like finding out the lighthouse was drunk.`,
+              `This is a man who put a song called 'Holy Moly, Rock n' Rolly, Guacamole' on a shared playlist, in broad daylight, on a Friday morning, and still thought of himself as the responsible one.`,
+              `He named his computer 'Bluenose'. The Bluenose was famous for being fast, Sam.`,
+            ],
+          },
+          [
+            `We don't have much on ${name} yet. He's new. But he's already ${count(i.weeksBehind, "Friday")} behind, so he's fitting in beautifully.`,
+          ],
+        ),
+        `That's the show. ${name}, you can make it stop in eleven seconds. Add the fucking song.`,
+        { button: "End the roast" },
+        {
+          footer:
+            "There's another show tomorrow, with new material, unless a song turns up first.",
+        },
+      ];
+    },
+  }),
+
+  // 21 — Final Boarding Call
+  written({
+    key: "final-boarding-call",
+    subject: (i) =>
+      `✈️ final boarding call for passenger ${displayCrewName(i.offender)}`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const aboard = caughtUpNames(i);
+      return [
+        `**Bing bong.**`,
+        `This is the final boarding call for passenger **${name}**, travelling on Bompton Air ${i.bomptonYear}, with service to the weekend.`,
+        aboard
+          ? `Your travelling companions have boarded. ${aboard} ${aboard.includes(" and ") ? "are" : "is"} seated, belted and on a second drink, and watching the door.`
+          : `Your travelling companions aren't all aboard either, but yours is the name we've been asked to read out.`,
+        `Passenger ${name}, you are now **${count(i.weeksBehind, "Friday")}** late for a flight that leaves once a week, from the same gate, at the same time, and emails you beforehand.`,
+        `We're unable to offload your bags, because you never checked any. You've brought nothing. That's rather the problem.`,
+        `Please proceed to the gate with ${i.weeksBehind === 1 ? "one (1) song" : count(i.weeksBehind, "song")}.`,
+        { button: "Board" },
+        {
+          footer:
+            "This announcement repeats every 24 hours. The gate staff have stopped pretending to be surprised.",
+        },
+      ];
+    },
+  }),
+
+  // 22 — Unwrapped. A Spotify Wrapped nobody asked for.
+  written({
+    key: "unwrapped",
+    subject: (i) =>
+      `🎁 ${displayCrewName(i.offender)}, your Bompton Unwrapped is ready (nobody asked)`,
+    headline: (i) => `${displayCrewName(i.offender)}: Unwrapped`,
+    body: (i) => [
+      `It isn't December and you didn't ask. But you're ${count(i.weeksBehind, "Friday")} behind, so here is your year in review.`,
+      { heading: "Your top genre" },
+      i.roastNumber
+        ? `Excuses. This is the ${ordinal(i.roastNumber)} email like this you've earned this season.`
+        : `Excuses.`,
+      ...forOffender<Block[]>(
+        i,
+        {
+          Evan: [
+            { heading: "Your most-played song" },
+            `'Kill Me' by Phoebe Bridgers. Twenty-seven plays between August and November, and those are only the ones the app caught. Twenty-seven plays for her. Not eleven seconds for us.`,
+            { heading: "Your peak hours" },
+            `Eight o'clock to midnight. Nearly half of everything you've ever added to this playlist turned up in that window. You don't add music so much as remember it at bedtime.`,
+            { heading: "Your listening personality" },
+            `**The Mourner.** You don't have a favourite artist. You have a vigil.`,
+          ],
+          Sachin: [
+            { heading: "Your most-played song" },
+            `'Pillow Fight' by Tinashe. Thirty-eight plays in under a month this autumn. You did add it to the playlist, to be fair. It was the only song you'd heard.`,
+            { heading: "Your peak hours" },
+            `The small ones. Between May and November the app logged you playing music after midnight on 63 different nights. Whatever's keeping you up, it isn't guilt.`,
+            { heading: "Your listening personality" },
+            `**The Raccoon.** Nocturnal, eats anything, gone by morning.`,
+          ],
+          Ben: [
+            { heading: "Your most-played artist" },
+            `Jessie Ware. Not DOOM. Not Kendrick. Of everything the app logged you playing this spring and summer, one song in ten was Jessie Ware, and you added three songs off the same album of hers in eight weeks. One more and you may as well post us the CD.`,
+            { heading: "Your peak hours" },
+            `The weekend. Nearly half of what the app has logged you playing happened on a Saturday or a Sunday. Monday to Friday you apparently sit in silence, like a monk with opinions.`,
+            { heading: "Your listening personality" },
+            `**The Monk With Opinions.** See above.`,
+          ],
+          Sam: [
+            { heading: "Your most-played artist" },
+            `Geese. Ninety-five plays, one of them at three o'clock on a Sunday morning in August. Ben put Geese on this playlist in July 2023. You got round to them in January 2026, which until now was the latest you'd ever been for anything.`,
+            { heading: "Your peak hours" },
+            `Friday, nine to three. Twenty-seven of your first thirty-five songs this season arrived on the day itself, most of them before lunch. You add music the way other people file expenses.`,
+            { heading: "Your listening personality" },
+            `**The Timesheet.** Reliable, punctual and now, somehow, overdue.`,
+          ],
+        },
+        [
+          { heading: "Your listening personality" },
+          `**The New Guy.** We haven't been watching you long enough to be specific. We're watching now.`,
+        ],
+      ),
+      { heading: "Your year isn't over" },
+      `Change the ending. It takes eleven seconds.`,
+      { button: "Add the song" },
+      { footer: "Unwrapped is re-issued every 24 hours until the numbers improve." },
+    ],
+  }),
+
+  // 23 — Group Project
+  written({
+    key: "group-project",
+    subject: (i) =>
+      `Re: Re: Re: group project (${displayCrewName(i.offender)} pls respond)`,
+    headline: () => `Re: Re: Re: group project`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const timed =
+        standingsSorted(i.standings).find(
+          (row) => row.missedCount === 0 && row.member.id !== i.offender.id,
+        )?.member ?? null;
+      return [
+        `Hi all!! Hope everyone's had a great week :)`,
+        `Just circling back on the playlist. Quick status on everybody's sections:`,
+        {
+          list: standingsSorted(i.standings).map((row) => {
+            const who = displayCrewName(row.member);
+            if (row.member.id === i.offender.id) {
+              return `**${who}** — section currently reads "[SONG GOES HERE]"`;
+            }
+            return row.missedCount === 0
+              ? `${who} — done. Thank you ${who}!!`
+              : `${who} — also behind, but this email isn't about him (yet)`;
+          }),
+        },
+        `${name}, no pressure at all!! I know you've got loads on. It's just that it's been ${count(i.weeksBehind, "Friday")} now, and the rest of us would really love to not carry you again :)`,
+        `I've gone ahead and done your slides, your bibliography, and the page where we tell the professor who did what. I've been very honest on that page.`,
+        `Thanks so much!!`,
+        { button: "Do your section" },
+        {
+          footer: timed
+            ? `P.S. It takes eleven seconds. I timed ${displayCrewName(timed)}.`
+            : `P.S. It takes eleven seconds. I timed it.`,
+        },
+      ];
+    },
+  }),
+
+  // 24 — Local Man
+  written({
+    key: "local-man",
+    subject: (i) =>
+      `📰 Local man ${displayCrewName(i.offender)} insists song is "basically added"`,
+    headline: (i) =>
+      `Local man ${displayCrewName(i.offender)} insists song is "basically added"`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const heard = i.listening;
+      return [
+        `THE GROUP CHAT — Local man ${name} confirmed today that he is "basically done" adding a song to the Bompton playlist, despite being ${count(i.weeksBehind, "Friday")} behind and having taken no steps of any kind.`,
+        `"It's handled," said ${name}, who has not opened the playlist. "I've got one in mind. It's a great one. You're going to love it." He was unable to name the song, the artist or the day of the week.`,
+        forOffender(
+          i,
+          {
+            Evan: `Friends say they have seen this before. "In October we emailed him six times in eleven days," said one. "Six. He added on the twelfth day, on a Saturday night, and carried on like he'd been away at war."`,
+            Sachin: `Friends say they have seen this before. "In September and October he was a song behind for thirty-eight days straight," said one. "The app logged him playing 628 songs in that time. He wasn't busy. He was right there."`,
+            Ben: `Friends were unmoved. "He always folds," said one. "The first time we sent him one of these he added three minutes later. The third time, five minutes. He isn't a man. He's a doorbell."`,
+            Sam: `Friends were shaken. "It happened twice in August," said one, staring at the floor. "Both times he added the next morning at about ten, like a man who'd slept beautifully. He didn't even have the decency to panic."`,
+          },
+          `Friends declined to comment, on the grounds that they were busy adding songs.`,
+        ),
+        heard
+          ? `At press time, ${name}'s most recent known activity was playing '${heard.lastPlayed.title}' on ${formatDayAndTime(heard.lastPlayed.at)}. He then added nothing.`
+          : `At press time, ${name} had opened Spotify, played something else and closed it again.`,
+        { button: "Make it true" },
+        { footer: "This story is updated every 24 hours. It has not changed yet." },
+      ];
+    },
+  }),
+
+  // 25 — The Owl. Keeps count of how many of these the offender has had.
+  written({
+    key: "owl",
+    subject: (i) =>
+      `🦉 ${displayCrewName(i.offender)}, these reminders don't seem to be working`,
+    headline: () => `These reminders don't seem to be working`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `Hi ${name}. It's me.`,
+        i.roastNumber
+          ? `This is reminder number ${i.roastNumber} of the season. I've stopped expecting anything. I keep count for the tribunal.`
+          : `I've lost count of these this season, which is also your fault.`,
+        `You missed ${formatFridayShort(i.missedFridays[0])}.${i.weeksBehind > 1 ? ` Then you kept going. You now owe ${count(i.weeksBehind, "song")}.` : ""}`,
+        `I used to send these because I believed in you. Now I send them because I'm a bird with a schedule, which is one more schedule than you've got.`,
+        `Your streak: **0 days.** The table:`,
+        standingsList(i),
+        `Add ${count(i.weeksBehind, "song")} and I go away. For a week.`,
+        { button: "Make the owl stop" },
+        {
+          footer:
+            "I know where you keep your phone. It's in your hand. It's in your hand right now.",
+        },
+      ];
+    },
+  }),
+
+  // 26 — Museum Audio Guide
+  written({
+    key: "museum-guide",
+    subject: (i) =>
+      `🎧 audio guide: The ${displayCrewName(i.offender)} Wing (stop 14 is empty)`,
+    headline: (i) => `Welcome to The ${displayCrewName(i.offender)} Wing`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `Welcome to The ${name} Wing. Please keep your voice down. The artist is not working.`,
+        `**Stop 14. 'Untitled (Song Goes Here)', ${i.bomptonYear}.** An empty space on the wall where this week's song should hang. The artist has described the piece as "I'll do it tonight." That was ${count(i.weeksBehind, "Friday")} ago.`,
+        forOffender(
+          i,
+          {
+            Evan: `**Stop 15. 'Fiero GT', 2026.** Fifty-one seconds long. The shortest work in the collection, handed in one April as a whole week's contribution. Please don't lean on the glass. There's very little behind it.`,
+            Sachin: `**Stop 15. 'Tanglewood', 2025, and 'Tanglewood', 2026.** The same song, hung twice, a year apart. Experts believe the artist forgot he had already made it. The first version dates from a period of considerable panic.`,
+            Ben: `**Stop 15. 'No Gold Teeth' (June 2026) and 'No Gold Teeth' (October 2026).** A diptych. The same song, added to the same playlist twice, fifteen weeks apart. It's the third season in four in which the artist has handed in a work he had already handed in.`,
+            Sam: `**Stop 15. 'That's Life' (after Ben), 2026.** A Frank Sinatra number, added one September. Visitors may recognise it. Ben exhibited the identical piece six months earlier. The curators have labelled it, gently, "school of Ben".`,
+          },
+          null,
+        ),
+        `**Stop 16** is the gift shop. It sells one item. It's the playlist.`,
+        { button: "Exit through the gift shop" },
+        { footer: "This tour repeats every 24 hours until stop 14 is filled." },
+      ];
+    },
+  }),
+
+  // 27 — The Negotiator
+  written({
+    key: "negotiator",
+    subject: (i) =>
+      `📞 ${displayCrewName(i.offender)}, this is the negotiator. pick up.`,
+    headline: () => `This is the negotiator. Pick up.`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const out = caughtUpNames(i);
+      const them = i.weeksBehind === 1 ? "it" : "them";
+      return [
+        `${name}. My name doesn't matter. I'm the negotiator. I'm outside with a megaphone and a coffee that's gone cold, and I'd like us both to go home.`,
+        `Here's the situation as I understand it. You're holding ${count(i.weeksBehind, "song")}. You've been holding ${them} since ${formatFridayShort(i.missedFridays[0])}. Nobody knows what you want. I don't think you know what you want.`,
+        out
+          ? `I've spoken to the others. ${out} came out with ${out.includes(" and ") ? "their hands up and a song each" : "his hands up and a song"}. They're worried about you. Mostly they're annoyed.`
+          : `I've spoken to the others. It isn't pretty out here either, but you're the one I've been sent in for.`,
+        `I can't get you a helicopter. I did ask. What I can do is this: you put ${count(i.weeksBehind, "song")} on the playlist, slowly, where I can see ${them}, and all of this goes away.`,
+        `Nobody has to get embarrassed any further than they already have been.`,
+        { button: "Come out with a song" },
+        {
+          footer:
+            "I'll be back on this megaphone every 24 hours. I've got nothing else on.",
+        },
+      ];
+    },
+  }),
+
+  // 28 — Wikipedia
+  written({
+    key: "wikipedia",
+    subject: (i) =>
+      `📚 ${displayCrewName(i.offender)} — Wikipedia, the free encyclopedia`,
+    headline: (i) => `${displayCrewName(i.offender)} (playlist contributor)`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const square = caughtUpNames(i);
+      return [
+        `**${name}** is a Canadian playlist contributor, best known for being ${count(i.weeksBehind, "Friday")} behind on the Bompton ${i.bomptonYear} playlist.[1]`,
+        { heading: "Career" },
+        forOffender(
+          i,
+          {
+            Evan: `Evan's work is marked by long periods of inactivity. On the night of 7 November 2025 he added a song called 'Laying Low', followed a minute later by one more, and then nothing for 68 days.`,
+            Sachin: `Sachin is best known for the events of 21 July 2025. Having managed one song in the first seventeen weeks of the season, he added seventeen in five minutes. Early accounts called this impressive. Historians now agree it was a man paying off seventeen weeks at once, like parking fines.`,
+            Ben: `Ben is noted for his retrospective period. On 9 May 2026 he added five MF DOOM tracks in five minutes to the 2024–25 playlist, a season that had been closed for fourteen months, to fill a five-song hole he had been leaving there the whole time.`,
+            Sam: `Sam is widely regarded as the reliable one, a reputation this email complicates.`,
+          },
+          `${name} is a recent addition to the group. His career to date consists of this email.`,
+        ),
+        { heading: "Controversies" },
+        forOffender(
+          i,
+          {
+            Evan: `Across the 2025–26 season his songs arrived, between them, more than 500 days late. Historians are divided on whether this was a protest, a lifestyle or just Evan.`,
+            Sachin: `In August 2026 it took five emails in seven days to produce one song. He has described the period as "a busy week".[citation needed]`,
+            Ben: `In June 2026 he added Billy Joel's 'Pressure' at 11:43 on a Tuesday night. Nobody had asked him to. He was three days early. He has never explained the title.`,
+            Sam: `At 6:49 on a Sunday morning in October 2025 he added a song to the 2023–24 playlist, a season that had been over for nineteen months. His total for that season now stands at 53 instead of 52. He has never corrected it, apologised, or explained what he was doing up.`,
+          },
+          `None yet. Give him time.`,
+        ),
+        { heading: "Current status" },
+        `As of this email ${name} owes ${count(i.weeksBehind, "song")}.${square ? ` ${square} ${square.includes(" and ") ? "owe" : "owes"} nothing.` : ""}`,
+        { heading: "See also" },
+        {
+          list: [
+            "Procrastination",
+            "Ghosting (behaviour)",
+            "List of people who were going to do it tonight",
+          ],
+        },
+        `[1] The playlist. Everybody can see the playlist.`,
+        { button: "Edit this article" },
+        { footer: "This article is reviewed every 24 hours. It has never once improved." },
+      ];
+    },
+  }),
+
+  // 29 — Two Lines. Deliberately short.
+  written({
+    key: "two-lines",
+    subject: (i) => `${displayCrewName(i.offender)}.`,
+    body: (i) => {
+      const last = i.lastAdd;
+      const days = last ? daysSince(last.addedAt) : 0;
+      return [
+        !last
+          ? `You haven't added a song this season.`
+          : days === 0
+            ? `You added '${last.title}' today. Don't stop there.`
+            : days === 1
+              ? `You added '${last.title}' yesterday. Don't stop there.`
+              : `Your last song was '${last.title}'. That was ${count(days, "day")} ago.`,
+        `You owe ${count(i.weeksBehind, "song")}. We can all see the playlist.`,
+        { button: "Add a song" },
+        { footer: "— the lads" },
+      ];
+    },
+  }),
+
+  // 30 — Sommelier
+  written({
+    key: "sommelier",
+    subject: (i) =>
+      `🍷 tonight's pairing: ${displayCrewName(i.offender)}'s listening history`,
+    headline: () => `Tonight's tasting`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `Good evening. Tonight we'll be tasting what **${name}** has been listening to instead of adding a song.`,
+        ...forOffender(
+          i,
+          {
+            Evan: [
+              `**On the nose:** rain on a bus window.`,
+              `**On the palate:** Fleet Foxes, Waxahatchee, and a strong regional note of Lennie Gallant and Wintersleep. This is a wine that has cried at a ferry terminal.`,
+              `**The finish:** long and damp. When it's over you realise nothing was added.`,
+            ],
+            Sachin: [
+              `**On the nose:** petrol.`,
+              `**On the palate:** Le Castle Vania, the nightclub-shootout music from John Wick. Fifty plays of it, and he has never once shared any with us. Then, without warning, Tinashe.`,
+              `**The finish:** a boss fight. This isn't a blend. Somebody dropped the rack.`,
+            ],
+            Ben: [
+              `**On the nose:** big, serious rap. You can smell the liner notes.`,
+              `**On the palate:** it holds up. Kendrick, Ka, McKinley Dixon.`,
+              `**The finish:** and there it is. Phil Collins, from the Brother Bear soundtrack, and a dance remix of 'Spooky, Scary Skeletons'. Both were among his fifty most-played songs when we looked in November.`,
+            ],
+            Sam: [
+              `**On the nose:** campfire.`,
+              `**On the palate:** Mt. Joy, Caamp, Tyler Childers. You could serve this at a wedding in a barn.`,
+              `**The finish:** tech house. Out of nowhere. John Summit and Fisher, as though the barn has caught fire.`,
+            ],
+          },
+          [
+            `**On the nose:** hard to say. He's new, and the bottle is still sealed.`,
+            `**The finish:** nothing was added.`,
+          ],
+        ),
+        `**Pairs with:** ${count(i.weeksBehind, "song")}, served immediately.`,
+        { button: "Settle the bill" },
+        {
+          footer:
+            "The sommelier returns every 24 hours with a different bottle and the same question.",
+        },
+      ];
+    },
+  }),
+
+  // 31 — Surprise Party
+  written({
+    key: "surprise-party",
+    subject: (i) =>
+      `🎉 SURPRISE!! (${displayCrewName(i.offender)} isn't here yet)`,
+    headline: () => `SURPRISE!!`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `SURPRISE!`,
+        `…`,
+        `He's not here. Of course he's not fucking here. Everybody put your arms down.`,
+        `While we wait, a few words about the guest of honour. **${name}** is ${count(i.weeksBehind, "Friday")} late for the playlist, and now he's late for his own surprise party, which I didn't think you could be.`,
+        forOffender(
+          i,
+          {
+            Evan: `We love Evan. Evan is a romantic. On Halloween he added a song called 'Halloween'. That is the size of surprise this man deals in, and it's still more than he's managed this week.`,
+            Sachin: `We love Sachin. Sachin keeps different hours from the rest of us. Across four seasons, 39 of his songs have turned up between midnight and five in the morning. So the party started at seven, and we'll see him at about two.`,
+            Ben: `We love Ben. Ben likes to get ahead. One Thursday in October he added three songs in a single minute, paying for the next three Fridays up front, like rent. So he probably thinks he's already been to this party.`,
+            Sam: `We love Sam. Sam is never late. Ten times since May he'd added his song before the Friday reminder had even gone out. So if Sam isn't here, the only explanation is that Sam is dead, and this is a wake. Somebody get the good whisky.`,
+          },
+          `We love ${name}. We don't know him very well yet. This isn't helping.`,
+        ),
+        `Anyway. The cake says ADD A SONG. We're cutting it without him.`,
+        { button: "Turn up" },
+        {
+          footer:
+            "The party restarts every 24 hours. The balloons are not doing well.",
+        },
+      ];
+    },
+  }),
+
+  // 32 — You Died
+  written({
+    key: "you-died",
+    subject: (i) =>
+      `☠️ YOU DIED — ${displayCrewName(i.offender)} was defeated by a Friday`,
+    headline: () => `YOU DIED`,
+    body: (i) => {
+      const cleared = caughtUpNames(i);
+      const guide = `Most players look up a guide after the second death. There is a guide. It's one line long, and it's the name of the playlist.`;
+      return [
+        `**Boss:** Friday, Devourer of Plans. **Attempts:** ${i.weeksBehind}. **Victories:** 0.`,
+        `You've been beaten by an enemy with one move. It turns up every seven days, in the same place, and it warns you by email first.`,
+        forOffender(
+          i,
+          {
+            Evan: guide,
+            Sachin: `And this is the embarrassing part, Sachin, because the app has logged you playing FromSoftware boss music for fun. One Saturday in September it was 'Heolstor the Nightlord', five times in a day, the first at seven minutes past four in the morning. You'll square up to a Nightlord to relax, and a three-minute pop song has you face down on the floor.`,
+            Ben: guide,
+            Sam: guide,
+          },
+          guide,
+        ),
+        cleared
+          ? `${cleared} ${cleared.includes(" and ") ? "have" : "has"} already cleared this boss without taking a hit.`
+          : `Nobody has cleared it cleanly this week. You're just the one face down on the floor.`,
+        `**Tip:** try adding a song.`,
+        { button: "Respawn at the playlist" },
+        { footer: "You will respawn here every 24 hours." },
+      ];
+    },
+  }),
+
+  // 33 — True Crime Podcast
+  written({
+    key: "true-crime",
+    subject: (i) =>
+      `🎙️ new episode: "The Friday ${displayCrewName(i.offender)} Vanished"`,
+    headline: (i) => `The Friday ${displayCrewName(i.offender)} Vanished`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const innocent = caughtUpNames(i);
+      return [
+        `[sombre piano]`,
+        `It was a Friday like any other. ${innocent ? `${innocent} added ${innocent.includes(" and ") ? "their songs" : "a song"}.` : `Songs were added.`} One man did not.`,
+        `I'm your host, and this is **Missing Fridays**, the podcast about men who said "I'll do it later." This episode: **${name}**. ${count(i.weeksBehind, "Friday")}. No song. No note.`,
+        forOffender(
+          i,
+          {
+            Evan: `Investigators have one clue. On a Tuesday morning in late September the app logged him playing the same Tyler, The Creator song six times in eleven minutes. Never to the end. Just starting it, over and over. Detectives call this "pacing".`,
+            Sachin: `Investigators have one clue. At 1:43 on a Friday morning in October he added a song from a video game soundtrack. Later that same morning the app logged him playing it eight times in a row. Neighbours describe him as "awake".`,
+            Ben: `Investigators have one clue. At five past midnight one Saturday in May, the app logged him playing the Cuphead soundtrack. Not the good bits. The tutorial music. A grown man, after midnight, listening to the tutorial.`,
+            Sam: `Investigators have one clue. In July he added a song Evan had put on the playlist more than two years earlier, then played it fourteen times in four weeks. He has never mentioned Evan. Evan has never been thanked.`,
+          },
+          `Investigators have no clues. He's new. That's what makes it so chilling.`,
+        ),
+        `We'll be right back after this.`,
+        `There's no ad. Nobody will sponsor this. Add the song.`,
+        { button: "Close the case" },
+        { footer: "A new episode drops every 24 hours until somebody talks." },
+      ];
+    },
+  }),
+
+  // 34 — Terms of Friendship
+  written({
+    key: "terms-update",
+    subject: (i) =>
+      `We've updated our Terms of Friendship (${displayCrewName(i.offender)}, please review)`,
+    headline: () => `We've updated our Terms of Friendship`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `Hi ${name},`,
+        `We've made some changes to our Terms of Friendship. They take effect immediately, because of you.`,
+        `**1. Friday.** "Friday" means Friday. It has always meant Friday.`,
+        `**2. "I was going to".** Is not a song and can't be added to a playlist. We checked.`,
+        `**3. Arrears.** You currently owe ${count(i.weeksBehind, "song")}. This is not a negotiating position.`,
+        forOffender(
+          i,
+          {
+            Evan: `**4. The Evan Clause.** Vanishing for weeks and then adding three songs in nine minutes on a Saturday night is a payment plan, not participation. You've pulled some version of this four times since October 2025.`,
+            Sachin: `**4. The Sachin Clause.** Adding a song one minute after one of these emails arrives, as you did on 11 August and again on 27 October, isn't initiative. It proves you had the song ready and were waiting to be asked.`,
+            Ben: `**4. The Ben Clause.** An album is not a subscription. You've added five songs off the same Tyler Childers record. That's the limit, and you're at it.`,
+            Sam: `**4. The Sam Clause.** A spotless record is not a savings account. Being on time for most of the year doesn't buy you this week.`,
+          },
+          `**4. The New Guy Clause.** Being new isn't an excuse. It was, for one week. That week has gone.`,
+        ),
+        `**5. Termination.** We can't actually remove you. We've looked into it. That's the only reason clause 5 is this short.`,
+        `By continuing to exist you accept these terms.`,
+        { button: "I agree (add a song)" },
+        { footer: "To unsubscribe from these emails, add a song every Friday." },
+      ];
+    },
+  }),
+
+  // 35 — LinkedIn
+  written({
+    key: "linkedin",
+    subject: (i) =>
+      `🎉 Congratulate ${displayCrewName(i.offender)} on ${count(i.weeksBehind, "Friday")} without adding a song`,
+    headline: (i) => `${displayCrewName(i.offender)} posted an update`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const others = i.crew
+        .filter((m) => m.id !== i.offender.id)
+        .map((m) => displayCrewName(m));
+      return [
+        `**${name}** · Playlist Contributor (Inactive) · Thought Leader · Open To Reminders`,
+        `I'm humbled to announce that I have now missed **${count(i.weeksBehind, "Friday")}** on the Bompton playlist.`,
+        `A lot of people will tell you that adding one song a week is "easy" and "takes eleven seconds". But here's what they don't teach you in business school: **doing nothing scales.**`,
+        `When the others added on time, I asked myself a hard question. What if I didn't? That's called disruption.`,
+        `Three lessons from my journey:`,
+        {
+          list: [
+            `Deadlines are a mindset.`,
+            `When you fail, your network CCs everyone. That's reach.`,
+            `"Tonight" is a renewable resource.`,
+          ],
+        },
+        `Agree? 👇`,
+        `#leadership #grindset #blessed #OpenToWork`,
+        others.length > 0 &&
+          `**${others.length} ${others.length === 1 ? "comment" : "comments"}**`,
+        others.length > 0 && {
+          list: others.map((who, n) =>
+            n === others.length - 1 && others.length > 1
+              ? `${who}: mate`
+              : `${who}: add a song`,
+          ),
+        },
+        { button: "Post an update (add a song)" },
+        { footer: "You'll get this notification every 24 hours." },
+      ];
+    },
+  }),
+
+  // 36 — Press Conference
+  written({
+    key: "press-conference",
+    subject: (i) =>
+      `⚽ the gaffer on ${displayCrewName(i.offender)}: "I'm not going to defend him"`,
+    headline: (i) => `Post-match: the gaffer on ${displayCrewName(i.offender)}`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const working = caughtUpNames(i);
+      return [
+        `**Q: Gaffer, ${count(i.weeksBehind, "Friday")} without a song from ${name}. Your thoughts?**`,
+        `Look. He's a good lad. Great in training. I'm not going to stand here and criticise one of my own players in public.`,
+        `**Q: But?**`,
+        `But he's been shite, hasn't he. ${working ? `I've got ${working} out there doing a job every week, and then I've got him.` : `None of them have covered themselves in glory this week, but he's the one you're asking about.`}`,
+        ...forOffender(
+          i,
+          {
+            Evan: [
+              `**Q: Is it true that back in October, on the day of your fifth email in nine days, he played Phoebe Bridgers seventeen times?**`,
+              `I've seen the footage. Seventeen. All her. Not one song added. I asked him about it and he said he was "in a place". I said so's the playlist, son. It's on your phone.`,
+            ],
+            Sachin: [
+              `**Q: He seems to add whatever he's had on repeat that week. Is that a tactic?**`,
+              `It's not a tactic. In August he played one Shakira song six times in a day and added it that afternoon. That's not scouting. That's a man forwarding us his own stuck record.`,
+            ],
+            Ben: [
+              `**Q: There are reports he has one playlist called 'Breakfast' and another called 'Beer For Breakfast'.**`,
+              `There are. The first one's got five songs on it. The second's got sixteen. I'm not a detective, but I can read a league table.`,
+            ],
+            Sam: [
+              `**Q: Is this the end for Sam at this level?**`,
+              `Let's not be dramatic. He's had one bad week in a career of good ones. The trouble is the other three have seen it now. They've seen he's mortal. I can't un-ring that bell.`,
+            ],
+          },
+          [],
+        ),
+        `**Q: What happens now?**`,
+        `He adds a song. Today. Or he trains with the under-twelves. That's all I'm saying. No more questions.`,
+        { button: "Get back in the squad" },
+        {
+          footer:
+            "The gaffer will be available again in 24 hours. He would rather not be.",
+        },
+      ];
+    },
+  }),
+
+  // 37 — Choose Your Own Adventure
+  written({
+    key: "choose-your-adventure",
+    subject: (i) =>
+      `📖 ${displayCrewName(i.offender)} and the Song He Didn't Add (a choose-your-own-adventure)`,
+    headline: (i) => `${displayCrewName(i.offender)} and the Song He Didn't Add`,
+    body: (i) => [
+      `**1.** You are **${displayCrewName(i.offender)}**. It is not Friday. It hasn't been Friday for some time. You owe ${count(i.weeksBehind, "song")}. Your phone is in your hand.`,
+      `If you open Spotify and add a song, **turn to 4.** If you tell yourself you'll do it tonight, **turn to 2.**`,
+      `**2.** It is tonight. You didn't do it. You feel fine, which is the worst part. If you add a song now, **turn to 4.** If you decide to wait for the next email, **turn to 3.**`,
+      `**3.** The next email arrives. It's this one. You've been here before. You can tell by the wallpaper. **Turn to 1.**`,
+      `**4.** You add ${i.weeksBehind === 1 ? "a song. It takes eleven seconds" : `${count(i.weeksBehind, "song")}. It takes eleven seconds each`}. Three men breathe out. The emails stop. You're remembered as someone who got there in the end. **THE END.**`,
+      { button: "Turn to 4" },
+      { footer: "There is no page 5. People have looked." },
+    ],
+  }),
+
+  // 38 — Apology Form
+  written({
+    key: "apology-form",
+    subject: (i) =>
+      `📝 ${displayCrewName(i.offender)}, we wrote your apology for you. just tick a box.`,
+    headline: () => `Your apology, pre-written`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `${name}. We know you're busy not adding songs, so we've drafted your apology for you. Tick one box in each section and reply all.`,
+        `**Dear lads,**`,
+        `I'm sorry I am ${count(i.weeksBehind, "Friday")} behind. I was:`,
+        {
+          list: [
+            `☐ busy`,
+            `☐ asleep`,
+            `☐ "going to do it tonight"`,
+            forOffender(
+              i,
+              {
+                Evan: `☐ playing 'Tigers Blood' for the twenty-first time`,
+                Sachin: `☐ on my twenty-second go through 'Gasoline Dreams'`,
+                Ben: `☐ in the basement, with the stereo`,
+                Sam: `☐ on time, in spirit`,
+              },
+              `☐ new here`,
+            ),
+          ],
+        },
+        `It won't happen again, because:`,
+        {
+          list: [`☐ I've changed`, `☐ I've set an alarm`, `☐ it will happen again`],
+        },
+        `Yours in shame,`,
+        `☐ ${name}   ☐ ${name}, but sadder`,
+        { button: "Or just add the song" },
+        { footer: "Unsigned forms are sent again every 24 hours." },
+      ];
+    },
+  }),
+
+  // 39 — Vacancy
+  written({
+    key: "vacancy",
+    subject: (i) =>
+      `📋 NOW HIRING: someone to do ${displayCrewName(i.offender)}'s job`,
+    headline: () => `Now hiring: fourth man`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      return [
+        `**Position:** Fourth Man. **Reports to:** the other three. **Start date:** immediately. The last one has stopped turning up.`,
+        `We're a small, friendly playlist looking for somebody to add one song every Friday. The role is currently held, in the legal sense only, by **${name}**, who is ${count(i.weeksBehind, "Friday")} behind.`,
+        { heading: "The successful candidate will" },
+        {
+          list: [
+            `Own a phone`,
+            `Know what day it is, most weeks`,
+            `Add one (1) song every Friday without being emailed about it`,
+            forOffender(
+              i,
+              {
+                Evan: `Check what's already on the playlist before adding to it. The current holder added 'Image' by Magdalena Bay in October 2026. Sam had added it in 2024.`,
+                Sachin: `Have heard more than one song in any given week`,
+                Ben: `Listen to somebody else's songs now and then. By mid-November the current holder had played his own adds 46 times this season, and Sachin's twice.`,
+                Sam: `Not be Sam. We can't go through this twice. We thought he was the safe one.`,
+              },
+              `Last longer than the current holder`,
+            ),
+          ],
+        },
+        { heading: "We offer" },
+        { list: [`Three friends`, `A playlist`, `Public humiliation, at cost`] },
+        `**To apply:** add a song. ${name}, you're welcome to reapply for your own job. You'd be the favourite. You'd be the only candidate.`,
+        { button: "Apply" },
+        { footer: "This vacancy is re-advertised every 24 hours." },
+      ];
+    },
+  }),
+
+  // 40 — The Book of Bompton
+  written({
+    key: "book-of-bompton",
+    subject: (i) =>
+      `📜 a reading from the Book of Bompton, chapter ${i.weeksBehind}`,
+    headline: (i) => `The Book of Bompton, chapter ${i.weeksBehind}`,
+    body: (i) => {
+      const name = displayCrewName(i.offender);
+      const times =
+        i.weeksBehind === 1
+          ? "once"
+          : i.weeksBehind === 2
+            ? "twice"
+            : `${i.weeksBehind} times`;
+      return [
+        `**1.** And it came to pass that on the sixth day, which is called Friday, the lads did each add a song unto the playlist, and it was good.`,
+        `**2.** But ${name} added not.`,
+        `**3.** And the lads said unto ${name}, Wherefore hast thou not added? And ${name} answered, saying, I shall do it this evening. And he did not do it that evening.`,
+        `**4.** And this came to pass ${times}, and the lads waxed wroth, and they built a machine, that it might send letters.`,
+        `**5.** And the machine spake daily, saying, ${name}, ${name}, why playest thou other songs, and addest not?`,
+        `**6.** Blessed is he that addeth on the Friday, for he shall not receive this email.`,
+        `**7.** But woe unto him that sayeth "tonight", for his name shall be CC'd.`,
+        `Here endeth the lesson.`,
+        { button: "Go, and add" },
+        { footer: "The next reading is in 24 hours. It is the same reading." },
+      ];
+    },
+  }),
 ];
 
 // Public so the rotation can pick from the list without importing the array.
@@ -1083,6 +1926,16 @@ function standingsSorted(
   });
 }
 
+// "Friday, Nov 6".
+function formatFridayShort(d: Date): string {
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function formatFriday(d: Date): string {
   return d.toLocaleDateString("en-US", {
     weekday: "long",
@@ -1100,4 +1953,97 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for personas written as blocks.
+// ---------------------------------------------------------------------------
+
+// A persona whose body is written once, as blocks, and rendered into both
+// parts of the email. The headline is the big line at the top of the HTML
+// part; it defaults to the subject.
+function written(p: {
+  key: string;
+  subject: (i: SubjectInput) => string;
+  headline?: (i: LateAddEmailInput) => string;
+  body: (i: LateAddEmailInput) => Block[];
+}): Persona {
+  const render = (i: LateAddEmailInput) =>
+    renderBlocks(p.body(i), {
+      text: (label) => renderPlaylistLineText(i, label),
+      html: (label) => renderPlaylistButton(i, label),
+    });
+  return {
+    key: p.key,
+    subject: p.subject,
+    text: (i) => render(i).text,
+    html: (i) =>
+      wrapHtml(escapeHtml((p.headline ?? p.subject)(i)), render(i).html),
+  };
+}
+
+type CrewName = "Ben" | "Evan" | "Sachin" | "Sam";
+
+// The line written for whoever is being roasted. `otherwise` is for a crew
+// member who joined after the persona was written.
+function forOffender<T>(
+  i: Pick<LateAddEmailInput, "offender">,
+  lines: Record<CrewName, T>,
+  otherwise: T,
+): T {
+  const name = displayCrewName(i.offender);
+  return Object.prototype.hasOwnProperty.call(lines, name)
+    ? lines[name as CrewName]
+    : otherwise;
+}
+
+// One line per crew member, least behind first.
+function standingsList(i: LateAddEmailInput): Block {
+  return {
+    list: standingsSorted(i.standings).map((row) => {
+      const status =
+        row.missedCount === 0 ? "caught up" : `${row.missedCount} behind`;
+      const you = row.member.id === i.offender.id ? " — **that's you**" : "";
+      return `${displayCrewName(row.member)}: ${status}${you}`;
+    }),
+  };
+}
+
+// The crew members who owe nothing, as "Sam", "Sam and Ben" or "Sam, Ben and
+// Sachin". Null when everybody owes something.
+function caughtUpNames(i: LateAddEmailInput): string | null {
+  const names = standingsSorted(i.standings)
+    .filter((row) => row.missedCount === 0)
+    .map((row) => displayCrewName(row.member));
+  if (names.length === 0) return null;
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+// Whole calendar days, in the crew's time zone, between a moment and now:
+// 0 is today, 1 is yesterday.
+function daysSince(date: Date): number {
+  const dayNumber = (d: Date) => {
+    // en-CA formats a date as YYYY-MM-DD.
+    const [year, month, day] = d
+      .toLocaleDateString("en-CA", { timeZone: CREW_TIME_ZONE })
+      .split("-")
+      .map(Number);
+    return Date.UTC(year, month - 1, day) / 86_400_000;
+  };
+  return Math.max(0, dayNumber(new Date()) - dayNumber(date));
+}
+
+// "Thursday at 3:50pm", in the crew's time zone.
+function formatDayAndTime(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: CREW_TIME_ZONE,
+  }).formatToParts(date);
+  const part = (type: string) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("weekday")} at ${part("hour")}:${part("minute")}${part("dayPeriod").toLowerCase()}`;
 }

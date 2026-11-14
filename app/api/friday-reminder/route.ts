@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { CURRENT_BOMPTON_YEAR } from "@/lib/bompton";
+import {
+  BOMPTON_YEARS,
+  CURRENT_BOMPTON_YEAR,
+  fridaysBetween,
+  seasonEnd,
+  seasonStart,
+  type CrewMember,
+} from "@/lib/bompton";
 import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
+import { loadCrew } from "@/lib/crew";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import {
   FRIDAY_REMINDER_PERSONA_KEYS,
@@ -11,11 +19,13 @@ import {
   scheduledPersonaFor,
   sendFridayReminderEmail,
 } from "@/lib/friday-reminder-email";
+import { findLateAdders } from "@/lib/late-add-detection";
 import {
   loadFridayPersonaHistory,
   nextPersonaIndex,
   type PersonaHistory,
 } from "@/lib/persona-rotation";
+import { displayCrewName } from "@/lib/spotify-user-names";
 
 export const dynamic = "force-dynamic";
 
@@ -73,17 +83,10 @@ async function handle(request: NextRequest) {
 
   const fridayDate = currentFridayUtc(new Date());
 
-  let crewRecords: { email: string | null }[];
+  let crew: CrewMember[];
   let data;
   try {
-    [crewRecords, data] = await Promise.all([
-      prisma.user.findMany({
-        where: { accounts: { some: { provider: "spotify" } } },
-        select: { email: true },
-        orderBy: { createdAt: "asc" },
-      }),
-      loadBomptonDataFromDb(),
-    ]);
+    [crew, data] = await Promise.all([loadCrew(), loadBomptonDataFromDb()]);
   } catch (error) {
     const name = error instanceof Error ? error.name : "PrismaError";
     const message = error instanceof Error ? error.message : String(error);
@@ -97,8 +100,8 @@ async function handle(request: NextRequest) {
     );
   }
 
-  const recipients = crewRecords
-    .map((u) => u.email)
+  const recipients = crew
+    .map((m) => m.email)
     .filter((e): e is string => typeof e === "string" && e.length > 0);
 
   if (recipients.length === 0) {
@@ -174,6 +177,34 @@ async function handle(request: NextRequest) {
     personaHistory,
   );
 
+  // Where the season and each crew member stand as the email goes out, for
+  // the personas that quote it. Same counting as the late-add roasts, so the
+  // two emails never disagree about who owes what.
+  const seasonEndAt = seasonEnd(CURRENT_BOMPTON_YEAR);
+  const week = fridaysBetween(
+    seasonStart(CURRENT_BOMPTON_YEAR),
+    fridayDate.getTime() > seasonEndAt.getTime() ? seasonEndAt : fridayDate,
+  ).length;
+  const owed = findLateAdders(data, crew).perMemberSummary.map((s) => ({
+    name: displayCrewName(s.member),
+    songs: s.missedFridayCount,
+  }));
+  const closedSeasons = BOMPTON_YEARS.slice(
+    0,
+    BOMPTON_YEARS.indexOf(CURRENT_BOMPTON_YEAR),
+  ).map((season) => {
+    const tracks = data.find((d) => d.year === season)?.tracks ?? [];
+    return {
+      season,
+      added: crew.map((member) => ({
+        name: displayCrewName(member),
+        songs: tracks.filter(
+          (t) => member.spotifyUserId && t.added_by?.id === member.spotifyUserId,
+        ).length,
+      })),
+    };
+  });
+
   if (dryRun) {
     // A scheduled one-off pinned to this Friday overrides the rotation; report
     // it so an operator can confirm the right email is queued for the week.
@@ -186,6 +217,9 @@ async function handle(request: NextRequest) {
       scheduledPersonaKey: scheduled?.key ?? null,
       personaIndex,
       personaKey: FRIDAY_REMINDER_PERSONA_KEYS[personaIndex],
+      week,
+      owed,
+      closedSeasons,
       recipients,
       playlistUrl,
     });
@@ -198,6 +232,9 @@ async function handle(request: NextRequest) {
       playlistUrl,
       fridayDate,
       personaIndex,
+      week,
+      owed,
+      closedSeasons,
     });
     try {
       await prisma.fridayReminderNotification.create({

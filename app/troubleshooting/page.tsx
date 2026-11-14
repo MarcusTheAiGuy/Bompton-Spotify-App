@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { CREW_TIME_ZONE, loadCrew } from "@/lib/crew";
+import { CREW_TIME_ZONE } from "@/lib/bompton";
+import { loadCrew } from "@/lib/crew";
 import { FRIDAY_REMINDER_PERSONA_KEYS } from "@/lib/friday-reminder-email";
 import { LATE_ADD_PERSONA_KEYS } from "@/lib/late-add-email";
 import {

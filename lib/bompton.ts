@@ -11,6 +11,10 @@ export const BOMPTON_YEARS = [
 
 export type BomptonYear = (typeof BOMPTON_YEARS)[number];
 
+// Where the crew lives. Timestamps are stored in UTC; convert with this
+// before saying anything about a local date or hour.
+export const CREW_TIME_ZONE = "America/Halifax";
+
 // The current season. The rule ("one song every Friday") applies to this one;
 // earlier seasons are just history.
 export const CURRENT_BOMPTON_YEAR: BomptonYear = "2026-2027";
