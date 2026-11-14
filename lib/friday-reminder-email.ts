@@ -25,9 +25,8 @@ export type FridayReminderEmailInput = {
   // The Friday this reminder fires on. Rendered into the copy so the
   // email isn't just "it's Friday" with no anchor.
   fridayDate: Date;
-  // Index into PERSONAS for the weekly rotation. The caller (route)
-  // tracks the cursor; we modulo into the list so the input can never
-  // go out of bounds even if the caller forgets.
+  // Index into PERSONAS, chosen by the caller (see lib/persona-rotation.ts).
+  // We modulo into the list so it can never go out of bounds.
   personaIndex: number;
 };
 
@@ -123,10 +122,11 @@ export async function sendFridayReminderEmail(
 }
 
 // ---------------------------------------------------------------------------
-// Persona registry. Rotates once per successful weekly send (the route
-// advances the cursor by counting prior successful sends). Append new
-// entries to the end of PERSONAS to extend the rotation — historical sends
-// still resolve by ordinal position because we never delete or reorder.
+// Persona registry. Which one goes out next is decided in
+// lib/persona-rotation.ts: a persona that has never been sent goes before any
+// that has, in the order they appear here, and after that it's whichever has
+// waited longest. So a batch appended to the end is used straight away. Sends
+// are remembered by `key`, so renaming a key makes that persona count as new.
 //
 // House style: hype and unhinged, but celebratory rather than a roast.
 // This goes to the whole crew at once, so nobody is the target — the
@@ -1157,9 +1157,10 @@ const PERSONAS: Persona[] = [
   },
 ];
 
-// Public so the route can seed the rotation cursor without importing the
-// array directly.
-export const FRIDAY_REMINDER_PERSONA_COUNT = PERSONAS.length;
+// Public so the rotation can pick from the list without importing the array.
+export const FRIDAY_REMINDER_PERSONA_KEYS: readonly string[] = PERSONAS.map(
+  (p) => p.key,
+);
 
 // ---------------------------------------------------------------------------
 // Scheduled one-off personas. Unlike PERSONAS (which rotate weekly and stay
@@ -1169,9 +1170,9 @@ export const FRIDAY_REMINDER_PERSONA_COUNT = PERSONAS.length;
 // Friday the reminder is *for* (YYYY-MM-DD) — the same `weekOf` the route
 // dedupes on. When a send's fridayDate matches a key here, this persona wins
 // over the rotation (see sendFridayReminderEmail); any other week falls through
-// to the rotating PERSONAS. The rotation cursor is unaffected — it counts
-// successful sends regardless of which persona fired, so a pinned week doesn't
-// desync the wheel; it just means that week's slot showed a one-off instead.
+// to the rotating PERSONAS. A pinned week doesn't use up a turn: the rotation
+// goes by which personas have actually been sent, so whichever one was due
+// simply goes out the following Friday.
 //
 // To queue another one-off: add an entry keyed on its Friday's YYYY-MM-DD.
 const SCHEDULED_PERSONAS: Record<string, Persona> = {

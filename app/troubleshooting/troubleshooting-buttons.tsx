@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  createCrewExportLink,
   initArtistTable,
   initCachedSpotifyResponseTable,
   initFridayReminderTable,
@@ -11,6 +12,7 @@ import {
   initUserPlaylistLinkTable,
   resetArtistCache,
   resetPlaylistSyncState,
+  type CreateCrewExportLinkResult,
   type InitArtistTableResult,
   type InitCachedResponseTableResult,
   type InitFridayReminderTableResult,
@@ -333,6 +335,86 @@ export function ResetArtistCacheButton() {
         <p className="whitespace-pre-wrap text-xs text-red-300">
           {result.error}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function CrewExportLinkButton() {
+  const [pending, startTransition] = useTransition();
+  const [result, setResult] = useState<CreateCrewExportLinkResult | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+
+  function onCreate() {
+    setResult(null);
+    setCopied(false);
+    setCopyError(null);
+    startTransition(async () => {
+      setResult(await createCrewExportLink());
+    });
+  }
+
+  const url = result?.ok ? `${window.location.origin}${result.path}` : null;
+
+  // Copying gets its own click. iOS Safari drops the clipboard permission
+  // when writeText() runs after an await, so it can't share one with the
+  // request that creates the link.
+  function onCopy() {
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(
+      () => setCopied(true),
+      (error: unknown) =>
+        setCopyError(
+          `Clipboard write failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Select the link in the box above and copy it by hand.`,
+        ),
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={onCreate}
+        disabled={pending}
+        className="btn-spotify self-start disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Creating…" : "Create export link"}
+      </button>
+      {result && !result.ok ? (
+        <p className="whitespace-pre-wrap text-xs text-red-300">
+          {result.error}
+        </p>
+      ) : null}
+      {result?.ok && url ? (
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-spotify-green">
+            Link created. It works without signing in until{" "}
+            {new Date(result.expiresAt).toLocaleString()}.
+          </p>
+          <input
+            readOnly
+            value={url}
+            onFocus={(e) => e.currentTarget.select()}
+            className="w-full rounded-lg border border-spotify-border bg-black/40 p-3 font-mono text-[11px] text-spotify-subtext"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={onCopy} className="btn-spotify">
+              {copied ? "Copied ✓" : "Copy link"}
+            </button>
+            <a
+              href={`${url}&download=1`}
+              className="text-sm text-spotify-subtext underline"
+            >
+              or download the file
+            </a>
+          </div>
+          {copyError ? (
+            <p className="whitespace-pre-wrap text-xs text-red-300">
+              {copyError}
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

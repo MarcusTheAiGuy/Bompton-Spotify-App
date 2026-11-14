@@ -1,13 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { CURRENT_BOMPTON_YEAR, type CrewMember } from "@/lib/bompton";
 import { loadBomptonDataFromDb } from "@/lib/bompton-playlist-db";
+import { loadCrew } from "@/lib/crew";
 import { findLateAdders } from "@/lib/late-add-detection";
 import {
-  LATE_ADD_PERSONA_COUNT,
+  LATE_ADD_PERSONA_KEYS,
   LateAddEmailConfigError,
   LateAddEmailSendError,
   sendLateAddEmail,
 } from "@/lib/late-add-email";
+import {
+  loadLateAddPersonaHistory,
+  nextPersonaIndex,
+  type PersonaHistory,
+} from "@/lib/persona-rotation";
 
 // Core of POST /api/late-add-notifications, extracted so it can run either
 // behind the route (session- or cron-authed HTTP call) OR directly
@@ -40,33 +46,10 @@ export async function runLateAddNotifications({
   // For log lines only — "vercel-cron" for the cron, the user id otherwise.
   callerId: string;
 }): Promise<RunLateAddNotificationsResult> {
-  let crewRecords: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    image: string | null;
-    accounts: { providerAccountId: string }[];
-  }[];
+  let crew: CrewMember[];
   let data;
   try {
-    [crewRecords, data] = await Promise.all([
-      prisma.user.findMany({
-        where: { accounts: { some: { provider: "spotify" } } },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          image: true,
-          accounts: {
-            where: { provider: "spotify" },
-            select: { providerAccountId: true },
-            take: 1,
-          },
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-      loadBomptonDataFromDb(),
-    ]);
+    [crew, data] = await Promise.all([loadCrew(), loadBomptonDataFromDb()]);
   } catch (error) {
     const name = error instanceof Error ? error.name : "PrismaError";
     const message = error instanceof Error ? error.message : String(error);
@@ -79,14 +62,6 @@ export async function runLateAddNotifications({
       },
     };
   }
-
-  const crew: CrewMember[] = crewRecords.map((u) => ({
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    image: u.image,
-    spotifyUserId: u.accounts[0]?.providerAccountId ?? null,
-  }));
 
   const detection = findLateAdders(
     data,
@@ -127,26 +102,23 @@ export async function runLateAddNotifications({
 
   const outcomes: Outcome[] = [];
 
-  // Round-robin roast rotation. The persona index for the next send is
-  // the count of successful sends so far modulo the persona list length.
-  // Counting successful (resendId IS NOT NULL) rows means failed sends
-  // do NOT burn a slot — the next try gets the same persona. We then
-  // increment locally per successful send so a batch hitting 2+ offenders
-  // walks the rotation forward correctly without a fresh DB read each time.
-  let rotationCursor: number;
+  // Roast rotation: see lib/persona-rotation.ts. Roasts that have never been
+  // sent go first, then whichever has waited longest. Only successful sends
+  // count, so a failed send is retried with the same roast. The history is
+  // read once and updated as each send goes out, so a run with 2+ offenders
+  // gives each of them a different roast.
+  let personaHistory: PersonaHistory;
   try {
-    rotationCursor = await prisma.lateAddNotification.count({
-      where: { resendId: { not: null } },
-    });
+    personaHistory = await loadLateAddPersonaHistory(crew);
   } catch (error) {
     const name = error instanceof Error ? error.name : "PrismaError";
     const message = error instanceof Error ? error.message : String(error);
     if (/does not exist/i.test(message)) {
       // Table not initialized — let the per-offender cooldown lookup raise
       // the user-actionable config-error with the troubleshooting link.
-      rotationCursor = 0;
+      personaHistory = new Map();
     } else {
-      console.error("[late-add-notifications.rotation-count.failed]", {
+      console.error("[late-add-notifications.persona-history.failed]", {
         callerId,
         name,
         message,
@@ -155,7 +127,7 @@ export async function runLateAddNotifications({
         status: 500,
         body: {
           error: name,
-          message: `Failed to read LateAddNotification count for persona rotation: ${message}. Check DATABASE_URL.`,
+          message: `Failed to read LateAddNotification for the roast rotation: ${message}. Check DATABASE_URL.`,
         },
       };
     }
@@ -223,17 +195,26 @@ export async function runLateAddNotifications({
       continue;
     }
 
+    const personaIndex = nextPersonaIndex(
+      LATE_ADD_PERSONA_KEYS,
+      personaHistory,
+    );
+    const personaKey = LATE_ADD_PERSONA_KEYS[personaIndex];
+
     if (dryRun) {
+      // Report the roast this offender would get, and count it as sent so the
+      // next offender in the run is shown the one after it.
+      personaHistory.set(personaKey, Date.now());
       outcomes.push({
         userId: offender.member.id,
         userLabel,
         weeksBehind: offender.weeksBehind,
         status: "skipped-dry-run",
+        personaKey,
       });
       continue;
     }
 
-    const personaIndex = rotationCursor % LATE_ADD_PERSONA_COUNT;
     try {
       const result = await sendLateAddEmail({
         offender: offender.member,
@@ -246,7 +227,7 @@ export async function runLateAddNotifications({
         playlistUrl,
         personaIndex,
       });
-      rotationCursor += 1;
+      personaHistory.set(personaKey, Date.now());
       try {
         await prisma.lateAddNotification.create({
           data: {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { createCrewExportPath } from "@/lib/crew-export-link";
 import { prisma } from "@/lib/prisma";
 
 // Server actions used by /troubleshooting buttons. Each requires a
@@ -497,6 +498,32 @@ export async function initListeningPlayTable(): Promise<InitListeningPlayTableRe
     return {
       ok: false,
       error: `DDL failed: ${error instanceof Error ? `${error.name}: ${error.message}` : String(error)}. Check DATABASE_URL and that the Prisma connection has CREATE TABLE privileges.`,
+    };
+  }
+}
+
+export type CreateCrewExportLinkResult =
+  | { ok: true; path: string; expiresAt: string }
+  | { ok: false; error: string };
+
+// Mints a link to GET /api/crew-export that works without a session for the
+// next 24 hours, so the export can be handed to someone who can't sign in.
+// See lib/crew-export-link.ts.
+export async function createCrewExportLink(): Promise<CreateCrewExportLinkResult> {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      ok: false,
+      error: "Unauthorized: sign in with your Spotify account first.",
+    };
+  }
+  try {
+    const { path, expiresAt } = createCrewExportPath();
+    return { ok: true, path, expiresAt: expiresAt.toISOString() };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Couldn't create the export link: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
