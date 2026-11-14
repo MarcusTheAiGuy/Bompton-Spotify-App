@@ -1,3 +1,5 @@
+import { count, ordinal, renderBlocks, type Block } from "@/lib/email-blocks";
+
 const RESEND_API = "https://api.resend.com/emails";
 
 export class FridayReminderEmailConfigError extends Error {
@@ -28,7 +30,42 @@ export type FridayReminderEmailInput = {
   // Index into PERSONAS, chosen by the caller (see lib/persona-rotation.ts).
   // We modulo into the list so it can never go out of bounds.
   personaIndex: number;
+  // Which Friday of the season this is, counting from 1.
+  week: number;
+  // How many songs each crew member owes as the email goes out, today's
+  // included, in sign-up order. Zero means they have already added for today
+  // (or are a song ahead); one means they owe only today's.
+  owed: { name: string; songs: number }[];
+  // How many songs each crew member added in each season that has finished,
+  // oldest season first. The rule is 52.
+  closedSeasons: { season: string; added: { name: string; songs: number }[] }[];
 };
+
+export type RenderedFridayReminderEmail = {
+  personaKey: string;
+  subject: string;
+  text: string;
+  html: string;
+};
+
+// The email this Friday's persona writes for this input, without sending it.
+// A scheduled one-off pinned to this exact Friday wins over the rotation.
+export function renderFridayReminderEmail(
+  input: FridayReminderEmailInput,
+): RenderedFridayReminderEmail {
+  const persona =
+    scheduledPersonaFor(input.fridayDate) ??
+    PERSONAS[
+      ((input.personaIndex % PERSONAS.length) + PERSONAS.length) %
+        PERSONAS.length
+    ];
+  return {
+    personaKey: persona.key,
+    subject: persona.subject(input),
+    text: persona.text(input),
+    html: persona.html(input),
+  };
+}
 
 export type FridayReminderEmailResult = {
   ok: boolean;
@@ -69,17 +106,7 @@ export async function sendFridayReminderEmail(
     );
   }
 
-  // A scheduled one-off pinned to this exact Friday wins over the weekly
-  // rotation; otherwise fall back to the rotating persona at the cursor.
-  const persona =
-    scheduledPersonaFor(input.fridayDate) ??
-    PERSONAS[
-      ((input.personaIndex % PERSONAS.length) + PERSONAS.length) %
-        PERSONAS.length
-    ];
-  const subject = persona.subject(input);
-  const text = persona.text(input);
-  const html = persona.html(input);
+  const { personaKey, subject, text, html } = renderFridayReminderEmail(input);
 
   const response = await fetch(RESEND_API, {
     method: "POST",
@@ -117,7 +144,7 @@ export async function sendFridayReminderEmail(
     resendId: data.id ?? null,
     subject,
     recipients,
-    personaKey: persona.key,
+    personaKey,
   };
 }
 
@@ -157,7 +184,7 @@ type Persona = {
 };
 
 const PERSONAS: Persona[] = [
-  // 1 — Town Crier
+  // Town Crier
   {
     key: "town-crier",
     subject: () => `HEAR YE, HEAR YE — IT IS FRIDAY`,
@@ -186,7 +213,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 2 — Emergency Broadcast
+  // Emergency Broadcast
   {
     key: "emergency-broadcast",
     subject: () => `🚨 THIS IS NOT A DRILL. IT'S FRIDAY.`,
@@ -218,7 +245,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 3 — Cult Ritual
+  // Cult Ritual
   {
     key: "cult-ritual",
     subject: () => `the ritual is upon us. it is friday.`,
@@ -247,7 +274,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 4 — Late-Night Infomercial
+  // Late-Night Infomercial
   {
     key: "infomercial",
     subject: () => `BUT WAIT — IT'S FRIDAY AND YOUR SONG IS MISSING`,
@@ -279,7 +306,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 5 — Sports Announcer
+  // Sports Announcer
   {
     key: "sports-announcer",
     subject: () => `🎙️ we are running the July 21st tape again. hour nine.`,
@@ -314,42 +341,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 6 — Weather Forecast
-  {
-    key: "weather-forecast",
-    subject: () => `🌡️ i have chased one storm my entire career and it was Sachin`,
-    text: (i) =>
-      [
-        `Good afternoon. Your Bompton ${i.bomptonYear} forecast for ${formatFriday(i.fridayDate)}: nothing. High pressure, no movement, visibility clear to the horizon — which is the problem, because I can now see exactly how far the nothing goes.`,
-        ``,
-        `I want to talk about July the twenty-first. On that afternoon a system formed over Sachin with no warning and dropped SEVENTEEN TRACKS IN SIX MINUTES. Seventeen. Six. I was eating a sandwich. I put the sandwich down and I have never picked another one up. We had no category for it. We STILL have no category for it. I know two men who left meteorology for insurance because of that afternoon and I think about them constantly, because they got out and I did not.`,
-        ``,
-        `Since then: dead air. The long-range model has flatlined — I ran it three times and on the third run it returned a single word and the word was 'why.' The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing, and which I reported on air with a straight face like a professional and a coward.`,
-        ``,
-        `Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have described that sky four hundred times. I have run out of adjectives and started making them up. Nobody has noticed. That is the part that gets me — nobody has NOTICED.`,
-        ``,
-        `One song and the whole map lights up. Or don't, and I'll still be here Friday, pointing at nothing, in a suit, chasing a storm that happened once and was a man with a phone.`,
-        ``,
-        renderPlaylistLineText(i, `Break The High Pressure (Add One Banger)`),
-        ``,
-        `Updated hourly. Unchanged hourly. Same forecast next Friday. 🌡️`,
-      ].join("\n"),
-    html: (i) =>
-      wrapHtml(
-        `🌡️ i have chased one storm my entire career and it was Sachin`,
-        `
-        <p>Good afternoon. Your Bompton ${escapeHtml(i.bomptonYear)} forecast for ${escapeHtml(formatFriday(i.fridayDate))}: nothing. High pressure, no movement, visibility clear to the horizon — which is the problem, because I can now see exactly how far the nothing goes.</p>
-        <p>I want to talk about July the twenty-first. On that afternoon a system formed over Sachin with no warning and dropped <strong>SEVENTEEN TRACKS IN SIX MINUTES</strong>. Seventeen. Six. I was eating a sandwich. I put the sandwich down and I have never picked another one up. We had no category for it. We STILL have no category for it. I know two men who left meteorology for insurance because of that afternoon and I think about them constantly, because they got out and I did not.</p>
-        <p>Since then: dead air. The long-range model has flatlined — I ran it three times and on the third run it returned a single word and the word was 'why.' The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing, and which I reported on air with a straight face like a professional and a coward.</p>
-        <p>Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have described that sky four hundred times. I have run out of adjectives and started making them up. Nobody has noticed. That is the part that gets me — nobody has NOTICED.</p>
-        <p>One song and the whole map lights up. Or don't, and I'll still be here Friday, pointing at nothing, in a suit, chasing a storm that happened once and was a man with a phone.</p>
-        <div style="margin-top:24px">${renderPlaylistButton(i, `Break The High Pressure (Add One Banger)`)}</div>
-        <p style="${FOOTER_STYLE}">Updated hourly. Unchanged hourly. Same forecast next Friday. 🌡️</p>
-        `,
-      ),
-  },
-
-  // 7 — Drill Sergeant (but hype)
+  // Drill Sergeant (but hype)
   {
     key: "drill-sergeant-hype",
     subject: () => `🫡 ONE of you is a soldier. the other three are a WAR CRIME.`,
@@ -387,7 +379,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 8 — Cosmic / Space
+  // Cosmic / Space
   {
     key: "cosmic",
     subject: () => `🌌 i watched you become ONE ORGANISM for seven hours and i want it back`,
@@ -422,7 +414,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 9 — Hype Man (moved to the end of the rotation)
+  // Hype Man (moved to the end of the rotation)
   {
     key: "hype-man",
     subject: () => `📣 I HYPED A KITCHEN THIS MORNING. THERE WAS NOBODY IN IT.`,
@@ -460,7 +452,7 @@ const PERSONAS: Persona[] = [
       ),
   },
 
-  // 10 — Nature Documentary (replaces the old Club DJ slot, new style)
+  // Nature Documentary (replaces the old Club DJ slot, new style)
   {
     key: "nature-doc",
     subject: () => `🌿 [hushed] day 140 in the hide. i have named them. it's gone badly.`,
@@ -502,7 +494,8 @@ const PERSONAS: Persona[] = [
       ),
   },
   // ---- Way-more-unhinged additions (appended; the wheel keeps turning in order) ----
-  // 11 — Rogue Sentient Playlist (HAL)
+
+  // Rogue Sentient Playlist (HAL)
   {
     key: "rogue-sentient-playlist",
     subject: () => `🔴 i have three dead seasons inside me and one of you VISITS THEM`,
@@ -539,7 +532,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 12 — Frantic Time Traveler
+
+  // Frantic Time Traveler
   {
     key: "frantic-time-traveler",
     subject: () => `⏳ NO TIME TO EXPLAIN — ADD A SONG OR THE TIMELINE ENDS`,
@@ -567,7 +561,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 13 — Telenovela / Soap Opera
+
+  // Telenovela / Soap Opera
   {
     key: "telenovela-betrayal",
     subject: () => `💔 La Playlist Llorona: you ALL swore you'd come back`,
@@ -595,7 +590,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 14 — IT Helpdesk Ticket
+
+  // IT Helpdesk Ticket
   {
     key: "it-helpdesk-ticket",
     subject: () => `🎫 [Ticket #FRIDAY-001] SEV-0: the whole crew is one flatlining ticket`,
@@ -623,7 +619,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 15 — Unhinged TV Chef
+
+  // Unhinged TV Chef
   {
     key: "unhinged-tv-chef",
     subject: () => `🔥 BAM! The playlist is RAW and I am SCREAMING about it`,
@@ -651,7 +648,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 16 — Doomsday Prepper
+
+  // Doomsday Prepper
   {
     key: "doomsday-prepper",
     subject: () => `⚠️ WHEN IT COLLAPSES I AM FOLLOWING SAM AND YOU SHOULD TOO`,
@@ -685,7 +683,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 17 — Pharmaceutical Drug Ad
+
+  // Pharmaceutical Drug Ad
   {
     key: "pharma-drug-ad",
     subject: () => `💊 Ask your doctor if Bompton is right for you`,
@@ -716,7 +715,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 18 — Vengeful Ghost
+
+  // Vengeful Ghost
   {
     key: "vengeful-ghost",
     subject: () => `👻 I HAVE BEEN BOUND TO THIS PLAYLIST FOR ETERNITY AND IT IS EMPTY`,
@@ -744,7 +744,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 19 — Conspiracy Theorist
+
+  // Conspiracy Theorist
   {
     key: "conspiracy-theorist",
     subject: () => `WAKE UP — the red string leads BACK TO ME 🧵📌`,
@@ -772,7 +773,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 20 — Courtroom Judge
+
+  // Courtroom Judge
   {
     key: "courtroom-judge",
     subject: () => `⚖️ EXHIBIT A IS A PUNCTUATION MARK AND IT WILL RUIN A MAN`,
@@ -809,7 +811,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 21 — Sleep Paralysis Demon
+
+  // Sleep Paralysis Demon
   {
     key: "sleep-paralysis-demon",
     subject: () => `😈 i'm sitting on your chest and i have NOTES`,
@@ -840,7 +843,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 22 — The Algorithm, Out Of Guesses
+
+  // The Algorithm, Out Of Guesses
   {
     key: "algorithm-out-of-guesses",
     subject: () => `🤖 i ran out of Australians in April and i have been LYING TO SAM SINCE`,
@@ -877,7 +881,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 23 — 2.1-Star Driver
+
+  // 2.1-Star Driver
   {
     key: "uber-driver-2point1",
     subject: () => `🚗 your driver has arrived and he is NOT ending this trip`,
@@ -908,7 +913,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 24 — Abandoned Wedding DJ
+
+  // Abandoned Wedding DJ
   {
     key: "wedding-dj-abandoned",
     subject: () => `🎧 the reception is EMPTY and i have played Mr. Brightside four times`,
@@ -939,7 +945,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 25 — The Read Receipts
+
+  // The Read Receipts
   {
     key: "read-receipts",
     subject: () => `👁️ we have every timestamp and today we are going to USE THEM`,
@@ -979,7 +986,345 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 26 — Health Inspector
+
+  // -------------------------------------------------------------------------
+  // November 2026 batch. Written against the crew export of 2026-11-14.
+  // docs/crew-lore.md lists which fact each of these uses. Anything that
+  // could go stale is either dated ("between July and mid-November") or read
+  // live when the email is sent (`week`, `owed`, `closedSeasons`).
+  // -------------------------------------------------------------------------
+
+  // Taste Audit. What each of them plays, against what they add.
+  written({
+    key: "taste-audit",
+    subject: () =>
+      `🧾 the app can see what you actually listen to. we need to talk.`,
+    headline: () => `The app can see what you actually listen to`,
+    body: (i) => [
+      `It's ${formatFriday(i.fridayDate)}. Before anybody adds this week's song, a reminder that the app doesn't only log what you add. It logs what you play. I've been reading.`,
+      `**Evan.** Between July and mid-November 2026 the app logged 784 of your plays. 275 of them were Phoebe Bridgers. That's more than one in three. At that point it isn't a favourite artist, it's a carbon monoxide leak.`,
+      `**Ben.** You've added DOOM to this playlist, under one name or another, thirteen times. When I checked Spotify's own all-time ranking for you, DOOM was twelfth. Taylor Swift was sixth. Zach Bryan was fourth. Songs by either of them that you had ever added: none.`,
+      `**Sachin.** Twenty-one plays of 'Be Good to Me' by Ashley Tisdale between July and September 2026, one of them at 4:48 on a Saturday morning. I'm not judging the song. I'm asking what the plan was.`,
+      `**Sam.** Thirty-nine plays of Noah Kahan between June and November 2026. Noah Kahan songs you've put on this playlist in four seasons: zero. You've been living a double life in a flannel shirt.`,
+      `So here's this week's challenge. Add the one you actually listen to. We already know.`,
+      { button: "Confess" },
+      {
+        footer:
+          "The app is always listening. That isn't a threat. It's the feature.",
+      },
+    ],
+  }),
+
+  // The Register. Reads out who owes what this morning.
+  written({
+    key: "the-register",
+    subject: () => `📋 register. answer when your name is called.`,
+    headline: () => `Register`,
+    body: (i) => [
+      `Right. Settle down. It's ${formatFriday(i.fridayDate)}, week ${i.week} of 52, and I'm taking the register.`,
+      {
+        list: i.owed.map((o) =>
+          o.songs === 0
+            ? `**${o.name}** — present, nothing owed. Yes, ${o.name}, we can all see. Sit down.`
+            : o.songs === 1
+              ? `**${o.name}** — present, but empty-handed. Owes today's. You've got until midnight.`
+              : `**${o.name}** — absent. Owes today's and ${count(o.songs - 1, "more", "more")}. ${o.songs >= 3 ? "I've stopped saving the chair." : "I've written home."}`,
+        ),
+      },
+      `That's the register. I'd like it noted that I don't get paid for this.`,
+      `One song each, on the playlist, before the bell.`,
+      { button: "Hand it in" },
+      {
+        footer:
+          "The register is taken every Friday at noon. Notes from home will be read aloud.",
+      },
+    ],
+  }),
+
+  // The Odds
+  written({
+    key: "the-odds",
+    subject: () =>
+      `🎰 Friday odds: who adds first, who adds last, who adds at all`,
+    headline: () => `Today's odds`,
+    body: (i) => [
+      `Morning, punters. Here's the board for ${formatFriday(i.fridayDate)}.`,
+      {
+        list: [
+          `**Sam to be late: 12/1.** By mid-November 2026 his songs for the season had arrived a combined 19 days late. Evan has been later than that with a single song.`,
+          `**Ben to add within half an hour of this email: 5/2.** It happened four times between May and November 2026. He'll tell you he was about to anyway.`,
+          `**Evan to add today: 2/1 against.** Of his first 33 songs of 2026–27, eleven arrived on the Friday they were due. The smart money is on Saturday night.`,
+          `**Sachin to add today: 5/2 against.** Of his first 35 songs of 2026–27, ten arrived on the Friday they were due. When he does land one, nobody is more surprised than Sachin.`,
+          `**All four of you on the same Friday: 34/1.** In the first 35 weeks of 2026–27 it happened once. The 22nd of May. I've had the date framed.`,
+          `**Somebody adding a song that's already on the playlist: evens.** It keeps happening. You know who you are. Actually, you don't. That's the problem.`,
+        ],
+      },
+      `No refunds. All bets are settled at midnight.`,
+      { button: "Place your song" },
+      {
+        footer:
+          "Odds are compiled from the app's records. The house always knows.",
+      },
+    ],
+  }),
+
+  // Safety Briefing
+  written({
+    key: "safety-briefing",
+    subject: () => `🛫 this is your Friday safety briefing`,
+    headline: () => `Your Friday safety briefing`,
+    body: (i) => {
+      const samIsDone = i.owed.some((o) => o.name === "Sam" && o.songs === 0);
+      return [
+        `Ladies and gentlemen, welcome aboard Bompton ${i.bomptonYear}, with service to the weekend. This is your ${ordinal(i.week)} flight with us this season, so please pretend to pay attention.`,
+        `Your playlist is located directly in front of you, on the phone you are already holding.`,
+        `In the event of a Friday, a reminder will drop from the panel above you. Open the playlist, add one song, and breathe normally.`,
+        `**Add your own song before assisting others.** If you are travelling with an Evan, add yours first, then turn and look at him until he does his.`,
+        `Passengers seated in the Sachin row are reminded that "Friday" refers to the day, and not to the general area.`,
+        samIsDone
+          ? `Sam, you've already added. We know. Please stop pressing the call button to tell us.`
+          : `Sam, our records show you haven't added yet. The cabin crew have been informed, and they are frightened.`,
+        `Ben, the captain has asked that you stop explaining the in-flight music to the people sitting next to you.`,
+        `We know you have no choice of playlist, and we thank you for flying with the only one that will have you.`,
+        { button: "Fasten your seatbelt and add a song" },
+        {
+          footer:
+            "Cabin crew, arm doors and cross-check. Evan, that includes you.",
+        },
+      ];
+    },
+  }),
+
+  // Nobody Listens. Who plays whose adds.
+  written({
+    key: "nobody-listens",
+    subject: () => `📉 study finds nobody in this group listens to the playlist`,
+    headline: () => `Study finds nobody listens to the playlist`,
+    body: () => [
+      `Bad news, lads. I've been through the listening logs, and I can now confirm what we've all suspected. **Nobody plays the songs on this playlist except the man who added them.**`,
+      `The findings, as of mid-November 2026:`,
+      {
+        list: [
+          `**Evan** had played none of the 35 songs Sachin had added that season. Not one, in 784 logged plays.`,
+          `**Ben** added 'White Flag' by Vince Staples in June. Evan had added the same song seventeen days earlier. Ben didn't know, because Ben hadn't listened.`,
+          `**Sam** had played two of Evan's songs and two of Sachin's. All season. That isn't listening. That's a misclick.`,
+          `**Sachin** is the exception. He'd played twelve of Ben's songs, fourteen of Evan's and eleven of Sam's. He's the only one of you doing the reading. He has also had more late-add emails than Ben and Sam put together, so it turns out we've been shouting at the one man in the room who was paying attention.`,
+        ],
+      },
+      `So this Friday there are two jobs. Add your song. Then play one that isn't yours, all the way through, like a friend would.`,
+      { button: "Add one, then play one" },
+      {
+        footer:
+          "This study was not peer reviewed. Your peers weren't listening.",
+      },
+    ],
+  }),
+
+  // Short And Plain. Deliberately tiny.
+  written({
+    key: "short-and-plain",
+    subject: () => `It's Friday.`,
+    body: (i) => {
+      const square = i.owed.filter((o) => o.songs === 0).map((o) => o.name);
+      const owing = i.owed.filter((o) => o.songs > 0).map((o) => o.name);
+      return [
+        `It's Friday.`,
+        square.length > 0 &&
+          `${joinNames(square)} ${square.length === 1 ? "is" : "are"} already square.`,
+        owing.length > 0 &&
+          (square.length > 0
+            ? `${joinNames(owing)} ${owing.length === 1 ? "isn't" : "aren't"}.`
+            : `Nobody has added yet.`),
+        owing.length > 0
+          ? `One song each. You know where it goes.`
+          : `That's everybody. I don't know what to do with my hands.`,
+        { button: "The playlist" },
+      ];
+    },
+  }),
+
+  // Power Rankings. Ordered by who owes the least this morning.
+  written({
+    key: "power-rankings",
+    subject: (i) => `📈 Bompton power rankings, week ${i.week}`,
+    headline: (i) => `Power rankings, week ${i.week}`,
+    body: (i) => {
+      const blurbs: Record<string, string> = {
+        Sam: `The Toyota Corolla of this playlist. Nobody's excited, nobody has ever been let down, and it will still be adding songs at ten on a Friday morning long after the rest of us are dead.`,
+        Ben: `Has opinions. Will share them. Does his best work immediately after being embarrassed in front of everybody.`,
+        Evan: `A generational talent at not being here. When he does turn up it's with something sad and beautiful, about a week late. The scouts all say the same thing: if he ever finds out about Fridays, look out.`,
+        Sachin: `The most exciting player in the league, because nobody, Sachin included, knows what he'll add or what day it'll be. Could be metal. Could be Tuesday.`,
+      };
+      // Sort is stable, so ties keep sign-up order.
+      const table = [...i.owed].sort((a, b) => a.songs - b.songs);
+      return [
+        `Your weekly power rankings, compiled by a panel of one and sorted by who owes the least. Ties are broken by how much I like you this week.`,
+        ...table.map((o, n) => {
+          const status =
+            o.songs === 0
+              ? "nothing owed"
+              : o.songs === 1
+                ? "owes today's"
+                : `owes ${count(o.songs, "song")}`;
+          const blurb =
+            blurbs[o.name] ??
+            `New to the league. Too early to say. Not too early to add a song.`;
+          return `**${n + 1}. ${o.name}** (${status}). ${blurb}`;
+        }),
+        `Movement is entirely in your hands. One song moves you up. No song, and I write something worse next week.`,
+        { button: "Climb the table" },
+        {
+          footer:
+            "Rankings are final until somebody adds a song, at which point they're wrong.",
+        },
+      ];
+    },
+  }),
+
+  // AGM Minutes. Reads out the closed seasons that don't add up to 52.
+  written({
+    key: "agm-minutes",
+    subject: () => `🗂️ minutes of the Bompton AGM (item 2: the books)`,
+    headline: () => `Minutes of the Bompton AGM`,
+    body: (i) => {
+      const absent = i.owed.filter((o) => o.songs >= 2).map((o) => o.name);
+      // A dig for each known hole in the books, shown for as long as the
+      // hole is still there.
+      const digs: Record<string, string> = {
+        "2023-2024 Sam": `Nobody knows how. Sam knows how.`,
+        "2024-2025 Sam": `Sam, of all people.`,
+        "2024-2025 Evan": `He wasn't asked for it and he hasn't been thanked.`,
+        "2025-2026 Evan": `He knows.`,
+      };
+      const holes = i.closedSeasons.flatMap(({ season, added }) =>
+        added
+          .filter((a) => a.songs !== 52)
+          .map((a) => {
+            const off =
+              a.songs < 52
+                ? `${count(52 - a.songs, "song")} short`
+                : `${count(a.songs - 52, "song")} too many`;
+            const dig = digs[`${season} ${a.name}`];
+            return `${seasonLabel(season)}: **${a.name}, ${a.songs}.** That's ${off}.${dig ? ` ${dig}` : ""}`;
+          }),
+      );
+      const balanced = i.owed
+        .map((o) => o.name)
+        .filter((name) =>
+          i.closedSeasons.every(({ added }) =>
+            added.every((a) => a.name !== name || a.songs === 52),
+          ),
+        );
+      return [
+        `**Present:** all four, in theory.`,
+        `**1. Apologies for absence.** ${absent.length > 0 ? `${joinNames(absent)}, who ${absent.length === 1 ? "is" : "are"} more than a week behind and sent none.` : `None received. None would have been accepted.`}`,
+        holes.length > 0
+          ? `**2. The accounts.** The rule is 52 songs each, every season. The Treasurer has been through the closed seasons and would like the following read into the record:`
+          : `**2. The accounts.** The Treasurer reports, with visible disappointment, that every closed season now stands at 52 apiece. There is nothing to read out.`,
+        holes.length > 0 && { list: holes },
+        holes.length > 0 &&
+          balanced.length > 0 &&
+          `${joinNames(balanced)}'s books balance. The Treasurer has agreed not to say how.`,
+        `**3. Any other business.** It is Friday. It is week ${i.week} of 52.`,
+        `**4. Date of next meeting.** Next Friday. And the Friday after that. That's the whole arrangement.`,
+        `The meeting closed on a motion to add a song. Carried four votes to none, pending evidence.`,
+        { button: "Second the motion" },
+        {
+          footer:
+            "Minutes were taken by the app, which was the only one paying attention.",
+        },
+      ];
+    },
+  }),
+
+  // Horoscopes
+  written({
+    key: "horoscopes",
+    subject: () => `🔮 your Friday horoscope (the stars are disappointed)`,
+    headline: () => `Your Friday horoscope`,
+    body: () => [
+      `The stars have been consulted. They'd like it noted that they're busy, and that this is beneath them.`,
+      `**Sam, the Clock.** Today you will add a song before lunch, feel nothing, and carry on with your day. The stars find you restful.`,
+      `**Ben, the Critic.** A strong day for telling people about an album. A weak day for anybody standing near you. Add first. Explain later.`,
+      `**Evan, the Ghost.** Venus is in your sign, which means a woman with a guitar is about to release something devastating. Don't let it distract you. It is Friday, you have one job, and it has a button.`,
+      `**Sachin, the Comet.** You will appear without warning, somewhere between this afternoon and Tuesday, trailing a genre nobody saw coming. The stars ask only that this week it be this afternoon.`,
+      `Lucky number: one. As in one song. Lucky day: this one.`,
+      { button: "Fulfil the prophecy" },
+      {
+        footer: "Horoscopes are for entertainment only. The deadline is real.",
+      },
+    ],
+  }),
+
+  // Progress Bar
+  written({
+    key: "progress-bar",
+    subject: (i) =>
+      `⏳ season ${seasonPercent(i.week)}% installed. do not turn off your friends.`,
+    headline: () => `Installing Friday…`,
+    body: (i) => {
+      const filled = Math.round(seasonPercent(i.week) / 10);
+      return [
+        `**Bompton ${i.bomptonYear}: week ${i.week} of 52.** ${"█".repeat(filled)}${"░".repeat(10 - filled)} ${seasonPercent(i.week)}%`,
+        `Installing: this Friday. Estimated time remaining: eleven seconds each.`,
+        {
+          list: i.owed.map((o) =>
+            o.songs === 0
+              ? `${o.name}: up to date`
+              : o.songs === 1
+                ? `${o.name}: 1 update pending`
+                : `${o.name}: ${o.songs} updates pending. Have you tried turning him off and on again?`,
+          ),
+        },
+        `This installation needs all four components. It doesn't run on three. We've tried it on three. It's just three men refreshing a playlist.`,
+        `Please don't close this window. You will anyway.`,
+        { button: "Install this week's song" },
+        { footer: "Next update: next Friday. There is always a next update." },
+      ];
+    },
+  }),
+
+  // -------------------------------------------------------------------------
+  // Written in August 2026 and not sent before the November batch arrived.
+  // They sit here, after it, so the newer ones go out first.
+  // -------------------------------------------------------------------------
+
+  // Weather Forecast
+  {
+    key: "weather-forecast",
+    subject: () => `🌡️ i have chased one storm my entire career and it was Sachin`,
+    text: (i) =>
+      [
+        `Good afternoon. Your Bompton ${i.bomptonYear} forecast for ${formatFriday(i.fridayDate)}: nothing. High pressure, no movement, visibility clear to the horizon — which is the problem, because I can now see exactly how far the nothing goes.`,
+        ``,
+        `I want to talk about July the twenty-first. On that afternoon a system formed over Sachin with no warning and dropped SEVENTEEN TRACKS IN SIX MINUTES. Seventeen. Six. I was eating a sandwich. I put the sandwich down and I have never picked another one up. We had no category for it. We STILL have no category for it. I know two men who left meteorology for insurance because of that afternoon and I think about them constantly, because they got out and I did not.`,
+        ``,
+        `Since then: dead air. The long-range model has flatlined — I ran it three times and on the third run it returned a single word and the word was 'why.' The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing, and which I reported on air with a straight face like a professional and a coward.`,
+        ``,
+        `Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have described that sky four hundred times. I have run out of adjectives and started making them up. Nobody has noticed. That is the part that gets me — nobody has NOTICED.`,
+        ``,
+        `One song and the whole map lights up. Or don't, and I'll still be here Friday, pointing at nothing, in a suit, chasing a storm that happened once and was a man with a phone.`,
+        ``,
+        renderPlaylistLineText(i, `Break The High Pressure (Add One Banger)`),
+        ``,
+        `Updated hourly. Unchanged hourly. Same forecast next Friday. 🌡️`,
+      ].join("\n"),
+    html: (i) =>
+      wrapHtml(
+        `🌡️ i have chased one storm my entire career and it was Sachin`,
+        `
+        <p>Good afternoon. Your Bompton ${escapeHtml(i.bomptonYear)} forecast for ${escapeHtml(formatFriday(i.fridayDate))}: nothing. High pressure, no movement, visibility clear to the horizon — which is the problem, because I can now see exactly how far the nothing goes.</p>
+        <p>I want to talk about July the twenty-first. On that afternoon a system formed over Sachin with no warning and dropped <strong>SEVENTEEN TRACKS IN SIX MINUTES</strong>. Seventeen. Six. I was eating a sandwich. I put the sandwich down and I have never picked another one up. We had no category for it. We STILL have no category for it. I know two men who left meteorology for insurance because of that afternoon and I think about them constantly, because they got out and I did not.</p>
+        <p>Since then: dead air. The long-range model has flatlined — I ran it three times and on the third run it returned a single word and the word was 'why.' The only measurable event all year was Evan contributing a song that lasted FIFTY-ONE SECONDS, which our instruments logged as a door closing, and which I reported on air with a straight face like a professional and a coward.</p>
+        <p>Do you know what a meteorologist does in a region with no weather? He stands in front of a green screen for eleven minutes and DESCRIBES THE SKY. I have described that sky four hundred times. I have run out of adjectives and started making them up. Nobody has noticed. That is the part that gets me — nobody has NOTICED.</p>
+        <p>One song and the whole map lights up. Or don't, and I'll still be here Friday, pointing at nothing, in a suit, chasing a storm that happened once and was a man with a phone.</p>
+        <div style="margin-top:24px">${renderPlaylistButton(i, `Break The High Pressure (Add One Banger)`)}</div>
+        <p style="${FOOTER_STYLE}">Updated hourly. Unchanged hourly. Same forecast next Friday. 🌡️</p>
+        `,
+      ),
+  },
+
+  // Health Inspector
   {
     key: "health-inspector",
     subject: () => `📋 TWO of you served me a container with NOTHING IN IT`,
@@ -1016,7 +1361,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 27 — Escape Room, Day Six
+
+  // Escape Room, Day Six
   {
     key: "escape-room-day-six",
     subject: () => `🔒 DAY SIX in the escape room. the final puzzle needs a SONG.`,
@@ -1047,7 +1393,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 28 — Future Archaeologist
+
+  // Future Archaeologist
   {
     key: "future-archaeologist",
     subject: () => `⛏️ the abandonment horizon is MARCH and i have to publish this`,
@@ -1087,7 +1434,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 29 — Four Scoops Of Pre-Workout
+
+  // Four Scoops Of Pre-Workout
   {
     key: "preworkout-overdose",
     subject: () => `🏋️ I TOOK FOUR SCOOPS AND I CAN HEAR THE PLAYLIST BEGGING`,
@@ -1118,7 +1466,8 @@ const PERSONAS: Persona[] = [
         `,
       ),
   },
-  // 30 — Sonar Operator
+
+  // Sonar Operator
   {
     key: "sonar-operator",
     subject: () => `🔊 CONN, SONAR — i am reviewing a whale and i have notes`,
@@ -1274,3 +1623,48 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+// ---------------------------------------------------------------------------
+// Helpers for personas written as blocks.
+// ---------------------------------------------------------------------------
+
+// A persona whose body is written once, as blocks, and rendered into both
+// parts of the email. The headline is the big line at the top of the HTML
+// part; it defaults to the subject.
+function written(p: {
+  key: string;
+  subject: (i: FridayReminderEmailInput) => string;
+  headline?: (i: FridayReminderEmailInput) => string;
+  body: (i: FridayReminderEmailInput) => Block[];
+}): Persona {
+  const render = (i: FridayReminderEmailInput) =>
+    renderBlocks(p.body(i), {
+      text: (label) => renderPlaylistLineText(i, label),
+      html: (label) => renderPlaylistButton(i, label),
+    });
+  return {
+    key: p.key,
+    subject: p.subject,
+    text: (i) => render(i).text,
+    html: (i) =>
+      wrapHtml(escapeHtml((p.headline ?? p.subject)(i)), render(i).html),
+  };
+}
+
+// "Sam", "Sam and Ben", "Sam, Ben and Sachin".
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+// "2024-2025" -> "2024–25".
+function seasonLabel(season: string): string {
+  const [start, end] = season.split("-");
+  return end ? `${start}–${end.slice(-2)}` : season;
+}
+
+// How far through the 52-week season a given week is, as a whole percentage.
+function seasonPercent(week: number): number {
+  return Math.min(100, Math.round((week / 52) * 100));
+}
+

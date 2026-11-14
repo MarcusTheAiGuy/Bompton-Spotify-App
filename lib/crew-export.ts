@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import {
   BOMPTON_YEARS,
+  CREW_TIME_ZONE,
   CURRENT_BOMPTON_YEAR,
   matchesBomptonYear,
   type CrewMember,
 } from "@/lib/bompton";
-import { CREW_TIME_ZONE, loadCrew } from "@/lib/crew";
+import { loadCrew } from "@/lib/crew";
 import { FRIDAY_REMINDER_PERSONA_KEYS } from "@/lib/friday-reminder-email";
 import {
   LATE_ADD_PERSONA_KEYS,
